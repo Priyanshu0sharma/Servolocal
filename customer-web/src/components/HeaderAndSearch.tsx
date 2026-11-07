@@ -47,6 +47,7 @@ interface HeaderAndSearchProps {
 
 const PRESET_LOCALITIES = [
   { name: "Kukas, Jaipur (RIICO / Colleges)", lat: 27.0544, lng: 75.8942 },
+  { name: "Jaipur Division, Rajasthan", lat: 26.9124, lng: 75.7873 },
   { name: "Kunda, Amer (Highway Hub)", lat: 26.9945, lng: 75.8612 },
   { name: "Amer Fort & Bazar, Jaipur", lat: 26.9855, lng: 75.8513 },
   { name: "Dundlod Town (Main Bazar)", lat: 27.8732, lng: 75.2536 },
@@ -190,25 +191,22 @@ export default function HeaderAndSearch({
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all select-none">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4">
-        {/* ── Brand Logo & Location ───────────────────────────────── */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* ── Brand Logo & Location (Blinkit Style) ─────────────── */}
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <div className="flex items-center gap-2 cursor-pointer">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-emerald-500/20 shadow-sm bg-white shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl overflow-hidden border border-emerald-500/20 shadow-sm bg-white shrink-0 p-0.5">
               <Image
                 src="/logo.jpeg"
-                alt="ServoLocal Logo"
+                alt="ServoLocal"
                 width={40}
                 height={40}
                 priority
-                className="object-cover w-full h-full"
+                className="object-cover w-full h-full rounded-xl"
               />
             </div>
             <div className="hidden sm:block">
-              <span className="text-base font-black tracking-tight text-slate-900 block leading-tight">
-                Servo<span className="text-emerald-500">Local</span>
-              </span>
-              <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block">
-                ⚡ 15 Mins Delivery
+              <span className="text-xl font-black tracking-tight text-slate-900 block leading-tight">
+                servo<span className="text-[#0C831F]">local</span>
               </span>
             </div>
           </div>
@@ -216,18 +214,15 @@ export default function HeaderAndSearch({
           {/* Locality Selector Pill */}
           <button
             onClick={() => setIsLocalityModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-left transition-all max-w-[150px] sm:max-w-[210px]"
+            className="text-left px-2 py-1.5 rounded-xl hover:bg-slate-50 transition-all max-w-[160px] sm:max-w-[220px]"
           >
-            <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <div className="truncate">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">
-                Delivering to
-              </p>
-              <p className="text-xs font-bold text-slate-800 truncate leading-tight">
-                {currentLocality}
-              </p>
-            </div>
-            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-auto" />
+            <p className="text-xs sm:text-sm font-black text-slate-900 leading-tight">
+              Delivery in 12 minutes
+            </p>
+            <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 leading-snug">
+              <span className="truncate">{currentLocality}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 inline" />
+            </p>
           </button>
         </div>
 
@@ -368,35 +363,35 @@ export default function HeaderAndSearch({
             </div>
           )}
 
-          {/* User Profile / Login Button */}
+          {/* User Profile / Login Button (Blinkit Style) */}
           {user ? (
             <button
               onClick={onLogout}
               title="Logged in - Click to logout"
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1"
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black transition-all flex items-center gap-1.5"
             >
-              <User className="w-4 h-4 text-emerald-600" />
+              <User className="w-3.5 h-3.5 text-emerald-600" />
               <span className="hidden sm:inline max-w-[80px] truncate">{user.name}</span>
             </button>
           ) : (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black transition-all shadow-xs"
+              className="px-3.5 py-2 text-slate-800 hover:text-[#0C831F] text-sm font-bold transition-all cursor-pointer"
             >
               Login
             </button>
           )}
 
-          {/* Green Cart Button */}
+          {/* Green Cart Button (Blinkit Signature) */}
           <button
             onClick={onOpenCart}
-            className="px-3.5 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95"
+            className="px-4 py-2.5 rounded-xl bg-[#0C831F] hover:bg-[#0A6D1A] text-white font-black text-xs sm:text-sm shadow-md transition-all flex items-center gap-2 active:scale-95 cursor-pointer"
           >
             <ShoppingBag className="w-4 h-4" />
             <div className="flex items-center gap-1.5">
-              <span>₹{totalCartValue.toFixed(0)}</span>
+              <span>{totalCartItems > 0 ? `₹${totalCartValue.toFixed(0)}` : "My Cart"}</span>
               {totalCartItems > 0 && (
-                <span className="w-5 h-5 rounded-full bg-white text-emerald-700 font-extrabold text-[11px] flex items-center justify-center">
+                <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-white font-mono text-[11px]">
                   {totalCartItems}
                 </span>
               )}

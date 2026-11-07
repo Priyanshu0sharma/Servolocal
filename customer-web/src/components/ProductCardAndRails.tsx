@@ -179,34 +179,34 @@ function SingleProductCard({
         {hasVariants ? (
           <button
             onClick={() => onSelectVariants(product)}
-            className="px-2.5 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-50 text-emerald-600 font-black text-xs transition-all active:scale-95 shadow-sm"
+            className="px-3 py-1.5 rounded-lg border-2 border-[#0C831F] bg-[#F7FFF9] hover:bg-[#0C831F] text-[#0C831F] hover:text-white font-extrabold text-[11px] uppercase transition-all active:scale-95 shadow-2xs cursor-pointer"
           >
             OPTIONS
           </button>
         ) : qty === 0 ? (
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onAddToCart(product)}
-            className="px-3 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-500 text-emerald-600 hover:text-white font-black text-xs transition-all shadow-sm flex items-center gap-1"
+            className="px-4 py-1.5 rounded-lg border-2 border-[#0C831F] bg-[#F7FFF9] hover:bg-[#0C831F] text-[#0C831F] hover:text-white font-extrabold text-xs uppercase transition-all active:scale-95 shadow-2xs cursor-pointer"
           >
-            <span>ADD</span>
+            ADD
           </motion.button>
         ) : (
           <motion.div
-            initial={{ scale: 0.9 }}
+            initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
-            className="flex items-center bg-emerald-500 text-white rounded-xl overflow-hidden shadow-sm"
+            className="flex items-center bg-[#0C831F] text-white rounded-lg overflow-hidden shadow-xs"
           >
             <button
               onClick={() => onUpdateCartQuantity(product.id, qty - 1)}
-              className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
+              className="px-2 py-1.5 hover:bg-[#0A6D1A] transition-colors"
             >
               <Minus className="w-3 h-3" />
             </button>
             <span className="px-2 font-black text-xs font-mono">{qty}</span>
             <button
               onClick={() => onUpdateCartQuantity(product.id, qty + 1)}
-              className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
+              className="px-2 py-1.5 hover:bg-[#0A6D1A] transition-colors"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -239,18 +239,21 @@ export default function ProductCardAndRails({
 
   return (
     <section className="py-4 select-none">
-      {/* ── Rail Header ────────────────────────────────────────────── */}
+      {/* ── Rail Header (Blinkit Style) ─────────────────────────── */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+          <h2 className="text-base sm:text-xl font-black text-slate-900 tracking-tight">
             {title}
           </h2>
           {badge && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200">
               {badge}
             </span>
           )}
         </div>
+        <span className="text-xs sm:text-sm font-extrabold text-[#0C831F] hover:underline cursor-pointer">
+          see all
+        </span>
       </div>
 
       {/* ── Horizontal Scroll Container ────────────────────────────── */}

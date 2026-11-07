@@ -20,8 +20,7 @@ import {
   RefreshCw,
   Search,
   ChevronRight,
-  Send,
-  HeartHandshake
+  Send
 } from "lucide-react";
 import {
   getDiscoveryFeed,
@@ -39,23 +38,88 @@ import HeaderAndSearch from "@/components/HeaderAndSearch";
 import ProductCardAndRails from "@/components/ProductCardAndRails";
 import SmartCartDrawer from "@/components/SmartCartDrawer";
 import LiveOrderTrackerAndReview from "@/components/LiveOrderTrackerAndReview";
+import BlinkitUnserviceableState from "@/components/BlinkitUnserviceableState";
 
-// 14 Iconic Quick Categories Grid (Blinkit Standard)
+// 14 Iconic Quick Categories Grid (Blinkit Standard with Real Thumbnail Clusters)
 const CATEGORY_GRID = [
-  { name: "Snacks & Munchies", icon: "🍟", query: "Chips", color: "bg-amber-50 text-amber-900 border-amber-200" },
-  { name: "Dairy, Bread & Eggs", icon: "🥛", query: "Dairy", color: "bg-blue-50 text-blue-900 border-blue-200" },
-  { name: "Cold Drinks & Juices", icon: "🥤", query: "Cold Drinks", color: "bg-cyan-50 text-cyan-900 border-cyan-200" },
-  { name: "Breakfast & Instant Food", icon: "🍜", query: "Breakfast", color: "bg-yellow-50 text-yellow-900 border-yellow-200" },
-  { name: "Sweet Tooth", icon: "🍫", query: "Sweet Tooth", color: "bg-pink-50 text-pink-900 border-pink-200" },
-  { name: "Bakery & Biscuits", icon: "🍪", query: "Bakery", color: "bg-orange-50 text-orange-900 border-orange-200" },
-  { name: "Tea, Coffee & Drinks", icon: "☕", query: "Tea", color: "bg-emerald-50 text-emerald-900 border-emerald-200" },
-  { name: "Atta, Rice & Dal", icon: "🌾", query: "Atta", color: "bg-stone-50 text-stone-900 border-stone-200" },
-  { name: "Masala, Oil & More", icon: "🧂", query: "Masala", color: "bg-red-50 text-red-900 border-red-200" },
-  { name: "Sauces & Spreads", icon: "🥫", query: "Sauces", color: "bg-purple-50 text-purple-900 border-purple-200" },
-  { name: "Cleaning Essentials", icon: "🧼", query: "Cleaning", color: "bg-teal-50 text-teal-900 border-teal-200" },
-  { name: "Personal Care", icon: "🧴", query: "Personal Care", color: "bg-indigo-50 text-indigo-900 border-indigo-200" },
-  { name: "Clothes & Fabrics", icon: "👕", query: "Clothes", color: "bg-violet-50 text-violet-900 border-violet-200" },
-  { name: "3D Prints & Custom", icon: "🖨️", query: "Custom", color: "bg-slate-50 text-slate-900 border-slate-200" },
+  {
+    name: "Dairy, Bread & Eggs",
+    img: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200&auto=format&fit=crop&q=80",
+    query: "Dairy",
+    bg: "bg-blue-50/60",
+  },
+  {
+    name: "Snacks & Munchies",
+    img: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=200&auto=format&fit=crop&q=80",
+    query: "Chips",
+    bg: "bg-amber-50/60",
+  },
+  {
+    name: "Cold Drinks & Juices",
+    img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80",
+    query: "Cold Drinks",
+    bg: "bg-cyan-50/60",
+  },
+  {
+    name: "Breakfast & Instant Food",
+    img: "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=200&auto=format&fit=crop&q=80",
+    query: "Breakfast",
+    bg: "bg-yellow-50/60",
+  },
+  {
+    name: "Sweet Tooth",
+    img: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=200&auto=format&fit=crop&q=80",
+    query: "Sweet Tooth",
+    bg: "bg-pink-50/60",
+  },
+  {
+    name: "Bakery & Biscuits",
+    img: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=200&auto=format&fit=crop&q=80",
+    query: "Bakery",
+    bg: "bg-orange-50/60",
+  },
+  {
+    name: "Tea, Coffee & Drinks",
+    img: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&auto=format&fit=crop&q=80",
+    query: "Tea",
+    bg: "bg-emerald-50/60",
+  },
+  {
+    name: "Atta, Rice & Dal",
+    img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80",
+    query: "Atta",
+    bg: "bg-stone-50/60",
+  },
+  {
+    name: "Masala, Oil & More",
+    img: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=200&auto=format&fit=crop&q=80",
+    query: "Masala",
+    bg: "bg-red-50/60",
+  },
+  {
+    name: "Cleaning Essentials",
+    img: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200&auto=format&fit=crop&q=80",
+    query: "Cleaning",
+    bg: "bg-teal-50/60",
+  },
+  {
+    name: "Personal Care",
+    img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80",
+    query: "Personal Care",
+    bg: "bg-indigo-50/60",
+  },
+  {
+    name: "Clothes & Fabrics",
+    img: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=200&auto=format&fit=crop&q=80",
+    query: "Clothes",
+    bg: "bg-violet-50/60",
+  },
+  {
+    name: "3D Prints & Custom",
+    img: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=200&auto=format&fit=crop&q=80",
+    query: "Custom",
+    bg: "bg-slate-50/60",
+  },
 ];
 
 export default function CustomerHomePage() {
@@ -66,10 +130,8 @@ export default function CustomerHomePage() {
   const [feedData, setFeedData] = useState<DiscoveryFeedResponse | null>(null);
   const [loadingFeed, setLoadingFeed] = useState(true);
 
-  // User & Guest session state
+  // User session state
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [initializingAuth, setInitializingAuth] = useState(true);
 
   // Cart & UI state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -79,37 +141,47 @@ export default function CustomerHomePage() {
   // Active tracking order state
   const [activeOrder, setActiveOrder] = useState<OrderCheckoutResponse["order"] | null>(null);
 
-  // Area Demand Request Form State
-  const [demandPhone, setDemandPhone] = useState("");
-  const [demandSubmitted, setDemandSubmitted] = useState(false);
-  const [submittingDemand, setSubmittingDemand] = useState(false);
+  // 1. Automatic GPS Location Detection on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCurrentLat(lat);
+          setCurrentLng(lng);
+          // Auto label Jaipur Division
+          setCurrentLocality("Jaipur Division, Rajasthan");
+        },
+        () => {
+          // If denied, fallback to default Kukas, Jaipur
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    }
+  }, []);
 
-  // Check user session on initial load
+  // 2. Check user session on initial load
   useEffect(() => {
     const token = localStorage.getItem("servo_token");
     if (token) {
       getMe()
-        .then((userData) => {
-          setUser(userData);
-        })
+        .then((userData) => setUser(userData))
         .catch(() => {
           localStorage.removeItem("servo_token");
           setUser(null);
-        })
-        .finally(() => setInitializingAuth(false));
-    } else {
-      setInitializingAuth(false);
+        });
     }
   }, []);
 
-  // Fetch Discovery Feed
+  // 3. Fetch Discovery Feed from live Neon DB
   const fetchFeed = async () => {
     setLoadingFeed(true);
     try {
       const data = await getDiscoveryFeed(currentLat, currentLng, activeMode, currentLocality);
       setFeedData(data);
     } catch {
-      // Graceful fallback to demo data
+      // Handled gracefully
     } finally {
       setLoadingFeed(false);
     }
@@ -155,8 +227,8 @@ export default function CustomerHomePage() {
           quantity: 1,
           variant_id: variantId,
           pack_label: packLabel,
-          shop_id: product.shop_id || 101,
-          shop_name: product.shop_name || "ServoLocal Store",
+          shop_id: product.shop_id || 1,
+          shop_name: product.shop_name || "Sharma Ji Daily Kirana",
         },
       ];
     });
@@ -178,32 +250,21 @@ export default function CustomerHomePage() {
     });
   };
 
-  // Handle Area Demand Submission
-  const handleSubmitDemand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!demandPhone.trim()) return;
-
-    setSubmittingDemand(true);
-    try {
-      await submitAreaDemand({
-        lat: currentLat,
-        lng: currentLng,
-        locality_name: currentLocality,
-        phone_or_email: demandPhone.trim(),
-      });
-      setDemandSubmitted(true);
-    } catch {
-      setDemandSubmitted(true);
-    } finally {
-      setSubmittingDemand(false);
-    }
+  // Area Demand Submission
+  const handleSubmitDemand = async (phone: string) => {
+    await submitAreaDemand({
+      lat: currentLat,
+      lng: currentLng,
+      locality_name: currentLocality,
+      phone_or_email: phone,
+    });
   };
 
-  // 1. Real Live Database Products & Shops from Neon PostgreSQL
+  // Real Database Products & Shops
   const allProducts: ProductItem[] = feedData?.all_products || [];
   const shops: ShopItem[] = feedData?.shops || [];
 
-  // Filtered Products for Active Category Tab
+  // Filtered Category Products
   const filteredCategoryProducts = selectedCategory
     ? allProducts.filter((p) => {
         const catObj = CATEGORY_GRID.find((c) => c.name === selectedCategory);
@@ -216,78 +277,85 @@ export default function CustomerHomePage() {
       })
     : [];
 
-  // Dedicated High-Interest Rails
+  // Dedicated Product Rails
   const chipsProducts = allProducts.filter(
     (p) =>
-      p.category === "Snacks & Munchies" ||
-      p.sub_category?.includes("Chips") ||
-      p.sub_category?.includes("Namkeen") ||
-      p.name.toLowerCase().includes("lays") ||
-      p.name.toLowerCase().includes("kurkure") ||
-      p.name.toLowerCase().includes("bingo") ||
-      p.name.toLowerCase().includes("bhujia")
+      p.category === "Kirana" &&
+      (p.sub_category?.includes("Chips") ||
+        p.name.toLowerCase().includes("lays") ||
+        p.name.toLowerCase().includes("kurkure") ||
+        p.name.toLowerCase().includes("bingo") ||
+        p.name.toLowerCase().includes("bhujia") ||
+        p.name.toLowerCase().includes("snack"))
   );
 
   const dairyProducts = allProducts.filter(
     (p) =>
-      p.category === "Dairy, Bread & Eggs" ||
-      p.sub_category?.includes("Dairy") ||
-      p.sub_category?.includes("Bread") ||
-      p.sub_category?.includes("Eggs") ||
+      p.category?.toLowerCase().includes("dairy") ||
+      p.sub_category?.toLowerCase().includes("dairy") ||
+      p.sub_category?.toLowerCase().includes("bread") ||
       p.name.toLowerCase().includes("milk") ||
-      p.name.toLowerCase().includes("butter")
+      p.name.toLowerCase().includes("butter") ||
+      p.name.toLowerCase().includes("bread") ||
+      p.name.toLowerCase().includes("egg")
   );
 
   const coldDrinksProducts = allProducts.filter(
     (p) =>
-      p.category === "Cold Drinks & Juices" ||
-      p.sub_category?.includes("Cold Drinks") ||
+      p.category?.toLowerCase().includes("drink") ||
+      p.sub_category?.toLowerCase().includes("drink") ||
       p.name.toLowerCase().includes("coca") ||
       p.name.toLowerCase().includes("sprite") ||
       p.name.toLowerCase().includes("juice") ||
-      p.name.toLowerCase().includes("red bull")
+      p.name.toLowerCase().includes("frooti") ||
+      p.name.toLowerCase().includes("pepsi")
   );
 
   const instantProducts = allProducts.filter(
     (p) =>
-      p.category === "Breakfast & Instant Food" ||
+      p.sub_category?.toLowerCase().includes("instant") ||
       p.name.toLowerCase().includes("maggi") ||
-      p.name.toLowerCase().includes("noodles") ||
+      p.name.toLowerCase().includes("noodle") ||
       p.name.toLowerCase().includes("chocos")
   );
 
   const sweetsProducts = allProducts.filter(
     (p) =>
-      p.category === "Sweet Tooth" ||
+      p.category === "Sweets" ||
+      p.sub_category?.toLowerCase().includes("sweet") ||
       p.name.toLowerCase().includes("silk") ||
-      p.name.toLowerCase().includes("kitkat") ||
-      p.name.toLowerCase().includes("chocolate")
+      p.name.toLowerCase().includes("chocolate") ||
+      p.name.toLowerCase().includes("gulab jamun") ||
+      p.name.toLowerCase().includes("kaju")
   );
 
   const bakeryProducts = allProducts.filter(
     (p) =>
-      p.category === "Bakery & Biscuits" ||
+      p.category === "Bakery" ||
+      p.sub_category?.toLowerCase().includes("biscuit") ||
       p.name.toLowerCase().includes("parle") ||
       p.name.toLowerCase().includes("biscuit") ||
-      p.name.toLowerCase().includes("cookies")
+      p.name.toLowerCase().includes("cookie") ||
+      p.name.toLowerCase().includes("oreo")
   );
 
   const staplesProducts = allProducts.filter(
     (p) =>
-      p.category === "Atta, Rice & Dal" ||
-      p.category === "Masala, Oil & More" ||
+      p.sub_category?.toLowerCase().includes("atta") ||
+      p.sub_category?.toLowerCase().includes("oil") ||
       p.name.toLowerCase().includes("atta") ||
       p.name.toLowerCase().includes("oil") ||
-      p.name.toLowerCase().includes("salt")
+      p.name.toLowerCase().includes("salt") ||
+      p.name.toLowerCase().includes("rice")
   );
 
   const panIndiaProducts = allProducts.filter(
-    (p) => p.is_pan_india_eligible || p.category === "Clothes & Fabrics" || p.category === "3D Prints & Custom"
+    (p) => p.is_pan_india_eligible || p.category === "Clothes" || p.category === "Custom/3D"
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex flex-col select-none">
-      {/* ── 1. Sticky Navbar & Search ──────────────────────────────── */}
+    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col select-none">
+      {/* ── 1. Sticky Navbar & Search (Exact Blinkit Style) ────────── */}
       <HeaderAndSearch
         currentLocality={currentLocality}
         onLocalityChange={handleLocalityChange}
@@ -296,112 +364,152 @@ export default function CustomerHomePage() {
         cart={cart}
         onOpenCart={() => setIsCartOpen(true)}
         user={user}
-        onLoginSuccess={(u) => {
-          setUser(u);
-          setIsGuest(false);
-        }}
+        onLoginSuccess={(u) => setUser(u)}
         onLogout={() => {
           localStorage.removeItem("servo_token");
           setUser(null);
-          setIsGuest(false);
         }}
         onAddToCart={handleAddToCart}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 space-y-6">
-        {/* ── 2. Hero Promotional Banner (Blinkit Clean Style) ──────── */}
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white shadow-xl p-5 sm:p-8">
-          <div className="max-w-xl space-y-2.5 relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] sm:text-xs font-black uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 fill-white" />
-              <span>Instant Local Delivery in 15-20 Mins</span>
+        {/* ── 2. Promotional Banners Row (Blinkit Image 1 Style) ────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 select-none">
+          {/* Card 1: Medicines & Daily Care */}
+          <div className="rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white p-5 flex flex-col justify-between relative overflow-hidden shadow-xs hover:shadow-md transition-all min-h-[160px]">
+            <div className="relative z-10 max-w-[65%] space-y-1">
+              <span className="px-2 py-0.5 rounded-md bg-white/20 text-[10px] font-black uppercase tracking-wider">
+                12-15 Mins
+              </span>
+              <h3 className="text-base sm:text-lg font-black leading-tight pt-1">
+                Pharmacy & Daily Care at your doorstep!
+              </h3>
+              <p className="text-[11px] text-teal-100 font-medium">
+                Balms, pain relief, health drinks & daily essentials
+              </p>
             </div>
+            <div className="pt-3 relative z-10">
+              <button
+                onClick={() => setSelectedCategory("Personal Care")}
+                className="px-3.5 py-1.5 rounded-xl bg-white text-teal-900 font-black text-xs hover:bg-teal-50 transition-all shadow-xs cursor-pointer"
+              >
+                Order Now
+              </button>
+            </div>
+            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-85 pointer-events-none">
+              <img
+                src="https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&auto=format&fit=crop&q=80"
+                alt="Pharmacy"
+                className="w-full h-full object-contain drop-shadow-md"
+              />
+            </div>
+          </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
-              Daily essentials, snacks & drinks at your doorstep.
-            </h1>
-
-            <p className="text-xs sm:text-sm text-emerald-50 font-medium leading-relaxed max-w-md">
-              Order fresh milk, chips, cold drinks, and street treats from your local Kukas neighborhood shops with zero surge fees.
-            </p>
-
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+          {/* Card 2: Chips & Midnight Munchies */}
+          <div className="rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 flex flex-col justify-between relative overflow-hidden shadow-xs hover:shadow-md transition-all min-h-[160px]">
+            <div className="relative z-10 max-w-[65%] space-y-1">
+              <span className="px-2 py-0.5 rounded-md bg-white/20 text-[10px] font-black uppercase tracking-wider">
+                Instant Munchies
+              </span>
+              <h3 className="text-base sm:text-lg font-black leading-tight pt-1">
+                Midnight snacks & crisps at your door!
+              </h3>
+              <p className="text-[11px] text-amber-100 font-medium">
+                Lay&apos;s, Kurkure, nachos & spicy namkeen
+              </p>
+            </div>
+            <div className="pt-3 relative z-10">
               <button
                 onClick={() => {
                   const el = document.getElementById("snacks-rail");
                   el?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="px-5 py-2.5 rounded-2xl bg-white text-emerald-800 font-black text-xs sm:text-sm hover:bg-emerald-50 transition-all shadow-md active:scale-95 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white text-orange-950 font-black text-xs hover:bg-orange-50 transition-all shadow-xs cursor-pointer"
               >
-                Shop Now
+                Order Now
               </button>
-              <div className="flex items-center gap-3 text-[11px] sm:text-xs text-emerald-100 font-bold">
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                  <span>Free delivery on ₹150+</span>
-                </span>
-                <span className="hidden sm:inline opacity-50">•</span>
-                <span className="hidden sm:inline">Direct UPI 0% Fees</span>
-              </div>
+            </div>
+            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-85 pointer-events-none">
+              <img
+                src="https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=300&auto=format&fit=crop&q=80"
+                alt="Snacks"
+                className="w-full h-full object-contain drop-shadow-md"
+              />
             </div>
           </div>
 
-          {/* Aesthetic Floating Badge Background */}
-          <div className="absolute right-4 bottom-2 top-2 w-1/3 opacity-20 pointer-events-none flex items-center justify-end">
-            <ShoppingBag className="w-48 h-48 text-white" />
+          {/* Card 3: Fresh Dairy & Morning Breakfast */}
+          <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-5 flex flex-col justify-between relative overflow-hidden shadow-xs hover:shadow-md transition-all min-h-[160px]">
+            <div className="relative z-10 max-w-[65%] space-y-1">
+              <span className="px-2 py-0.5 rounded-md bg-white/20 text-[10px] font-black uppercase tracking-wider">
+                Fresh Daily
+              </span>
+              <h3 className="text-base sm:text-lg font-black leading-tight pt-1">
+                Morning dairy, fresh bread & eggs!
+              </h3>
+              <p className="text-[11px] text-blue-100 font-medium">
+                Amul Milk, butter, brown bread & farm eggs
+              </p>
+            </div>
+            <div className="pt-3 relative z-10">
+              <button
+                onClick={() => setSelectedCategory("Dairy, Bread & Eggs")}
+                className="px-3.5 py-1.5 rounded-xl bg-white text-blue-950 font-black text-xs hover:bg-blue-50 transition-all shadow-xs cursor-pointer"
+              >
+                Order Now
+              </button>
+            </div>
+            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-85 pointer-events-none">
+              <img
+                src="https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80"
+                alt="Dairy"
+                className="w-full h-full object-contain drop-shadow-md"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── 3. Category Quick Grid (Blinkit 14-Tile Grid) ─────────── */}
-        <div className="space-y-3">
+        {/* ── 3. Category Grid (Exact Blinkit Image 1 Replica) ───────── */}
+        <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                Explore Categories
-              </h2>
-              <span className="text-[11px] font-extrabold text-slate-400">
-                (Tap to filter items)
-              </span>
-            </div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              Explore Categories
+            </h2>
             {selectedCategory && (
               <button
                 onClick={() => setSelectedCategory(null)}
-                className="text-xs text-emerald-600 font-black hover:underline cursor-pointer"
+                className="text-xs text-[#0C831F] font-black hover:underline cursor-pointer"
               >
                 Show All Categories
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
+          <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-7 gap-2.5 sm:gap-3">
             {CATEGORY_GRID.map((cat) => {
               const isSelected = selectedCategory === cat.name;
               return (
                 <button
                   key={cat.name}
                   onClick={() => {
-                    if (isSelected) {
-                      setSelectedCategory(null);
-                    } else {
-                      setSelectedCategory(cat.name);
-                    }
+                    setSelectedCategory(isSelected ? null : cat.name);
                   }}
-                  className={`p-2 sm:p-3 rounded-2xl border transition-all flex flex-col items-center text-center group cursor-pointer relative ${
+                  className={`p-2.5 rounded-2xl border transition-all flex flex-col items-center text-center group cursor-pointer relative ${
                     isSelected
-                      ? "bg-emerald-500 text-white border-emerald-600 shadow-md scale-102"
-                      : "bg-white border-slate-100 shadow-xs hover:shadow-md hover:border-emerald-200"
+                      ? "bg-emerald-50 border-[#0C831F] shadow-sm scale-102"
+                      : "bg-[#F9FAFB] border-slate-100/80 hover:bg-white hover:shadow-md hover:border-slate-200"
                   }`}
                 >
-                  <div
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${
-                      isSelected ? "bg-white/20 text-white" : cat.color
-                    } flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 transition-transform`}
-                  >
-                    {cat.icon}
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1 mb-1.5 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
+                    <img
+                      src={cat.img}
+                      alt={cat.name}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   <span
-                    className={`text-[10px] sm:text-xs font-bold line-clamp-2 leading-tight ${
-                      isSelected ? "text-white" : "text-slate-800"
+                    className={`text-[11px] sm:text-xs font-bold line-clamp-2 leading-tight ${
+                      isSelected ? "text-[#0C831F]" : "text-slate-800"
                     }`}
                   >
                     {cat.name}
@@ -412,35 +520,28 @@ export default function CustomerHomePage() {
           </div>
         </div>
 
-        {/* ── Active Category Filtered Products ─────────────────────── */}
+        {/* ── Active Filtered Rail ───────────────────────────────────── */}
         {selectedCategory && (
-          <div className="p-4 rounded-3xl bg-white border border-emerald-200 shadow-sm">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">
-                  {CATEGORY_GRID.find((c) => c.name === selectedCategory)?.icon || "📦"}
-                </span>
-                <div>
-                  <h3 className="text-sm sm:text-base font-black text-slate-900">
-                    {selectedCategory}
-                  </h3>
-                  <p className="text-[11px] text-emerald-600 font-bold">
-                    {filteredCategoryProducts.length > 0
-                      ? `${filteredCategoryProducts.length} items available right now`
-                      : "Showing matching demo recommendations"}
-                  </p>
-                </div>
+          <div className="p-4 rounded-3xl bg-slate-50/70 border border-slate-200">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {selectedCategory}
+                </h3>
+                <p className="text-[11px] text-[#0C831F] font-bold">
+                  {filteredCategoryProducts.length} items available in store
+                </p>
               </div>
               <button
                 onClick={() => setSelectedCategory(null)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-black transition-colors"
               >
                 Clear Filter ✕
               </button>
             </div>
 
             <ProductCardAndRails
-              title={`Items in ${selectedCategory}`}
+              title={`All in ${selectedCategory}`}
               products={filteredCategoryProducts}
               cart={cart}
               onAddToCart={handleAddToCart}
@@ -449,52 +550,41 @@ export default function CustomerHomePage() {
           </div>
         )}
 
-        {/* ── 4. Unserviceable Area Fallback (Demand Capture) ───────── */}
+        {/* ── 4. Unserviceable Area Screen (Exact Blinkit Image 2 Replica) */}
         {feedData && !feedData.is_area_serviceable && (
-          <div className="p-5 sm:p-6 rounded-3xl bg-amber-50 border border-amber-200 text-amber-900 shadow-sm space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-2xl bg-amber-200/80 text-amber-800 shrink-0">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm sm:text-base font-black">
-                  Instant 15-Minute Fleet is onboarding stores in {currentLocality}!
-                </h3>
-                <p className="text-xs text-amber-800 leading-relaxed max-w-xl">
-                  Our delivery fleet is rapidly onboarding neighborhood stores in your area. Enter your WhatsApp number below to get notified as soon as local delivery launches in {currentLocality}.
-                </p>
-              </div>
-            </div>
+          <BlinkitUnserviceableState
+            currentLocality={currentLocality}
+            onSelectLocality={handleLocalityChange}
+            onSubmitDemand={handleSubmitDemand}
+            onSwitchToPanIndia={() => setActiveMode("PAN_INDIA")}
+          />
+        )}
 
-            {demandSubmitted ? (
-              <div className="p-3 rounded-xl bg-white border border-emerald-300 text-emerald-700 text-xs font-bold flex items-center gap-2 max-w-md">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>Demand recorded! We are prioritizing fleet routes in your sector.</span>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitDemand} className="flex gap-2 max-w-md">
-                <input
-                  type="text"
-                  value={demandPhone}
-                  onChange={(e) => setDemandPhone(e.target.value)}
-                  placeholder="Enter WhatsApp Number"
-                  required
-                  className="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
-                />
-                <button
-                  type="submit"
-                  disabled={submittingDemand}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-sm shrink-0"
+        {/* ── 5. Skeleton Loading State (While Feed is loading) ─────── */}
+        {loadingFeed && (
+          <div className="space-y-4 pt-2">
+            <div className="h-6 w-48 bg-slate-100 rounded animate-pulse" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div
+                  key={n}
+                  className="rounded-2xl bg-white p-3 border border-slate-100 shadow-xs space-y-2 animate-pulse"
                 >
-                  {submittingDemand ? "Saving..." : "Notify Me"}
-                </button>
-              </form>
-            )}
+                  <div className="w-full h-32 bg-slate-100 rounded-xl" />
+                  <div className="w-16 h-3 bg-slate-100 rounded" />
+                  <div className="w-full h-4 bg-slate-100 rounded" />
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="w-12 h-4 bg-slate-100 rounded" />
+                    <div className="w-14 h-7 bg-slate-100 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* ── 5. Product Rails (Never Empty) ─────────────────────────── */}
-        {/* Rail A: Featured Local Shops & Stalls */}
+        {/* ── 6. Product Rails (Real Live Neon DB Data Only) ─────────── */}
+        {/* Rail A: Featured Neighborhood Stores */}
         {activeMode === "LOCAL" && shops.length > 0 && (
           <ProductCardAndRails
             title="Featured Neighborhood Stores & Stalls"
@@ -532,7 +622,7 @@ export default function CustomerHomePage() {
           />
         )}
 
-        {/* Rail D: Cold Drinks, Juices & Refreshments */}
+        {/* Rail D: Cold Drinks & Juices */}
         {coldDrinksProducts.length > 0 && (
           <ProductCardAndRails
             title="Cold Drinks, Juices & Energy Boosters"
@@ -556,7 +646,7 @@ export default function CustomerHomePage() {
           />
         )}
 
-        {/* Rail F: Chocolates & Sweet Tooth */}
+        {/* Rail F: Chocolates & Sweets */}
         {sweetsProducts.length > 0 && (
           <ProductCardAndRails
             title="Chocolates & Sweet Tooth Treats"
@@ -604,8 +694,8 @@ export default function CustomerHomePage() {
           />
         )}
 
-        {/* Fallback All Store Catalog if specific rails are few */}
-        {allProducts.length > 0 && (
+        {/* Fallback All Store Catalog */}
+        {allProducts.length > 0 && chipsProducts.length === 0 && (
           <ProductCardAndRails
             title="All Available Essentials"
             badge="Verified Stock"
@@ -617,12 +707,12 @@ export default function CustomerHomePage() {
         )}
       </main>
 
-      {/* ── 6. Bottom Sticky Cart Bar for Mobile ───────────────────── */}
+      {/* ── 7. Bottom Sticky Cart Bar for Mobile ───────────────────── */}
       {cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 sm:hidden">
           <button
             onClick={() => setIsCartOpen(true)}
-            className="w-full py-3 px-4 rounded-2xl bg-emerald-500 text-white font-black text-xs flex items-center justify-between shadow-lg shadow-emerald-500/30 active:scale-98"
+            className="w-full py-3 px-4 rounded-xl bg-[#0C831F] text-white font-black text-xs flex items-center justify-between shadow-lg active:scale-98"
           >
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-4 h-4" />
@@ -636,7 +726,7 @@ export default function CustomerHomePage() {
         </div>
       )}
 
-      {/* ── 7. Smart Cart Drawer ───────────────────────────────────── */}
+      {/* ── 8. Smart Cart Drawer ───────────────────────────────────── */}
       <SmartCartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -645,12 +735,12 @@ export default function CustomerHomePage() {
         onAddToCart={handleAddToCart}
         onOrderPlaced={(orderData) => {
           setActiveOrder(orderData);
-          setCart([]); // Clear cart upon successful order
+          setCart([]);
         }}
         currentLocality={currentLocality}
       />
 
-      {/* ── 8. Live Order Tracker & Review Popup ────────────────────── */}
+      {/* ── 9. Live Order Tracker & Review Popup ────────────────────── */}
       {activeOrder && (
         <LiveOrderTrackerAndReview
           order={activeOrder}
