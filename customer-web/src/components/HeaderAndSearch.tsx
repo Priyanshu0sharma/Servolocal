@@ -175,8 +175,8 @@ export default function HeaderAndSearch({
     setAuthLoading(true);
     setAuthError("");
     try {
-      const demoToken = `google_oauth_customer_${Date.now()}`;
-      const res = await googleLogin(demoToken, "customer");
+      const targetEmail = authEmail && authEmail.includes("@") ? authEmail.trim() : "customer@servolocal.in";
+      const res = await googleLogin(targetEmail, "customer");
       onLoginSuccess(res.user);
       setIsAuthModalOpen(false);
     } catch (err: any) {

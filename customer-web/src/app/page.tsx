@@ -39,7 +39,6 @@ import HeaderAndSearch from "@/components/HeaderAndSearch";
 import ProductCardAndRails from "@/components/ProductCardAndRails";
 import SmartCartDrawer from "@/components/SmartCartDrawer";
 import LiveOrderTrackerAndReview from "@/components/LiveOrderTrackerAndReview";
-import CustomerAuthScreen from "@/components/CustomerAuthScreen";
 
 // 14 Iconic Quick Categories Grid (Blinkit Standard)
 const CATEGORY_GRID = [
@@ -200,20 +199,7 @@ export default function CustomerHomePage() {
     }
   };
 
-  // 1. Initial Auth Screen Gate (if not logged in and not guest yet)
-  if (!initializingAuth && !user && !isGuest) {
-    return (
-      <CustomerAuthScreen
-        onLoginSuccess={(userData) => {
-          setUser(userData);
-          setIsGuest(false);
-        }}
-        onContinueAsGuest={() => setIsGuest(true)}
-      />
-    );
-  }
-
-  // 2. Real Live Database Products & Shops from Neon PostgreSQL
+  // 1. Real Live Database Products & Shops from Neon PostgreSQL
   const allProducts: ProductItem[] = feedData?.all_products || [];
   const shops: ShopItem[] = feedData?.shops || [];
 

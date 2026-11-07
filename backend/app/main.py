@@ -47,12 +47,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[DATABASE INIT ERROR] {e}")
 
-    # 2. Seed Master Brand Catalog & Super Admin User
+    # 2. Seed Master Brand Catalog, Initial Verified Shops & Super Admin User
     try:
         async with AsyncSessionLocal() as session:
             count = await seed_master_catalog(session)
             print(f"[DATABASE] Master catalog ready ({count} items available).")
             await seed_initial_admin(session)
+            from app.db.seed_catalog import seed_initial_shops_and_inventory
+            await seed_initial_shops_and_inventory(session)
     except Exception as e:
         print(f"[DATABASE SEED ERROR] {e}")
 
