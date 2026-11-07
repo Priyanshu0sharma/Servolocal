@@ -197,6 +197,8 @@ async def add_inventory_from_master(
             sub_category=master_item.sub_category,
             image_url=master_item.image_url,
             gallery_images=master_item.gallery_images or [],
+            variants=getattr(master_item, "variants", []) or [],
+            is_veg=getattr(master_item, "is_veg", True),
             weight_or_size=master_item.default_weight_or_size,
             selling_price=req.selling_price,
             mrp=master_item.mrp,
@@ -347,6 +349,9 @@ async def get_seller_inventory(
             "in_stock": item.in_stock,
             "is_not_listed_custom": item.is_not_listed_custom,
             "is_pan_india_eligible": item.is_pan_india_eligible,
+            "weight_or_size": item.weight_or_size,
+            "variants": getattr(item, "variants", []) or [],
+            "is_veg": getattr(item, "is_veg", True),
             "image_url": item.image_url,
         })
 

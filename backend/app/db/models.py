@@ -79,6 +79,8 @@ class MasterCatalogItem(Base):
     mrp = Column(Float, nullable=False)
     image_url = Column(String(500), nullable=False)
     gallery_images = Column(JSON, default=list, nullable=False)       # List of image URLs
+    variants = Column(JSON, default=list, nullable=True)               # Multi-pack options: [{"id": "var_1", "weight_or_size": "70g", "price": 16.0, "mrp": 20.0, "discount_pct": 20, "is_default": true}, ...]
+    is_veg = Column(Boolean, default=True, nullable=False)             # Indian FSSAI Veg Green Dot [⊡]
     search_keywords = Column(Text, nullable=True)                     # Comma-separated or full-text keywords
     paired_sub_categories = Column(JSON, default=list, nullable=False) # Cross-sell suggestions (e.g. Chai + Biscuits)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -143,6 +145,8 @@ class ShopInventory(Base):
     sub_category = Column(String(100), nullable=True)
     image_url = Column(String(500), nullable=False)
     gallery_images = Column(JSON, default=list, nullable=False)
+    variants = Column(JSON, default=list, nullable=True)               # Inherited or customized multi-pack options
+    is_veg = Column(Boolean, default=True, nullable=False)             # Indian FSSAI Veg Green Dot
     weight_or_size = Column(String(50), nullable=False)
     selling_price = Column(Float, nullable=False)
     mrp = Column(Float, nullable=False)
@@ -229,6 +233,8 @@ class OrderItem(Base):
 
     item_name = Column(String(200), nullable=False)
     weight_or_size = Column(String(50), nullable=True)
+    variant_id = Column(String(50), nullable=True)                    # E.g. "var_1"
+    selected_pack_label = Column(String(100), nullable=True)          # E.g. "2 x 70 g"
     unit_price = Column(Float, nullable=False)
     quantity = Column(Integer, default=1, nullable=False)
     total_price = Column(Float, nullable=False)

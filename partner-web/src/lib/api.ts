@@ -122,6 +122,16 @@ export interface ShopSetupPayload {
   custom_serviceable_areas?: Array<{ area_name: string; eta_label: string; delivery_fee: number }>;
 }
 
+export interface ProductVariant {
+  id: string;
+  weight_or_size: string;
+  unit_count: number;
+  mrp: number;
+  price: number;
+  discount_pct: number;
+  is_default: boolean;
+}
+
 export interface MasterCatalogItem {
   id: number;
   name: string;
@@ -132,6 +142,8 @@ export interface MasterCatalogItem {
   mrp: number;
   image_url: string;
   gallery_images?: string[];
+  variants?: ProductVariant[];
+  is_veg?: boolean;
   search_keywords?: string;
   paired_sub_categories?: string[];
 }
@@ -143,6 +155,7 @@ export interface InventoryItem {
   sub_category?: string;
   selling_price: number;
   mrp: number;
+  weight_or_size?: string;
   available_stock: number;
   total_stock: number;
   low_stock_threshold: number;
@@ -150,6 +163,8 @@ export interface InventoryItem {
   in_stock: boolean;
   is_not_listed_custom: boolean;
   is_pan_india_eligible: boolean;
+  variants?: ProductVariant[];
+  is_veg?: boolean;
   image_url: string;
 }
 
@@ -171,6 +186,8 @@ export interface OrderItem {
   id: number;
   item_name: string;
   weight_or_size?: string;
+  variant_id?: string;
+  selected_pack_label?: string;
   unit_price: number;
   quantity: number;
   total_price: number;

@@ -25,6 +25,8 @@ router = APIRouter(prefix="/api/orders", tags=["Orders & Checkout"])
 class CartItemRequest(BaseModel):
     inventory_id: int
     quantity: int = Field(1, ge=1)
+    variant_id: Optional[str] = None
+    pack_label: Optional[str] = None
 
 
 class CartQuoteRequest(BaseModel):
@@ -87,7 +89,13 @@ async def get_cart_quote(
         )
         inv = (await db.execute(inv_stmt)).scalar_one_or_none()
         if inv:
-            items_total += inv.selling_price * cart_item.quantity
+            item_price = inv.selling_price
+            if cart_item.variant_id and inv.variants:
+                for v in (inv.variants or []):
+                    if v.get("id") == cart_item.variant_id:
+                        item_price = float(v.get("price", item_price))
+                        break
+            items_total += item_price * cart_item.quantity
             item_categories.add(inv.sub_category or inv.category)
 
     # Free delivery logic
@@ -196,7 +204,19 @@ async def checkout_order(
                 detail=f"Only {inv.available_stock} units of '{inv.name}' available in stock"
             )
 
-        line_total = inv.selling_price * item_req.quantity
+        # Multi-pack variant resolution
+        unit_price = inv.selling_price
+        pack_label = inv.weight_or_size
+        if item_req.variant_id and inv.variants:
+            for v in (inv.variants or []):
+                if v.get("id") == item_req.variant_id:
+                    unit_price = float(v.get("price", unit_price))
+                    pack_label = v.get("weight_or_size", pack_label)
+                    break
+        elif item_req.pack_label:
+            pack_label = item_req.pack_label
+
+        line_total = round(unit_price * item_req.quantity, 2)
         items_total += line_total
 
         # Decrement stock
@@ -206,8 +226,10 @@ async def checkout_order(
         order_items_to_create.append({
             "inventory_id": inv.id,
             "item_name": inv.name,
-            "weight_or_size": inv.weight_or_size,
-            "unit_price": inv.selling_price,
+            "weight_or_size": pack_label,
+            "variant_id": item_req.variant_id,
+            "selected_pack_label": pack_label,
+            "unit_price": unit_price,
             "quantity": item_req.quantity,
             "total_price": line_total
         })
@@ -273,6 +295,8 @@ async def checkout_order(
             inventory_id=oi["inventory_id"],
             item_name=oi["item_name"],
             weight_or_size=oi["weight_or_size"],
+            variant_id=oi.get("variant_id"),
+            selected_pack_label=oi.get("selected_pack_label"),
             unit_price=oi["unit_price"],
             quantity=oi["quantity"],
             total_price=oi["total_price"]
