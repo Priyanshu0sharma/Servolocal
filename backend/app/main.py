@@ -1,10 +1,18 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
 from app.db.database import engine, Base, AsyncSessionLocal, check_db_connection
 from app.db.seed_catalog import seed_master_catalog
+
+# ── Import API Routers ───────────────────────────────────────────
 from app.api.routes_auth import router as auth_router
+from app.api.routes_discovery import router as discovery_router
+from app.api.routes_seller import router as seller_router
+from app.api.routes_partner import router as partner_router
+from app.api.routes_orders import router as orders_router
+from app.api.routes_admin import router as admin_router
 
 
 # ── Lifespan Event: Auto Table Creation & Master Catalog Seeding ───
@@ -47,18 +55,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Include Routers ──────────────────────────────────────────────
+# ── Mount Complete Platform API Routers ──────────────────────────
 app.include_router(auth_router)
+app.include_router(discovery_router)
+app.include_router(seller_router)
+app.include_router(partner_router)
+app.include_router(orders_router)
+app.include_router(admin_router)
 
 
 # ── Root Endpoint ────────────────────────────────────────────────
 @app.get("/")
 async def root():
     return {
-        "app": "ServoLocal API",
+        "app": "ServoLocal High-Speed API",
         "version": settings.VERSION,
         "status": "running",
         "docs": "/docs",
+        "endpoints": {
+            "auth": "/api/auth",
+            "discovery": "/api/discovery",
+            "seller": "/api/seller",
+            "partner": "/api/partner",
+            "orders": "/api/orders",
+            "admin": "/api/admin",
+        }
     }
 
 
