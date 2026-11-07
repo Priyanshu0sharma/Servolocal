@@ -1,15 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Store, Bike, ShieldAlert, LogOut, Sparkles, MapPin, ExternalLink } from "lucide-react";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Store,
+  Bike,
+  ShieldAlert,
+  LogOut,
+  Sparkles,
+  MapPin,
+  ExternalLink,
+  Activity,
+  Layers,
+  ArrowRightLeft
+} from "lucide-react";
 import { UserProfile, getMe } from "@/lib/api";
-import AuthScreen from "@/components/AuthScreen";
-import SellerDashboard from "@/components/SellerDashboard";
+import AuthModal from "@/components/AuthModal";
+import SellerHub from "@/components/SellerHub";
+import DeliveryPartnerHub from "@/components/DeliveryPartnerHub";
+import AdminControlRoom from "@/components/AdminControlRoom";
 import { AppUpdateModal, DevicePermissionsBanner } from "@/components/ComplianceModals";
 
 export default function PartnerHomePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [activeRoleView, setActiveRoleView] = useState<"seller" | "partner" | "admin">("seller");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,10 +35,12 @@ export default function PartnerHomePage() {
       return;
     }
 
-    // Attempt to validate session via /api/auth/me
+    // Validate session via /api/auth/me
     getMe()
       .then((userData) => {
         setUser(userData);
+        const savedRole = (userData.role as "seller" | "partner" | "admin") || "seller";
+        setActiveRoleView(savedRole);
       })
       .catch(() => {
         // Token invalid or expired
@@ -37,6 +54,8 @@ export default function PartnerHomePage() {
 
   const handleLoginSuccess = (userData: UserProfile) => {
     setUser(userData);
+    const role = (userData.role as "seller" | "partner" | "admin") || "seller";
+    setActiveRoleView(role);
   };
 
   const handleLogout = () => {
@@ -48,13 +67,21 @@ export default function PartnerHomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-slate-400">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center animate-spin mb-4">
-          <Store className="w-6 h-6 text-emerald-400" />
+      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-slate-400 select-none">
+        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center mb-4 shadow-2xl relative">
+          <Image
+            src="/logo.jpeg"
+            alt="ServoPartner"
+            width={64}
+            height={64}
+            priority
+            className="object-cover w-full h-full animate-pulse"
+          />
         </div>
-        <p className="text-xs font-semibold tracking-wider uppercase text-slate-500">
-          Loading ServoPartner Systems...
-        </p>
+        <div className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase text-emerald-400">
+          <Activity className="w-3.5 h-3.5 animate-spin" />
+          <span>Synchronizing ServoPartner Systems...</span>
+        </div>
       </div>
     );
   }
@@ -64,80 +91,114 @@ export default function PartnerHomePage() {
     return (
       <>
         <AppUpdateModal />
-        <AuthScreen onLoginSuccess={handleLoginSuccess} />
+        <AuthModal onLoginSuccess={handleLoginSuccess} />
       </>
     );
   }
 
-  // Logged in as Seller -> Render Complete Seller Hub Dashboard
-  if (user.role === "seller") {
+  // Helper banner for Founder / Admin to switch role views for testing
+  const renderRoleSwitcherBar = () => {
+    if (user.role !== "admin") return null;
+
     return (
-      <>
-        <AppUpdateModal />
-        <div className="p-2 max-w-6xl mx-auto">
-          <DevicePermissionsBanner />
+      <div className="bg-slate-950 border-b border-rose-500/30 px-4 py-2 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 text-rose-400 font-bold">
+          <ShieldAlert className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">Super Admin View Switcher:</span>
         </div>
-        <SellerDashboard user={user} onLogout={handleLogout} />
-      </>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setActiveRoleView("seller")}
+            className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+              activeRoleView === "seller"
+                ? "bg-emerald-500 text-slate-950 font-black shadow-md"
+                : "bg-slate-800 text-slate-400 hover:text-white"
+            }`}
+          >
+            <Store className="w-3 h-3" />
+            <span>Shopkeeper View</span>
+          </button>
+
+          <button
+            onClick={() => setActiveRoleView("partner")}
+            className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+              activeRoleView === "partner"
+                ? "bg-indigo-500 text-white font-black shadow-md"
+                : "bg-slate-800 text-slate-400 hover:text-white"
+            }`}
+          >
+            <Bike className="w-3 h-3" />
+            <span>Delivery Fleet View</span>
+          </button>
+
+          <button
+            onClick={() => setActiveRoleView("admin")}
+            className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+              activeRoleView === "admin"
+                ? "bg-rose-500 text-white font-black shadow-md"
+                : "bg-slate-800 text-slate-400 hover:text-white"
+            }`}
+          >
+            <ShieldAlert className="w-3 h-3" />
+            <span>Founder Control Room</span>
+          </button>
+        </div>
+      </div>
     );
-  }
+  };
 
-  // Logged in as Delivery Partner or Admin -> Provide role workspace with 1-click access to Seller Hub
+  // Determine active component to render
+  const currentView = user.role === "admin" ? activeRoleView : user.role;
+
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col font-sans">
       <AppUpdateModal />
+      {renderRoleSwitcherBar()}
 
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-            {user.role === "admin" ? <ShieldAlert className="w-5 h-5" /> : <Bike className="w-5 h-5" />}
-          </div>
-          <div>
-            <h1 className="font-extrabold text-base text-white">
-              {user.name} ({user.role.toUpperCase()})
-            </h1>
-            <p className="text-xs text-slate-400">{user.email}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Logout</span>
-        </button>
-      </header>
-
-      <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-6">
+      <div className="p-2 max-w-6xl mx-auto w-full">
         <DevicePermissionsBanner />
+      </div>
 
-        <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Store className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Shopkeeper (Seller Hub) View</h3>
-                <p className="text-xs text-slate-400">
-                  Manage inventory, 1-click Master Catalog, live order buzzer, and delivery zones.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                // Switch active role view to seller
-                setUser({ ...user, role: "seller" });
-              }}
-              className="px-4 py-2 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-600 text-slate-950 transition-all flex items-center gap-1.5"
-            >
-              <span>Launch Seller Hub</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </main>
+      <AnimatePresence mode="wait">
+        {currentView === "seller" && (
+          <motion.div
+            key="seller-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col"
+          >
+            <SellerHub user={user} onLogout={handleLogout} />
+          </motion.div>
+        )}
+
+        {currentView === "partner" && (
+          <motion.div
+            key="partner-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col"
+          >
+            <DeliveryPartnerHub user={user} onLogout={handleLogout} />
+          </motion.div>
+        )}
+
+        {currentView === "admin" && (
+          <motion.div
+            key="admin-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col"
+          >
+            <AdminControlRoom user={user} onLogout={handleLogout} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

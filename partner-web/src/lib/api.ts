@@ -334,6 +334,215 @@ export async function verifyPickupPin(order_id: number, pickup_pin: string) {
   return res.data;
 }
 
+// ── Delivery Partner & Rider Hub Endpoints ─────────────────────────────────
+
+export interface OnboardShopFieldPayload {
+  owner_name: string;
+  owner_email: string;
+  shop_name: string;
+  category?: string;
+  lat: number;
+  lng: number;
+  locality_name?: string;
+  is_runner_stall?: boolean;
+  delivery_radius_km?: number;
+  image_url?: string;
+  seller_upi_id?: string;
+}
+
+export async function updateRiderGps(order_id: number, lat: number, lng: number, heading: number = 0.0) {
+  const res = await api.post("/api/partner/update-gps", {
+    order_id,
+    lat,
+    lng,
+    heading,
+  });
+  return res.data;
+}
+
+export async function verifyDeliveryPin(order_id: number, delivery_pin: string) {
+  const res = await api.post("/api/partner/verify-delivery-pin", {
+    order_id,
+    delivery_pin,
+  });
+  return res.data;
+}
+
+export async function onboardShopField(payload: OnboardShopFieldPayload) {
+  const res = await api.post("/api/partner/onboard-shop", payload);
+  return res.data;
+}
+
+export async function toggleDutyStatus(is_on_duty: boolean, lat: number = 0.0, lng: number = 0.0) {
+  const res = await api.post("/api/partner/duty-toggle", {
+    is_on_duty,
+    lat,
+    lng,
+  });
+  return res.data;
+}
+
+export async function updateDutyGps(lat: number, lng: number) {
+  const res = await api.post("/api/partner/duty-gps", { lat, lng });
+  return res.data;
+}
+
+export async function getDutyStatus() {
+  const res = await api.get("/api/partner/duty-status");
+  return res.data;
+}
+
+export async function getActiveRiders() {
+  const res = await api.get("/api/partner/active-riders");
+  return res.data;
+}
+
+export async function getTrackOrder(order_id: number) {
+  const res = await api.get(`/api/partner/track-order/${order_id}`);
+  return res.data;
+}
+
+// ── Super Admin Founder Panel Endpoints ──────────────────────────────────
+
+export interface AdminOverviewData {
+  revenue: {
+    total_gmv: number;
+    platform_fees_earned: number;
+    commissions_earned: number;
+    net_revenue: number;
+  };
+  orders: {
+    total_orders: number;
+    active_orders: number;
+    completed_orders: number;
+    cancelled_orders: number;
+  };
+  shops: {
+    total_registered: number;
+    verified_count: number;
+    pending_approval_count: number;
+    open_now_count: number;
+  };
+  users: {
+    total_customers: number;
+    total_sellers: number;
+    total_delivery_partners: number;
+  };
+  area_requests: {
+    total_requests: number;
+    recent_requests: Array<{
+      id: number;
+      locality_name: string;
+      pincode?: string;
+      phone_or_email: string;
+      lat: number;
+      lng: number;
+      created_at?: string;
+    }>;
+  };
+  dues_ledger: {
+    total_dues_outstanding: number;
+    auto_locked_accounts_count: number;
+    dues_limit_threshold: number;
+  };
+}
+
+export interface AdminShopItem {
+  id: number;
+  name: string;
+  category: string;
+  locality_name: string;
+  management_mode: string;
+  is_open: boolean;
+  is_verified: boolean;
+  rating: number;
+  commission_rate_percent: number;
+  delivery_radius_km: number;
+  lat: number;
+  lng: number;
+  owner: {
+    id: number;
+    name: string;
+    email: string;
+    wallet_balance: number;
+    is_locked: boolean;
+  };
+}
+
+export interface AdminLedgerItem {
+  id: number;
+  user_name: string;
+  user_email: string;
+  user_role: string;
+  order_id?: number;
+  transaction_type: string;
+  amount: number;
+  balance_after: number;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface PushAppUpdatePayload {
+  latest_version: string;
+  min_required_version: string;
+  force_update: boolean;
+  update_message: string;
+  playstore_url?: string;
+  maintenance_mode?: boolean;
+  maintenance_message?: string;
+  broadcast_push?: boolean;
+}
+
+export interface PromoBannerPayload {
+  title: string;
+  image_url: string;
+  target_route?: string;
+  badge_text?: string;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export async function getAdminOverview(): Promise<AdminOverviewData> {
+  const res = await api.get("/api/admin/overview");
+  return res.data;
+}
+
+export async function getAdminShops(): Promise<{ total_shops: number; shops: AdminShopItem[] }> {
+  const res = await api.get("/api/admin/shops");
+  return res.data;
+}
+
+export async function approveShop(shop_id: number, is_verified: boolean = true, commission_rate_percent?: number) {
+  const res = await api.post(`/api/admin/shop/${shop_id}/approve`, {
+    is_verified,
+    commission_rate_percent,
+  });
+  return res.data;
+}
+
+export async function updateCategoryCommission(category: string, commission_rate_percent: number) {
+  const res = await api.post("/api/admin/commission", {
+    category,
+    commission_rate_percent,
+  });
+  return res.data;
+}
+
+export async function getAdminLedger(limit: number = 50): Promise<{ total_records: number; ledger_entries: AdminLedgerItem[] }> {
+  const res = await api.get(`/api/admin/ledger?limit=${limit}`);
+  return res.data;
+}
+
+export async function pushAppUpdateAdmin(payload: PushAppUpdatePayload) {
+  const res = await api.post("/api/admin/push-app-update", payload);
+  return res.data;
+}
+
+export async function createPromoBanner(payload: PromoBannerPayload) {
+  const res = await api.post("/api/admin/banners", payload);
+  return res.data;
+}
+
 // Wallet & Prepaid Dues Endpoints
 export async function createClearDuesOrder(amount: number = 200) {
   // Directly credits ledger or initiates Razorpay recharge
