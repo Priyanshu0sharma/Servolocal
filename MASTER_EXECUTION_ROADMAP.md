@@ -1,234 +1,308 @@
-# 🚀 SERVOLOCAL — MASTER MULTI-MILLION DOLLAR EXECUTION ROADMAP
+# 🚀 SERVOLOCAL — ENTERPRISE MICRO-STEP EXECUTION ROADMAP
 **Platform:** Hybrid Hyperlocal (15–20 Mins Instant Delivery) + Pan-India (3–5 Days Courier Shipping) Multi-Vendor Marketplace  
 **Standard:** Enterprise Blinkit + Zomato + Meesho Grade (Zero Lag, Zero Dummy Data, 100% Real Production Execution)  
-**Version:** 3.0-Production Blueprint  
+**Execution Strategy:** Fine-Grained Micro-Steps (One Focused Task at a Time, 100% Tested & Verified before moving forward)  
 
 ---
 
-## 🏛️ 1. SYSTEM ARCHITECTURE & REVENUE ENGINE
+## 💰 1. ACCURATE REVENUE & FINANCIAL SPLIT MODEL
+
+There are **3 distinct revenue channels** that ensure zero tax liability on gross sales turnover:
 
 ```
-                           ┌─────────────────────────────────────────────────────────┐
-                           │               SERVOLOCAL CENTRAL CLOUD                  │
-                           │   FastAPI Backend Server (Render / Koyeb Dockerized)    │
-                           └────────┬───────────────────┬───────────────────┬────────┘
-                                    │                   │                   │
-            ┌───────────────────────┴──────┐            │       ┌───────────┴───────────────────┐
-            │                              │            │       │                               │
-            ▼                              ▼            │       ▼                               ▼
-┌───────────────────────┐      ┌─────────────────────┐  │ ┌───────────────────────────┐ ┌───────────────┐
-│     Neon Postgres     │      │    Upstash Redis    │  │ │       Cloudflare R2       │ │ Firebase FCM  │
-│ Serverless PostgreSQL │      │ 2ms Cache + Live GPS│  │ │ Zero-Egress Media Storage │ │ Loud Buzzer   │
-│   (PgBouncer Pooled)  │      │ (5-sec Rider Ping)  │  │ │ (Custom Photos + Banners) │ │ Push Alerts   │
-└───────────────────────┘      └─────────────────────┘  │ └───────────────────────────┘ └───────────────┘
-                                                        │
-                      ┌─────────────────────────────────┴────────────────────────────────┐
-                      │                                                                  │
-                      ▼                                                                  ▼
-        ┌───────────────────────────┐                                      ┌───────────────────────────┐
-        │       customer-web        │                                      │        partner-web        │
-        │ Next.js 14 App Router     │                                      │ Next.js 14 App Router     │
-        │ (Blinkit Clean White UI)  │                                      │ (Dark Slate #0F172A UI)   │
-        │ • 15-Min Local GPS Feed   │                                      │ 3-in-1 Super App:         │
-        │ • Fly-to-Cart Animation   │                                      │ • Shopkeeper (Seller Hub) │
-        │ • Variant Selector Modal  │                                      │ • Delivery Fleet (Rider)  │
-        │ • Liquid Free Delivery Bar│                                      │ • Founder Admin Control   │
-        └─────────────┬─────────────┘                                      └─────────────┬─────────────┘
-                      │                                                                  │
-                      └───────────────────────────────┬──────────────────────────────────┘
-                                                      │
-                                                      ▼
-                                       ┌───────────────────────────────┐
-                                       │ mobile-apps/servolocal_flutter│
-                                       │ Lightweight Flutter Wrapper   │
-                                       │ • Background GPS Tracking     │
-                                       │ • NPCI Direct UPI Intent Link │
-                                       │ • Offline Loud Order Ring     │
-                                       └───────────────────────────────┘
+                            CUSTOMER BILL (Paid via UPI / COD)
+                                        │
+             ┌──────────────────────────┴──────────────────────────┐
+             ▼                                                     ▼
+     Items Total (₹200) + Delivery Fee (₹25)               Customer Handling Fee (₹3–₹5)
+             │                                                     │
+             ▼                                                     ▼
+┌──────────────────────────────┐                         ┌───────────────────────┐
+│       PARTNER REVENUE        │                         │  COMPANY DIRECT PROFIT│
+│  • Shopkeeper gets: ₹180     │                         │  • Platform Handling  │
+│    (₹200 - ₹20 commission)   │                         │    Fee (₹3–₹5)        │
+│  • Delivery Boy gets: ₹19    │                         │  • Net margin from    │
+│    (out of ₹25 delivery fee) │                         │    Partners (₹10)     │
+│  • Scout Royalty: ₹2         │                         │                       │
+└──────────────┬───────────────┘                         └───────────┬───────────┘
+               │                                                     │
+               ▼                                                     ▼
+   Prepaid Wallet Ledger Debit                            TOTAL COMPANY NET EARNING
+ (Auto-Pause Cutoff at -₹200)                                   (₹13 – ₹15 / order)
 ```
 
----
-
-## 💰 2. THE ZERO-TAX-TRAP REVENUE MODEL
-
-1. **Per-Order Platform / Handling Fee (Starting ₹10):**
-   - Added directly to the customer’s checkout bill (e.g., ₹10).
-   - **100% Dynamic from Super Admin Panel:** Admin can change it to ₹5, ₹7, ₹12, or ₹15 with 1 click anytime without touching code.
-   - *Example:* 100 orders/day = ₹1,000/day = **₹30,000/month pure profit** from Day 1.
-2. **Shopkeeper Monthly Platform Fee (Digital Pass / Autopay):**
-   - Fixed monthly maintenance fee (e.g. ₹99–₹199/month) for zero-commission listing.
-   - Debited automatically from the seller's prepaid wallet ledger.
-3. **Stage-Wise Category Commission % (Admin Controlled):**
-   - *Stage 1 (Launch):* 0% or flat ₹5 per order to onboard all neighborhood stores friction-free.
-   - *Stage 2 (Growth):* Kirana: 2-3%, Fast Food / Sweets: 10-12%, Clothes / 3D Crafts: 12-15%.
+1. **Customer Handling Fee (₹3 to ₹5):**
+   - Added directly to the customer’s checkout bill (e.g. ₹5, just like Blinkit / Swiggy Instamart).
+   - Dynamic from Admin Panel: Can be set to ₹3, ₹5, ₹7 with 1 click.
+2. **Partner Platform Fee & Commission Cut (Starting ₹10):**
+   - The platform’s cut from the 2 partners on every completed order:
+     - **Delivery Margin:** ₹4–₹6 deducted from the delivery fee.
+     - **Shopkeeper Platform Cut:** Base platform fee / commission deducted from the shopkeeper.
+   - **Dynamic Control:** Admin can adjust the default ₹10 platform cut from the Super Admin Panel.
+3. **Monthly Shopkeeper Platform Fee / Digital Pass (Autopay):**
+   - Nominal monthly maintenance fee (e.g. ₹99–₹149/month) for verified shop listing and zero-commission privileges.
+   - Debited automatically from the shopkeeper's prepaid wallet balance.
 4. **Prepaid Wallet & -₹200 Auto-Pause Cutoff:**
-   - On COD or Direct Shopkeeper UPI, platform fees and commissions are debited from the vendor's wallet balance.
-   - At `<= -₹200.00`, the store/rider queue is automatically paused until settled via in-app Razorpay.
-5. **Multi-Village / Scheduled Delivery Tagging:**
-   - Stores in towns (e.g. Dundlod) can deliver to neighboring villages (e.g. Balwantpura) within 6-7 hours or next day, broadening sales reach beyond a 3km radius.
+   - On direct UPI or COD, platform earnings deduct from the vendor's wallet balance.
+   - If dues reach `<= -₹200.00`, orders are automatically paused until cleared via 1-tap Razorpay repayment.
+5. **Multi-Village / Scheduled Delivery Routes:**
+   - Shopkeepers in towns (e.g. Dundlod) can deliver to neighboring villages (e.g. Balwantpura) on a scheduled 6-7 hr or same-day evening route.
 
 ---
 
-## 📋 3. STEP-BY-STEP PRODUCTION EXECUTION PLAN
+## 🗂️ 2. GRANULAR MICRO-STEP BREAKDOWN (PHASE-WISE)
+
+Every step is small, self-contained, and completely tested before moving to the next.
 
 ```mermaid
 flowchart TD
-    S1["STEP 1: Real Chips & Master Catalog Expansion + Multi-Village Schema"] --> S2["STEP 2: Delivery Partner Fleet Engine (Rider Radar, GPS, PIN, Runner Stalls)"]
-    S2 --> S3["STEP 3: Founder Super Admin Control Room (Live GMV, Dynamic Fee Slider, Push Update)"]
-    S3 --> S4["STEP 4: Customer Web Home Feed, Category Grid & Unserviceable Area Fallback"]
-    S4 --> S5["STEP 5: Multi-Pack Variant Modal, Fly-to-Cart Parabolic Animation & Smart Upsell"]
-    S5 --> S6["STEP 6: Checkout, Direct UPI Split, Live Rider Map Tracking & 5-Star Rating"]
-    S6 --> S7["STEP 7: Flutter Mobile Native Wrapper (GPS, UPI Intent, Push Notifications)"]
-    S7 --> S8["STEP 8: Production Hosting, Free Deployment (Vercel + Render) & Launch Guide"]
+    subgraph PHASE_1 ["PHASE 1: Backend Foundation & Real Catalog"]
+        M1["Step 1.1: Multi-Village DB Schema & Shop Model Update"]
+        M2["Step 1.2: Real Chips & Munchies 50+ Product Catalog Expansion"]
+        M3["Step 1.3: Multi-Pack Variants & Quantity Discount Pricing Engine"]
+        M4["Step 1.4: Firebase Cloud Messaging Event Dispatcher & Message Payloads"]
+        M5["Step 1.5: 5-Second Real-Time Rider GPS Redis & WebSocket Broadcaster"]
+    end
+
+    subgraph PHASE_2 ["PHASE 2: Partner Web (Rider & Admin Hub)"]
+        M6["Step 2.1: Delivery Partner Duty Switch & Live Order Radar"]
+        M7["Step 2.2: Rider 2-Digit Pickup PIN & 4-Digit Delivery PIN Verification"]
+        M8["Step 2.3: Runner Stall Street Thela Onboarding with Live GPS & Photo"]
+        M9["Step 2.4: Founder Admin Live Financials & Dynamic Fee Slider"]
+        M10["Step 2.5: Admin Remote App Update Broadcast & Promo Banner Engine"]
+    end
+
+    subgraph PHASE_3 ["PHASE 3: Customer Web (Blinkit-Grade UI)"]
+        M11["Step 3.1: GPS Header, Mode Switcher & Blinkit Category Icon Grid"]
+        M12["Step 3.2: Unserviceable Area Fallback Card & Request Service Tool"]
+        M13["Step 3.3: Blinkit Multi-Pack Variant Selector Modal"]
+        M14["Step 3.4: Parabolic Fly-to-Cart Animation & Morphing Counter"]
+        M15["Step 3.5: Liquid Free Delivery Progress Bar & Smart Upsells"]
+        M16["Step 3.6: Checkout, Direct UPI Split & 4-Digit Delivery PIN"]
+        M17["Step 3.7: OpenStreetMap + Leaflet Live Rider Tracking Map & 5-Star Reviews"]
+    end
+
+    subgraph PHASE_4 ["PHASE 4: Mobile App, Production Hosting & Launch"]
+        M18["Step 4.1: Flutter Mobile Native Wrapper, Geolocation & Loud Buzzer Receiver"]
+        M19["Step 4.2: Zero-Cost Backend Deployment on Render with Cron Keep-Alive"]
+        M20["Step 4.3: Customer & Partner WebApps Deployment on Vercel"]
+        M21["Step 4.4: Android APK / AAB Compilation & Google Play Store Setup"]
+    end
+
+    PHASE_1 --> PHASE_2 --> PHASE_3 --> PHASE_4
 ```
 
 ---
 
-### 🔹 STEP 1: REAL CHIPS, MUNCHIES & MASTER CATALOG EXPANSION + MULTI-VILLAGE SCHEMA
-- **Objective:** Expand the verified brand catalog with authentic commercial product packaging (Lay's, Kurkure, Bingo, Uncle Chipps, Dairy, Biscuits) and update the database schema for multi-village scheduled delivery.
-- **Actions:**
-  1. In `backend/app/db/models.py`, add `custom_serviceable_areas` to `Shop` table:
-     ```python
-     custom_serviceable_areas = Column(JSON, default=list, nullable=True) 
-     # Format: [{"area_name": "Balwantpura", "eta_label": "6-7 hrs (Same Day)", "delivery_fee": 20.0}]
-     ```
-  2. In `backend/app/db/seed_catalog.py`, seed 50+ real Indian FMCG products with high-res commercial pack images, nutrition info, and multi-pack variants:
-     - **Lay's:** India's Magic Masala (50g @ ₹20, 90g @ ₹40), American Cream & Onion (50g @ ₹20), West Indies Hot n Sweet Chilli (50g @ ₹25), Spanish Tomato Tango.
-     - **Kurkure:** Masala Munch (75g @ ₹20), Solid Masti Twisteez, Green Chutney.
-     - **Bingo:** Tedhe Medhe Masala Tadka (70g @ ₹16, 2x70g @ ₹31), Mad Angles.
-     - **Uncle Chipps:** Spicy Treat (50g @ ₹20).
-     - **Haldiram's & Balaji:** Aloo Bhujia (150g @ ₹45), Salted Wafers.
-     - **Cold Drinks & Dairy:** Coca-Cola, Thums Up, Sprite, Amul Taaza, Amul Gold, Mother Dairy Paneer.
-  3. In `backend/app/api/routes_discovery.py`, update the feed algorithm to match both live GPS radius and `custom_serviceable_areas` for neighboring villages.
-- **Verification:** Run seeder script and verify `GET /api/discovery/search-suggest?q=chips` returns rich branded chips.
+### 📦 PHASE 1: BACKEND FOUNDATION, CATALOG & REAL-TIME ENGINES
+
+#### 🔹 Step 1.1: Multi-Village DB Schema & Shop Model Update
+- **Files Modified:** `backend/app/db/models.py`, `backend/app/api/routes_seller.py`, `backend/app/api/routes_discovery.py`
+- **What it does:**
+  - Adds `custom_serviceable_areas = Column(JSON, default=list)` to `Shop` model.
+  - Allows shopkeepers in Dundlod to add neighboring villages like `Balwantpura`, `Kolinda`, `Gothra` with custom delivery ETA (e.g. `6-7 hrs` / `Same Day Evening`) and custom delivery fee.
+  - Updates Discovery Feed so customers in Balwantpura see Dundlod stores with scheduled badges!
+- **Verification:** Database migration test + API test confirming shop appears in neighboring village search.
+
+#### 🔹 Step 1.2: Real Chips, Munchies & FMCG 50+ Product Catalog Expansion
+- **Files Modified:** `backend/app/db/seed_catalog.py`, `backend/app/db/models.py`
+- **What it does:**
+  - Seeds 50+ real Indian FMCG products with authentic commercial packaging photos (as seen on Blinkit):
+    - **Lay's:** India's Magic Masala (Blue), American Cream & Onion (Green), West Indies Hot n Sweet Chilli (Orange), Spanish Tomato Tango (Red).
+    - **Kurkure:** Masala Munch, Solid Masti Twisteez, Green Chutney.
+    - **Bingo:** Tedhe Medhe Masala Tadka, Mad Angles Achaari Masti.
+    - **Uncle Chipps:** Spicy Treat.
+    - **Haldiram's & Balaji:** Aloo Bhujia, Khatta Meetha, Salted Wafers.
+    - **Cold Drinks & Dairy:** Coca-Cola, Thums Up, Sprite, Amul Taaza Milk, Amul Gold, Mother Dairy Paneer.
+  - Each product has verified pack weights, official MRP, search keywords, and paired categories.
+- **Verification:** Run seeder and verify `GET /api/discovery/search-suggest?q=chips` returns all items.
+
+#### 🔹 Step 1.3: Multi-Pack Variants & Quantity Discount Pricing Engine
+- **Files Modified:** `backend/app/db/models.py`, `backend/app/api/routes_discovery.py`, `backend/app/api/routes_orders.py`
+- **What it does:**
+  - Supports pack variations (as shown in Blinkit Screenshot 2):
+    - Example: *Bingo Tedhe Medhe*:
+      - Single Pack: `70 g` @ ₹16 (MRP ₹20, 20% OFF)
+      - Double Pack: `2 x 70 g` @ ₹31 (MRP ₹40, 22% OFF)
+      - Family Pack: `3 x 70 g` @ ₹47 (MRP ₹60, 21% OFF)
+  - Cart calculation automatically applies multi-pack savings.
+- **Verification:** Test cart calculation endpoint with multi-pack quantity items.
+
+#### 🔹 Step 1.4: Firebase Cloud Messaging Event Dispatcher & Message Payloads
+- **Files Modified:** `backend/app/core/fcm_notify.py`, `backend/app/api/routes_orders.py`
+- **What it does:**
+  - Implements complete FCM notification payloads for each milestone:
+    1. **Order Placed:** Sends high-priority push with `channel_id: "order_alarm"` and sound `order_alarm.mp3` to Shopkeeper:
+       `"🔔 New Order #SL-9821 (₹230) - 3 Items! Tap to accept."`
+    2. **Order Ping to Delivery Fleet:** Sends notification to online riders in that zone:
+       `"⚡ New Delivery Job available in Kukas: Earn ₹25 (1.8 km)."`
+    3. **Order Accepted & Out for Delivery:** Sends instant alert to Customer:
+       `"🛵 Your order from Sharma Kirana is out for delivery! Share PIN: 8942 with rider."`
+    4. **Low-Stock Alert:** Sends alert to vendor when stock `<= 5`.
+- **Verification:** Test FCM notification builder with mock and live tokens.
+
+#### 🔹 Step 1.5: 5-Second Real-Time Rider GPS Redis & WebSocket Broadcaster
+- **Files Modified:** `backend/app/core/redis_cache.py`, `backend/app/main.py`, `backend/app/api/routes_partner.py`
+- **What it does:**
+  - When Rider broadcasts coordinates via `POST /api/partner/update-gps`, stores `{lat, lng, heading, timestamp}` in Upstash Redis (`order_gps:{order_id}`).
+  - Provides WebSocket endpoint `/ws/order/{order_id}` and fallback REST polling `/api/orders/{order_id}/live-location` so customer map updates smoothly every 5 seconds.
+- **Verification:** Send simulated GPS pings and verify instant retrieval from Redis.
 
 ---
 
-### 🔹 STEP 2: `partner-web` DELIVERY PARTNER FLEET ENGINE (RIDER & SCOUT)
-- **Objective:** Build the complete Delivery Partner / Rider interface with real-time GPS broadcast, live order radar, pickup/delivery PIN validation, and street stall onboarding.
-- **Actions:**
-  1. Create `partner-web/src/components/RiderDashboard.tsx`:
-     - **Duty ON/OFF Switch:** Controls rider availability in Redis (`rider_status:{id}`).
-     - **Live Order Radar:** Shows pending orders with distance from rider (`1.8 km`), estimated payout (`Earn ₹25`), and shop/customer locations.
-     - **Active Delivery Trip Workflow:**
-       - Step A: Navigate to Shop $\rightarrow$ Enter shop's **2-Digit Pickup PIN** to confirm item handover.
-       - Step B: En-route to Customer $\rightarrow$ Browser native geolocation pings coordinates every 5 seconds to `/api/partner/update-gps`.
-       - Step C: Customer Doorstep $\rightarrow$ Request customer's **4-Digit Delivery PIN** $\rightarrow$ Order marked `DELIVERED`, instant wallet credit.
-     - **Runner Stall / Street Vendor Onboarding Form:**
-       - Rider stands at famous street thela (e.g. Momos/Kachori) $\rightarrow$ Locks GPS coordinates $\rightarrow$ Takes board photo $\rightarrow$ Onboards as `PARTNER_RUNNER_STALL`.
-       - Every order placed at this stall gives rider **₹2.00 lifetime royalty**.
-  2. Update `partner-web/src/app/page.tsx` to route `role === 'partner'` users directly to `RiderDashboard`.
-- **Verification:** Test order acceptance, 2-digit & 4-digit PIN verification, and GPS coordinate transmission.
+### 🏍️ PHASE 2: PARTNER WEB (RIDER & FOUNDER ADMIN HUB)
+
+#### 🔹 Step 2.1: Delivery Partner Duty Switch & Live Order Radar
+- **Files Modified:** `partner-web/src/components/RiderDashboard.tsx`, `partner-web/src/app/page.tsx`
+- **What it does:**
+  - Duty ON/OFF glowing toggle switch (broadcasts online status).
+  - Live Radar of incoming neighborhood deliveries showing pickup distance, dropoff address, and guaranteed earnings (`Earn ₹25 • 1.8 km`).
+  - Audio alert chime on new order appearance.
+- **Verification:** Test accepting orders from radar.
+
+#### 🔹 Step 2.2: Rider 2-Digit Pickup PIN & 4-Digit Delivery PIN Verification
+- **Files Modified:** `partner-web/src/components/RiderDashboard.tsx`
+- **What it does:**
+  - Shop pickup screen: Rider shows or enters the **2-Digit Pickup PIN** to verify item handover.
+  - Customer doorstep screen: Rider requests the **4-Digit Delivery PIN** from the customer $\rightarrow$ verifies with backend $\rightarrow$ order transitions to `DELIVERED` $\rightarrow$ cash or wallet balance updates.
+- **Verification:** Test complete PIN verification lifecycle.
+
+#### 🔹 Step 2.3: Runner Stall / Street Thela Onboarding with Live GPS & Photo
+- **Files Modified:** `partner-web/src/components/RiderDashboard.tsx`
+- **What it does:**
+  - Rider on-ground scouting tool: Rider stands at a famous street stall (kachori/momos) $\rightarrow$ auto-locks GPS $\rightarrow$ snaps stall photo $\rightarrow$ registers as `PARTNER_RUNNER_STALL`.
+  - Displays Rider’s passive income dashboard: *"You onboarded 12 street stalls. 45 orders today = ₹90 lifetime royalty earned!"*
+- **Verification:** Test stall submission and verification flow.
+
+#### 🔹 Step 2.4: Founder Admin Live Financials & Dynamic Fee Slider
+- **Files Modified:** `partner-web/src/components/AdminDashboard.tsx`, `partner-web/src/app/page.tsx`
+- **What it does:**
+  - Real-time command center: Total GMV, Customer Handling Fees earned, Partner platform fee cuts, Active order tracker.
+  - **Dynamic Fee Slider:** Change customer handling fee (₹5 $\rightarrow$ ₹10) or partner platform cut with 1 click.
+  - Vendor approval queue: Approve, reject, or adjust commission % for new stores.
+  - Negative dues ledger & auto-locked account radar.
+- **Verification:** Test updating platform fee and approving shops.
+
+#### 🔹 Step 2.5: Admin Remote App Update Broadcast & Promo Banner Engine
+- **Files Modified:** `partner-web/src/components/AdminDashboard.tsx`
+- **What it does:**
+  - **1-Click App Update Push:** Enter version (`1.0.3`), update text, Play Store URL $\rightarrow$ Click `Push Update` $\rightarrow$ Triggers live FCM notification to all phones and sets update popup modal.
+  - **Dynamic Banner Manager:** Create festive banners and discount codes without touching code.
+  - **Area Expansion Demand Viewer:** Heatmap of requests from unserviceable zones.
+- **Verification:** Test publishing an app update and verifying `GET /api/app-config`.
 
 ---
 
-### 🔹 STEP 3: `partner-web` FOUNDER SUPER ADMIN CONTROL ROOM
-- **Objective:** Build the complete command center for the platform owner to control finances, verify vendors, adjust fees dynamically, push app updates, and view area demand heatmaps.
-- **Actions:**
-  1. Create `partner-web/src/components/AdminDashboard.tsx`:
-     - **Real-Time Financial Radar:** GMV, Net Platform Fees collected, Vendor Commissions earned, and -₹200 Negative Dues risk monitor.
-     - **Dynamic Platform Fee Slider:** Change customer platform fee (e.g., ₹10 $\rightarrow$ ₹5 or ₹15) with live backend update.
-     - **Vendor Approval Queue:** 1-click Approve / Reject / Adjust Commission % for new shops.
-     - **Remote App Update Broadcast:** Fill version (`1.0.3`), update message, Play Store URL $\rightarrow$ Click `Push Update` $\rightarrow$ Triggers live FCM push broadcast to all user devices.
-     - **Dynamic Promo Banner Manager:** Upload festive offers and promo codes directly without touching frontend code.
-     - **Area Expansion Heatmap:** View demand submissions from unserviceable areas (`/api/discovery/request-service`) to plan next delivery hubs.
-  2. Update `partner-web/src/app/page.tsx` to route `role === 'admin'` to `AdminDashboard`.
-- **Verification:** Test changing platform fee and verifying shop status via admin endpoints.
+### 🛍️ PHASE 3: CUSTOMER WEB (BLINKIT-GRADE EXPERIENCE)
+
+#### 🔹 Step 3.1: GPS Header, Mode Switcher & Blinkit Category Icon Grid
+- **Files Modified:** `customer-web/src/app/page.tsx`, `customer-web/src/components/Header.tsx`, `customer-web/src/components/CategoryGrid.tsx`
+- **What it does:**
+  - Dynamic Header: `Delivery in 15 mins to [Detected Locality, e.g. Kukas / Dundlod]` with GPS auto-detection.
+  - Quick Switcher: `⚡ Local Instant (15 Mins)` vs `🚚 Pan-India Store (3-5 Days)`.
+  - Floating Instant Search bar with rotating placeholder (`Search 'chips', 'paneer', 'milk'`).
+  - 20+ FMCG Category Icons grid with authentic packaging graphics (Snacks, Dairy, Cold Drinks, Biscuits, Atta, etc.).
+- **Verification:** Test responsive layout on mobile and desktop viewports.
+
+#### 🔹 Step 3.2: Unserviceable Area Fallback Card & Request Service Tool
+- **Files Modified:** `customer-web/src/components/UnserviceableFallback.tsx`
+- **What it does:**
+  - When user is in an unserved area (0 local shops within 3km):
+    - Shows animated Blinkit-style *"Instant 15-min delivery coming soon to your area!"* card.
+    - 1-Tap *"Request Delivery in My Area"* button (submits GPS, locality, phone to backend).
+    - Displays Pan-India clothing, handicrafts, and non-perishable snack catalog below so user never sees a blank screen!
+- **Verification:** Test with unserviceable coordinates (e.g. Delhi) and submit demand request.
+
+#### 🔹 Step 3.3: Blinkit Multi-Pack Variant Selector Modal
+- **Files Modified:** `customer-web/src/components/VariantSelectorModal.tsx`
+- **What it does:**
+  - When tapping a product with multiple sizes (e.g., Bingo Tedhe Medhe or Parle-G):
+    - Opens clean rounded modal with individual pack options:
+      - `70 g` | ₹16 ~~₹20~~ (20% OFF) `[ADD]`
+      - `2 x 70 g` | ₹31 ~~₹40~~ (22% OFF) `[ADD]`
+      - `3 x 70 g` | ₹47 ~~₹60~~ (21% OFF) `[ADD]`
+  - Also displays Veg icon [⊡], detailed grammage, and "Why shop from ServoLocal?" trust badges.
+- **Verification:** Test opening modal, selecting pack sizes, and adding to cart.
+
+#### 🔹 Step 3.4: Parabolic Fly-to-Cart Animation & Morphing Counter
+- **Files Modified:** `customer-web/src/components/FlyToCart.tsx`, `customer-web/src/components/ProductCard.tsx`
+- **What it does:**
+  - When `ADD +` is tapped, a miniature thumbnail launches in an authentic curved parabolic arc directly into the floating Cart Bucket.
+  - Cart bucket bounces with spring physics on impact.
+  - `ADD +` button morphs into a green `[ - 1 + ]` quantity counter.
+- **Verification:** Test animation trajectory on different screen sizes.
+
+#### 🔹 Step 3.5: Liquid Free Delivery Progress Bar & Smart Upsells
+- **Files Modified:** `customer-web/src/components/CartDrawer.tsx`
+- **What it does:**
+  - Animated Liquid Progress Bar at top of cart: *"Add ₹35 more from Sharma Kirana for FREE Delivery (Save ₹25)!"*.
+  - Crossing the ₹150 threshold triggers confetti explosion + green glow + *"Yay! You unlocked FREE Delivery!"*.
+  - Smart Upsell Rail: *"Frequently Bought Together"* (e.g. Butter if Bread is in cart, Cold Drink if Chips are in cart).
+- **Verification:** Test progress bar fills and upsell 1-click addition.
+
+#### 🔹 Step 3.6: Checkout, Direct UPI Split & 4-Digit Delivery PIN
+- **Files Modified:** `customer-web/src/components/CheckoutModal.tsx`, `customer-web/src/components/OrderConfirmed.tsx`
+- **What it does:**
+  - Financial breakdown: Items Total + Delivery Fee (₹0 if unlocked) + **Customer Handling Fee (₹5)**.
+  - Payment choices:
+    - **Direct Shopkeeper UPI Intent:** 1-tap open GPay/PhonePe with exact amount (zero gateway fee, zero tax risk).
+    - **Razorpay Standard:** Card, NetBanking, UPI.
+    - **Cash on Delivery (COD).**
+  - Confirmed screen displays the **4-Digit Delivery PIN** required by rider at doorstep.
+- **Verification:** Test order placement across all 3 payment methods.
+
+#### 🔹 Step 3.7: OpenStreetMap + Leaflet Live Rider Tracking Map & 5-Star Reviews
+- **Files Modified:** `customer-web/src/components/LiveTrackingMap.tsx`, `customer-web/src/components/ReviewModal.tsx`
+- **What it does:**
+  - 100% free live tracking: OpenStreetMap + Leaflet map with smooth moving bike icon (polling rider GPS from Redis every 5 seconds).
+  - ETA counter (e.g. *"Arriving in 6 mins"*).
+  - Upon delivery: Interactive 5-Star bounce rating popup for Shopkeeper & Delivery Partner.
+- **Verification:** Test live map coordinate updates and review submission.
 
 ---
 
-### 🔹 STEP 4: `customer-web` BLINKIT-GRADE HOME FEED & CATEGORY GRID
-- **Objective:** Build the customer shopping home screen matching the exact Blinkit UI standard (from user screenshots).
-- **Actions:**
-  1. **Dynamic Delivery Header:**
-     - `Delivery in 15 mins to [Detected Locality, e.g. Kukas / Dundlod]` with location change dropdown.
-     - Quick Switcher: `⚡ Local Instant (15-20 Mins)` vs `🚚 Pan-India Store (3-5 Days)`.
-  2. **Blinkit Category Grid:**
-     - 20+ Clean FMCG categories with real packaging icons (Snacks & Munchies, Cold Drinks, Dairy & Bread, Breakfast & Instant Food, Sweet Tooth, Bakery & Biscuits, Atta & Dal, etc.).
-  3. **Hero Banner Carousel:**
-     - High-impact daily essentials banners ("Stock up on daily essentials", "Pharmacy in 15 mins", "Pet care supplies").
-  4. **Horizontal Rails:**
-     - `Trending Munchies & Chips`, `Kirana Essentials`, `Hot & Crispy Fast Food`.
-  5. **Blinkit Unserviceable Fallback Card:**
-     - If GPS has 0 local shops in 3km: Displays animated "Instant Delivery Coming Soon to Your Area!" + "Request in My Area" button + Pan-India products rail so screen is never blank.
-- **Verification:** Verify responsive UI across desktop and mobile screen viewports.
+### 📱 PHASE 4: FLUTTER MOBILE APP, PRODUCTION HOSTING & LAUNCH
+
+#### 🔹 Step 4.1: Flutter Mobile Native Wrapper, Geolocation & Loud Buzzer Receiver
+- **Files Modified:** `mobile-apps/servolocal_flutter/lib/main.dart`, `mobile-apps/servolocal_flutter/android/`
+- **What it does:**
+  - Configures hardware-accelerated WebView connecting to deployed webapps.
+  - Wires native Android background GPS (`geolocator`) for delivery riders.
+  - Wires native UPI intent caller (`url_launcher`) for PhonePe, GPay, Paytm.
+  - Configures background FCM push notification receiver to play the offline **Loud Order Ring Alarm (`order_alarm.mp3`)**.
+- **Verification:** Run `flutter analyze` and test Android platform build.
+
+#### 🔹 Step 4.2: Zero-Cost Backend Deployment on Render with Cron Keep-Alive
+- **Files Modified:** `render.yaml`, `backend/Dockerfile`
+- **What it does:**
+  - Deploys FastAPI backend on Render.com free tier.
+  - Configures free `cron-job.org` health ping every 10 minutes to prevent Render free instance sleep mode (24x7 instant response).
+- **Verification:** Test live HTTPS endpoint `/api/health` from public internet.
+
+#### 🔹 Step 4.3: Customer & Partner WebApps Deployment on Vercel
+- **Files Modified:** `customer-web/vercel.json`, `partner-web/vercel.json`
+- **What it does:**
+  - Connects GitHub repository to Vercel for automated CI/CD.
+  - Sets up domains/subdomains:
+    - Customer App: `servolocal.vercel.app`
+    - Partner & Admin App: `partner.servolocal.vercel.app`
+  - Validates PWA manifest installation on Android and iOS Safari.
+- **Verification:** Test PWA install prompt on mobile browser.
+
+#### 🔹 Step 4.4: Android APK / AAB Compilation & Google Play Store Setup
+- **Files Modified:** `mobile-apps/servolocal_flutter/android/app/build.gradle`
+- **What it does:**
+  - Generates release keystore and signed Android App Bundle (`.aab`) for Google Play Console.
+  - Generates debug and release `.apk` for instant direct download.
+- **Verification:** Verify `.apk` installation on real Android device.
 
 ---
 
-### 🔹 STEP 5: `customer-web` MULTI-PACK VARIANT MODAL, FLY-TO-CART & SMART UPSELL
-- **Objective:** Implement the exact multi-pack selector popup modal (Screenshot 2), buttery-smooth parabolic fly-to-cart animation, and smart impulse upsells.
-- **Actions:**
-  1. **Multi-Pack Variant Popup Modal (`VariantSelectorModal.tsx`):**
-     - Pops up when an item with multiple sizes/packs is clicked (e.g., Bingo Tedhe Medhe or Parle-G):
-       - `70 g` | ₹16 ~~₹20~~ (20% OFF) `[ADD]`
-       - `2 x 70 g` | ₹31 ~~₹40~~ (22% OFF) `[ADD]`
-       - `3 x 70 g` | ₹47 ~~₹60~~ (21% OFF) `[ADD]`
-  2. **Product Detail Page View (`ProductDetailModal.tsx`):**
-     - High-res multi-photo gallery swiper, green Veg icon [⊡], weight, tax info, and "Why shop from ServoLocal?" trust badges.
-  3. **Parabolic Fly-to-Cart Animation (`FlyToCart.tsx`):**
-     - When `ADD +` is tapped, a miniature floating thumbnail launches in a smooth parabolic curved arc into the floating Cart Bucket.
-     - Cart bucket vibrates/bounces on impact.
-     - Button morphs into spring-animated `[ - 1 + ]` counter.
-  4. **Liquid Free Delivery Progress Bar:**
-     - Displays live inside cart drawer: *"Add ₹35 more for FREE Delivery (Save ₹25)!"*.
-     - Confetti explosion + sparkle animation upon crossing ₹150 threshold.
-  5. **Smart Upsell Rail ("Frequently Bought Together"):**
-     - Suggests paired items (e.g., Amul Butter if Bread is in cart, Cold Drink if Chips are in cart).
-- **Verification:** Test variant selection, animation physics, and quantity counter states.
+## 🔒 3. ZERO-ERROR EXECUTION RULE
+Whenever you give the command: **"Start Step X"** (e.g. `Start Step 1.1`):
+1. I will write 100% complete, bug-free, production code for that exact step.
+2. I will run end-to-end integration and compilation tests.
+3. I will commit and push the clean code to GitHub (`https://github.com/Priyanshu0sharma/Servolocal.git`).
+4. Only after your approval will we proceed to the next step.
 
----
-
-### 🔹 STEP 6: `customer-web` CHECKOUT, DIRECT UPI SPLIT, LIVE MAP & 5-STAR RATING
-- **Objective:** Complete the frictionless checkout flow, order placement, live GPS rider map tracking, and post-delivery review popup.
-- **Actions:**
-  1. **Checkout Engine:**
-     - Delivery address input with GPS pin confirmation.
-     - Financial summary: Item Total + Delivery Fee (₹0 if free delivery unlocked) + **Platform Fee (₹10)**.
-     - Payment options:
-       - **Direct Shopkeeper UPI Intent:** Opens GPay/PhonePe/Paytm directly with exact bill amount (zero gateway fee, zero tax risk).
-       - **Razorpay Standard Gateway:** Card, NetBanking, Wallet.
-       - **Cash on Delivery (COD).**
-  2. **Order Confirmation & 4-Digit Delivery PIN:**
-     - Prominently displays the confidential **4-Digit Delivery PIN** required by rider at doorstep.
-  3. **Live Rider Tracking Map (`LiveTrackingMap.tsx`):**
-     - Built with OpenStreetMap + Leaflet (100% free, no Google Maps bill).
-     - Polls rider GPS every 5 seconds from Redis; bike icon moves smoothly along the road.
-  4. **Post-Delivery 5-Star Bounce Rating Modal:**
-     - Interactive rating for Shopkeeper & Delivery Partner with instant feedback submission.
-- **Verification:** Test end-to-end checkout, payment URL generation, and status progression to DELIVERED.
-
----
-
-### 🔹 STEP 7: `mobile-apps/servolocal_flutter` NATIVE WRAPPER & BRIDGE
-- **Objective:** Package the Next.js web applications into a single high-performance Android APK / AAB using Flutter.
-- **Actions:**
-  1. Configure `webview_flutter` with zero-lag hardware acceleration and service worker caching.
-  2. Implement native Android background location service (`geolocator`) for delivery riders.
-  3. Wire native UPI intent caller (`url_launcher`) for 1-tap `upi://pay` handoff to PhonePe, Google Pay, and Paytm.
-  4. Configure Firebase Cloud Messaging (FCM) background message handler for the offline **Loud Order Ring Alarm (`order_alarm.mp3`)**.
-- **Verification:** Run `flutter analyze` and verify zero compilation errors.
-
----
-
-### 🔹 STEP 8: HOSTING, ZERO-COST DEPLOYMENT & LAUNCH GUIDE
-- **Objective:** Provide a step-by-step production deployment guide for 100% zero-cost live hosting.
-- **Actions:**
-  1. **FastAPI Backend $\rightarrow$ Render / Koyeb:**
-     - Deploy with Docker/Python environment variables.
-     - Setup 10-minute automated health-check ping via `cron-job.org` to keep free instance awake 24/7.
-  2. **Customer & Partner WebApps $\rightarrow$ Vercel:**
-     - Connect GitHub repository to Vercel for 1-click CI/CD deployment.
-     - Configure custom domains or free subdomains (`servolocal.vercel.app` & `partner.servolocal.vercel.app`).
-  3. **Google Play Store Release:**
-     - Generate signed Android App Bundle (`.aab`) from Flutter for Play Store publication.
-  4. **PWA Standalone Setup:**
-     - 1-click "Install App" prompt for iPhone (iOS Safari) and Android users without Play Store requirement.
-
----
-
-## 🔒 4. COMMITMENT & QUALITY GUARANTEE
-- **Zero Placeholders:** No `// TODO`, no dummy mocks, no hardcoded sample responses.
-- **Zero Regressions:** Every change tested with end-to-end unit and integration tests.
-- **Version Control:** Clean commits pushed to GitHub after every verified step.
-
-*Ready to execute upon user command starting at **STEP 1**.*
+*Ready to execute upon your command starting with **Step 1.1**.*
