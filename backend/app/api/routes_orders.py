@@ -15,7 +15,7 @@ from app.core.payment_engine import (
     generate_direct_shop_upi_link,
     calculate_order_financials,
 )
-from app.core.fcm_notify import send_loud_order_ring
+from app.core.fcm_notify import send_loud_order_ring, send_customer_order_update
 
 router = APIRouter(prefix="/api/orders", tags=["Orders & Checkout"])
 
@@ -308,6 +308,10 @@ async def checkout_order(
     # Trigger Loud Order Ring Buzzer to Shopkeeper
     if owner and owner.fcm_token:
         send_loud_order_ring(owner.fcm_token, order_code, grand_total, mode="NEW_ORDER")
+
+    # Send Order Placed Confirmation to Customer
+    if current_user and current_user.fcm_token:
+        send_customer_order_update(current_user.fcm_token, order_code, "PLACED", shop_name=shop.name)
 
     return {
         "success": True,

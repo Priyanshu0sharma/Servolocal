@@ -9,7 +9,7 @@ from app.db.models import User, Shop, Order, WalletLedger
 from app.core.security import require_partner
 from app.core.redis_cache import update_rider_gps, get_rider_gps
 from app.core.payment_engine import calculate_order_financials
-from app.core.fcm_notify import send_push_notification
+from app.core.fcm_notify import send_push_notification, send_customer_order_update, send_rider_job_ping
 
 router = APIRouter(prefix="/api/partner", tags=["Delivery Partner & Field Fleet"])
 
@@ -165,14 +165,15 @@ async def verify_pickup_pin(
     order.delivery_partner_id = current_user.id
     await db.commit()
 
-    # Notify customer
+    # Notify customer with Out for Delivery alert and 4-digit PIN
     customer_stmt = select(User).where(User.id == order.customer_id)
     customer = (await db.execute(customer_stmt)).scalar_one_or_none()
     if customer and customer.fcm_token:
-        send_push_notification(
+        send_customer_order_update(
             customer.fcm_token,
-            "🛵 Order Picked Up!",
-            f"Your order #{order.order_code} is on its way. Track rider live!"
+            order.order_code,
+            "OUT_FOR_DELIVERY",
+            delivery_pin=order.delivery_pin
         )
 
     return {
@@ -274,6 +275,17 @@ async def verify_delivery_pin(
             db.add(ledger_royalty)
 
     await db.commit()
+
+    # Notify customer that order has been delivered
+    customer_stmt = select(User).where(User.id == order.customer_id)
+    customer = (await db.execute(customer_stmt)).scalar_one_or_none()
+    if customer and customer.fcm_token:
+        send_customer_order_update(
+            customer.fcm_token,
+            order.order_code,
+            "DELIVERED",
+            shop_name=shop.name if shop else "Partner Store"
+        )
 
     return {
         "success": True,
