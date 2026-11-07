@@ -115,3 +115,24 @@ async def health_check():
         "all_keys_loaded": all_keys_ok,
         "version": settings.VERSION,
     }
+
+
+# ── App Version Checker — Remote Update Modal ────────────────────
+@app.get("/api/version")
+async def get_app_version():
+    """
+    Remote version checker for mobile (Flutter/Capacitor) and web apps.
+    Powers 'Update ServoLocal Now' popup modal dynamically.
+    """
+    return {
+        "current_app_version": settings.VERSION,
+        "latest_version": "1.0.0",
+        "min_required_version": "1.0.0",
+        "force_update": False,
+        "update_url": "https://servolocal.in",
+        "announcement": {
+            "title": "Welcome to ServoLocal",
+            "message": "Hyperlocal instant delivery + Pan-India direct vendor marketplace.",
+            "show_banner": False,
+        }
+    }
