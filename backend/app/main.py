@@ -20,11 +20,30 @@ from app.api.routes_legal import router as legal_router
 # ── Lifespan Event: Auto Table Creation & Master Catalog Seeding ───
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Ensure all database tables exist
+    # 1. Ensure all database tables exist and schema columns are up to date
     try:
+        from sqlalchemy import text
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print("[DATABASE] Tables initialized successfully.")
+            migrations = [
+                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS variants JSON DEFAULT '[]'::json;",
+                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS gallery_images JSON DEFAULT '[]'::json;",
+                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS is_veg BOOLEAN DEFAULT TRUE;",
+                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS variants JSON DEFAULT '[]'::json;",
+                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS gallery_images JSON DEFAULT '[]'::json;",
+                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS is_veg BOOLEAN DEFAULT TRUE;",
+                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS discount_percent FLOAT DEFAULT 0.0;",
+                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS selling_price FLOAT DEFAULT 0.0;",
+                "ALTER TABLE shops ADD COLUMN IF NOT EXISTS custom_serviceable_areas JSON DEFAULT '[]'::json;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT TRUE;",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_permission_granted BOOLEAN DEFAULT FALSE;",
+            ]
+            for m in migrations:
+                try:
+                    await conn.execute(text(m))
+                except Exception:
+                    pass
+        print("[DATABASE] Tables and columns initialized successfully.")
     except Exception as e:
         print(f"[DATABASE INIT ERROR] {e}")
 

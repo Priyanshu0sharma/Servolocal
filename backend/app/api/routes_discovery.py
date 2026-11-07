@@ -171,10 +171,14 @@ async def get_discovery_feed(
             "mode": "PAN_INDIA",
             "is_area_serviceable": True,
             "banner_badge": "Ships All India • 3-5 Days Courier Delivery",
+            "shops": [],
+            "featured_shops": [],
             "all_products": pan_india_items,
+            "pan_india_items": pan_india_items,
             "rails": {
                 "clothes_rail": clothes_rail,
                 "custom_3d_rail": custom_3d_rail,
+                "featured_rail": pan_india_items[:15],
             }
         }
         await set_cached_json(cache_key, feed_data, ttl_seconds=30)
@@ -233,6 +237,7 @@ async def get_discovery_feed(
     else:
         area_message = None
 
+    local_inventory_items: List[Dict[str, Any]] = []
     kirana_rail = []
     fast_food_rail = []
     street_stalls_rail = []
@@ -254,6 +259,7 @@ async def get_discovery_feed(
 
         for inv, shop in inv_rows:
             formatted = _format_inventory_item(inv, shop)
+            local_inventory_items.append(formatted)
             if inv.category == "Kirana":
                 kirana_rail.append(formatted)
             elif inv.category in ["Fast Food", "Sweets"]:
@@ -261,6 +267,25 @@ async def get_discovery_feed(
             
             if shop.management_mode == "PARTNER_RUNNER_STALL":
                 street_stalls_rail.append(formatted)
+
+    # If local rails are empty, enrich from pan_india/master catalog so screen is NEVER empty!
+    all_combined_products = local_inventory_items if local_inventory_items else pan_india_items
+    if not kirana_rail:
+        kirana_rail = [item for item in pan_india_items if item.get("category") == "Kirana"]
+    if not fast_food_rail:
+        fast_food_rail = [item for item in pan_india_items if item.get("category") in ["Fast Food", "Sweets", "Bakery"]]
+
+    chips_rail = [
+        item for item in all_combined_products
+        if "chip" in item.get("name", "").lower()
+        or "lays" in item.get("name", "").lower()
+        or "kurkure" in item.get("name", "").lower()
+        or "bingo" in item.get("name", "").lower()
+        or "namkeen" in item.get("name", "").lower()
+        or item.get("sub_category") == "Chips"
+    ]
+    if not chips_rail:
+        chips_rail = all_combined_products[:10]
 
     feed_data = {
         "mode": "LOCAL",
@@ -271,9 +296,12 @@ async def get_discovery_feed(
         "user_coordinates": {"lat": lat, "lng": lng},
         "locality": locality or f"Location ({round(lat, 4)}, {round(lng, 4)})",
         "total_shops_in_radius": len(served_shops),
+        "shops": served_shops,
         "featured_shops": served_shops,
         "scheduled_route_shops": [s for s in served_shops if s.get("is_scheduled_route")],
+        "all_products": all_combined_products,
         "rails": {
+            "chips_rail": chips_rail[:20],
             "kirana_rail": kirana_rail[:20],
             "fast_food_rail": fast_food_rail[:20],
             "street_stalls_rail": street_stalls_rail[:20],
