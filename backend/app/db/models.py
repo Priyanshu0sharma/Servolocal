@@ -109,6 +109,7 @@ class Shop(Base):
     delivery_radius_km = Column(Float, default=3.0, nullable=False)   # Dukandaar Slider (1 to 15 km)
     local_eta_mins = Column(String(50), default="15-20 mins", nullable=False)
     national_eta_days = Column(String(50), default="3-5 Days", nullable=False)
+    custom_serviceable_areas = Column(JSON, default=list, nullable=True) # Multi-Village routes: [{"area_name": "Balwantpura", "eta_label": "6-7 hrs (Same Day)", "delivery_fee": 20.0}]
     free_delivery_enabled = Column(Boolean, default=True, nullable=False)
     min_order_for_free_delivery = Column(Float, default=150.0, nullable=False)
     base_delivery_fee = Column(Float, default=25.0, nullable=False)

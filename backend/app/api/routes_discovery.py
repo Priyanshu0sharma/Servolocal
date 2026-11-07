@@ -24,7 +24,14 @@ class AreaDemandSubmitRequest(BaseModel):
     email: Optional[str] = None
 
 
-def _format_shop_dict(shop: Shop, distance_km: Optional[float] = None, eta: Optional[str] = None) -> Dict[str, Any]:
+def _format_shop_dict(
+    shop: Shop,
+    distance_km: Optional[float] = None,
+    eta: Optional[str] = None,
+    is_scheduled_route: bool = False,
+    scheduled_area_name: Optional[str] = None,
+    scheduled_eta: Optional[str] = None
+) -> Dict[str, Any]:
     return {
         "id": shop.id,
         "name": shop.name,
@@ -39,6 +46,10 @@ def _format_shop_dict(shop: Shop, distance_km: Optional[float] = None, eta: Opti
         "distance_km": distance_km if distance_km is not None else 0.0,
         "local_eta_mins": eta or shop.local_eta_mins,
         "national_eta_days": shop.national_eta_days,
+        "custom_serviceable_areas": getattr(shop, "custom_serviceable_areas", []) or [],
+        "is_scheduled_route": is_scheduled_route,
+        "scheduled_area_name": scheduled_area_name,
+        "scheduled_eta": scheduled_eta,
         "free_delivery_enabled": shop.free_delivery_enabled,
         "min_order_for_free_delivery": shop.min_order_for_free_delivery,
         "base_delivery_fee": shop.base_delivery_fee,
@@ -171,22 +182,51 @@ async def get_discovery_feed(
 
     served_shops: List[Dict[str, Any]] = []
     served_shop_ids: List[int] = []
+    clean_user_locality = (locality or "").strip().lower()
 
     for s in all_shops:
         is_served, distance = is_within_shop_radius(lat, lng, s.lat, s.lng, s.delivery_radius_km)
+
+        # Multi-Village / Scheduled Neighboring Route Match (e.g. Dundlod -> Balwantpura)
+        scheduled_match = None
+        if clean_user_locality and getattr(s, "custom_serviceable_areas", None):
+            for area_obj in (s.custom_serviceable_areas or []):
+                target_name = (area_obj.get("area_name") or "").strip().lower()
+                if target_name and (target_name in clean_user_locality or clean_user_locality in target_name):
+                    scheduled_match = area_obj
+                    break
+
         if is_served:
             eta = estimate_eta_mins(distance)
-            served_shops.append(_format_shop_dict(s, distance_km=distance, eta=eta))
+            served_shops.append(_format_shop_dict(s, distance_km=distance, eta=eta, is_scheduled_route=False))
+            served_shop_ids.append(s.id)
+        elif scheduled_match:
+            sched_eta = scheduled_match.get("eta_label", "6-7 hrs (Same Day Route)")
+            served_shops.append(
+                _format_shop_dict(
+                    s,
+                    distance_km=distance,
+                    eta=sched_eta,
+                    is_scheduled_route=True,
+                    scheduled_area_name=scheduled_match.get("area_name"),
+                    scheduled_eta=sched_eta,
+                )
+            )
             served_shop_ids.append(s.id)
 
-    # Sort shops: Open first, then by closest distance
-    served_shops.sort(key=lambda x: (not x["is_open"], x["distance_km"]))
+    # Sort shops: Instant Open first, then Scheduled Open, then by distance
+    served_shops.sort(key=lambda x: (not x["is_open"], x.get("is_scheduled_route", False), x["distance_km"]))
 
     # Dynamic Serviceability Check
     is_serviceable = len(served_shops) > 0
-    area_message = None if is_serviceable else (
-        "Instant 15-min delivery is coming soon to your area! Meanwhile, shop Pan-India items or register as the first shop/partner here."
-    )
+    scheduled_only = is_serviceable and all(s.get("is_scheduled_route") for s in served_shops)
+
+    if not is_serviceable:
+        area_message = "Instant 15-min delivery is coming soon to your area! Meanwhile, shop Pan-India items or register as the first shop/partner here."
+    elif scheduled_only:
+        area_message = f"Scheduled route delivery is available in {locality} from nearby partner stores!"
+    else:
+        area_message = None
 
     kirana_rail = []
     fast_food_rail = []
@@ -220,16 +260,19 @@ async def get_discovery_feed(
     feed_data = {
         "mode": "LOCAL",
         "is_area_serviceable": is_serviceable,
+        "has_scheduled_routes": any(s.get("is_scheduled_route") for s in served_shops),
         "area_message": area_message,
         "unserviceable_message": area_message,
         "user_coordinates": {"lat": lat, "lng": lng},
         "locality": locality or f"Location ({round(lat, 4)}, {round(lng, 4)})",
         "total_shops_in_radius": len(served_shops),
         "featured_shops": served_shops,
+        "scheduled_route_shops": [s for s in served_shops if s.get("is_scheduled_route")],
         "rails": {
             "kirana_rail": kirana_rail[:20],
             "fast_food_rail": fast_food_rail[:20],
             "street_stalls_rail": street_stalls_rail[:20],
+            "scheduled_route_rail": [s for s in served_shops if s.get("is_scheduled_route")],
         },
         # All Pan-India products returned so the app is never empty
         "pan_india_items": pan_india_items,

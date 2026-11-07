@@ -101,6 +101,7 @@ export interface ShopData {
   min_order_for_free_delivery: number;
   base_delivery_fee: number;
   seller_upi_id?: string;
+  custom_serviceable_areas?: Array<{ area_name: string; eta_label: string; delivery_fee: number }>;
 }
 
 export interface ShopSetupPayload {
@@ -118,6 +119,7 @@ export interface ShopSetupPayload {
   min_order_for_free_delivery: number;
   base_delivery_fee: number;
   seller_upi_id?: string;
+  custom_serviceable_areas?: Array<{ area_name: string; eta_label: string; delivery_fee: number }>;
 }
 
 export interface MasterCatalogItem {

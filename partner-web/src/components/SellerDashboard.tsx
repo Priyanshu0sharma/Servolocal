@@ -103,6 +103,12 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [minOrderFreeDelivery, setMinOrderFreeDelivery] = useState(150.0);
   const [baseDeliveryFee, setBaseDeliveryFee] = useState(25.0);
   const [sellerUpiId, setSellerUpiId] = useState(initialUser.upi_id || "shopkeeper@upi");
+  const [customServiceableAreas, setCustomServiceableAreas] = useState<
+    Array<{ area_name: string; eta_label: string; delivery_fee: number }>
+  >([]);
+  const [newAreaName, setNewAreaName] = useState("");
+  const [newAreaEta, setNewAreaEta] = useState("6-7 hrs (Same Day)");
+  const [newAreaFee, setNewAreaFee] = useState<number>(20);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Sound Synthesizer Buzzer
@@ -134,6 +140,9 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
           setShop(data.shop);
           setIsOpen(data.shop.is_open);
           setLocalityName(data.shop.locality || localityName);
+          if (data.shop.custom_serviceable_areas && Array.isArray(data.shop.custom_serviceable_areas)) {
+            setCustomServiceableAreas(data.shop.custom_serviceable_areas);
+          }
         }
         if (data?.items) {
           setInventory(data.items);
@@ -222,6 +231,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
         min_order_for_free_delivery: minOrderFreeDelivery,
         base_delivery_fee: baseDeliveryFee,
         seller_upi_id: sellerUpiId,
+        custom_serviceable_areas: customServiceableAreas,
       });
       setStatusMsg(`Store is now ${nextState ? "OPEN for orders" : "CLOSED"}`);
       setTimeout(() => setStatusMsg(""), 3000);
@@ -422,6 +432,35 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
     );
   };
 
+  // Custom Village / Neighboring Area Route Handlers
+  const handleAddCustomArea = () => {
+    if (!newAreaName.trim()) {
+      alert("Please enter a village or area name (e.g. Balwantpura)");
+      return;
+    }
+    const exists = customServiceableAreas.some(
+      (a) => a.area_name.trim().toLowerCase() === newAreaName.trim().toLowerCase()
+    );
+    if (exists) {
+      alert("This village/area is already added to your delivery routes.");
+      return;
+    }
+    setCustomServiceableAreas((prev) => [
+      ...prev,
+      {
+        area_name: newAreaName.trim(),
+        eta_label: newAreaEta.trim() || "6-7 hrs (Same Day)",
+        delivery_fee: Number(newAreaFee) || 20,
+      },
+    ]);
+    setNewAreaName("");
+    setNewAreaFee(20);
+  };
+
+  const handleRemoveCustomArea = (indexToRemove: number) => {
+    setCustomServiceableAreas((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   // Save Shop Settings
   const handleSaveShopSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,6 +479,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
         min_order_for_free_delivery: minOrderFreeDelivery,
         base_delivery_fee: baseDeliveryFee,
         seller_upi_id: sellerUpiId.trim(),
+        custom_serviceable_areas: customServiceableAreas,
       });
       setShop(res.shop);
       confetti({ particleCount: 50 });
@@ -1220,6 +1260,104 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
                   />
                 </div>
+              </div>
+
+              {/* Multi-Village / Scheduled Neighboring Routes (e.g. Dundlod -> Balwantpura) */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-white">Neighboring Village / Area Routes</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                    Scheduled Delivery (6-7 hrs / Evening)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Do you or your delivery person travel to neighboring villages (e.g. from Dundlod to Balwantpura)? Add those villages here so customers there can order with scheduled delivery!
+                </p>
+
+                {/* Add new village row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-1">Village / Locality Name</label>
+                    <input
+                      type="text"
+                      value={newAreaName}
+                      onChange={(e) => setNewAreaName(e.target.value)}
+                      placeholder="e.g. Balwantpura"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-1">Delivery Schedule / ETA</label>
+                    <select
+                      value={newAreaEta}
+                      onChange={(e) => setNewAreaEta(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="6-7 hrs (Same Day)">6-7 hrs (Same Day Route)</option>
+                      <option value="Evening Delivery (By 8 PM)">Evening Delivery (By 8 PM)</option>
+                      <option value="Next Day Morning">Next Day Morning (By 10 AM)</option>
+                      <option value="Same Day (4-5 hrs)">Same Day (4-5 hrs)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-1">Route Delivery Fee (₹)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={newAreaFee}
+                        onChange={(e) => setNewAreaFee(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-bold"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomArea}
+                        className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 font-bold text-xs whitespace-nowrap transition-colors flex items-center gap-1 border border-emerald-500/30"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* List of active village routes */}
+                {customServiceableAreas.length > 0 ? (
+                  <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Active Scheduled Village Routes ({customServiceableAreas.length})
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {customServiceableAreas.map((area, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-white block">{area.area_name}</span>
+                            <span className="text-[11px] text-slate-400">
+                              {area.eta_label} • ₹{area.delivery_fee} Fee
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomArea(idx)}
+                            className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic pt-1">
+                    No neighboring village routes added yet. Add villages like &apos;Balwantpura&apos; or neighboring clusters to accept orders beyond your {deliveryRadiusKm} km radius.
+                  </p>
+                )}
               </div>
 
               {/* Shopkeeper Direct UPI ID */}

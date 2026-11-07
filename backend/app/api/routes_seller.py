@@ -31,6 +31,7 @@ class ShopSetupRequest(BaseModel):
     min_order_for_free_delivery: float = Field(150.0, ge=50.0)
     base_delivery_fee: float = Field(25.0, ge=0.0)
     seller_upi_id: Optional[str] = None
+    custom_serviceable_areas: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 
 class AddFromMasterRequest(BaseModel):
@@ -88,6 +89,7 @@ async def setup_or_update_shop(
             min_order_for_free_delivery=req.min_order_for_free_delivery,
             base_delivery_fee=req.base_delivery_fee,
             seller_upi_id=req.seller_upi_id,
+            custom_serviceable_areas=req.custom_serviceable_areas or [],
             is_verified=True,
         )
         db.add(shop)
@@ -106,6 +108,7 @@ async def setup_or_update_shop(
         shop.free_delivery_enabled = req.free_delivery_enabled
         shop.min_order_for_free_delivery = req.min_order_for_free_delivery
         shop.base_delivery_fee = req.base_delivery_fee
+        shop.custom_serviceable_areas = req.custom_serviceable_areas or []
         if req.seller_upi_id:
             shop.seller_upi_id = req.seller_upi_id
 
@@ -126,6 +129,7 @@ async def setup_or_update_shop(
             "delivery_radius_km": shop.delivery_radius_km,
             "min_order_for_free_delivery": shop.min_order_for_free_delivery,
             "seller_upi_id": shop.seller_upi_id,
+            "custom_serviceable_areas": shop.custom_serviceable_areas or [],
         }
     }
 
