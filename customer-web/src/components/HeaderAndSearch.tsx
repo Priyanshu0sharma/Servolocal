@@ -187,8 +187,9 @@ export default function HeaderAndSearch({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all select-none">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4">
+    <>
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all select-none">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* ── Brand Logo & Location ───────────────────────────────── */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 cursor-pointer">
@@ -380,7 +381,7 @@ export default function HeaderAndSearch({
           ) : (
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black transition-all shadow-xs"
             >
               Login
             </button>
@@ -403,8 +404,9 @@ export default function HeaderAndSearch({
           </button>
         </div>
       </div>
+    </header>
 
-      {/* ── Locality Selector Modal ───────────────────────────────── */}
+    {/* ── Locality Selector Modal ───────────────────────────────── */}
       <AnimatePresence>
         {isLocalityModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -606,7 +608,7 @@ export default function HeaderAndSearch({
           </div>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }
 
