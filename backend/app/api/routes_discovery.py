@@ -1,14 +1,25 @@
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_
 
 from app.db.database import get_db
-from app.db.models import Shop, ShopInventory, MasterCatalogItem
+from app.db.models import Shop, ShopInventory, MasterCatalogItem, AreaDemandRequest
 from app.core.geo_engine import is_within_shop_radius, estimate_eta_mins
 from app.core.redis_cache import get_cached_json, set_cached_json
 
 router = APIRouter(prefix="/api/discovery", tags=["Discovery"])
+
+
+# ── Schemas ─────────────────────────────────────────────────────────────
+
+class AreaDemandSubmitRequest(BaseModel):
+    lat: float
+    lng: float
+    locality_name: str = Field(..., min_length=2)
+    pincode: Optional[str] = None
+    phone_or_email: str = Field(..., min_length=5)
 
 
 def _format_shop_dict(shop: Shop, distance_km: Optional[float] = None, eta: Optional[str] = None) -> Dict[str, Any]:
@@ -61,71 +72,66 @@ def _format_inventory_item(item: ShopInventory, shop: Optional[Shop] = None) -> 
 
 @router.get("/feed", status_code=status.HTTP_200_OK)
 async def get_discovery_feed(
-    lat: float = Query(27.0544, description="User Latitude (e.g. Kukas: 27.0544)"),
-    lng: float = Query(75.8942, description="User Longitude (e.g. Kukas: 75.8942)"),
+    lat: float = Query(27.0544, description="User Latitude"),
+    lng: float = Query(75.8942, description="User Longitude"),
     mode: str = Query("LOCAL", description="'LOCAL' (Hyperlocal Instant) or 'PAN_INDIA' (National Courier)"),
-    locality: Optional[str] = Query(None, description="Optional locality override e.g. Kukas"),
+    locality: Optional[str] = Query(None, description="Optional user locality string"),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Hyperlocal + Pan-India Discovery Engine:
-    - In LOCAL mode: Uses geo_engine Haversine formula to strictly isolate shops.
-      Kukas users only see shops serving their radius; Kunda shops are 100% hidden.
-    - In PAN_INDIA mode: Returns national courier items ('Ships All India • 3-5 Days').
-    - Returns structured Blinkit/Zepto-style horizontal rails with 30s Upstash Redis caching.
+    Dynamic All-India Serviceability & Discovery Engine:
+    - NO hardcoded locality limits: Works from ANY coordinate or pincode in India.
+    - In LOCAL mode: Calculates Haversine distance against all verified shops.
+    - If no local shops serve this location (local_shops_count == 0):
+      Returns is_area_serviceable = False, a helpful unserviceable message,
+      AND Pan-India eligible items so the screen is NEVER dead.
+    - If served: Returns is_area_serviceable = True with sorted open shops and rails.
+    - Upstash Redis caching enabled with 30s TTL.
     """
     clean_mode = mode.upper().strip()
-    cache_key = f"feed:{clean_mode}:{round(lat, 3)}:{round(lng, 3)}:{locality or 'all'}"
+    cache_key = f"feed:{clean_mode}:{round(lat, 3)}:{round(lng, 3)}:{locality or 'auto'}"
 
-    # Try cache first for 0-lag response
     cached = await get_cached_json(cache_key)
     if cached:
         return cached
 
-    if clean_mode == "PAN_INDIA":
-        # National Courier Feed
-        stmt = (
-            select(ShopInventory, Shop)
-            .join(Shop, ShopInventory.shop_id == Shop.id)
-            .where(
-                and_(
-                    Shop.is_verified == True,
-                    or_(
-                        ShopInventory.is_pan_india_eligible == True,
-                        Shop.delivery_scope.in_(["PAN_INDIA", "BOTH"])
-                    )
-                )
+    # Query Pan-India products (always available as fallback and national catalog)
+    pan_india_stmt = (
+        select(ShopInventory, Shop)
+        .join(Shop, ShopInventory.shop_id == Shop.id)
+        .where(
+            and_(
+                Shop.is_verified == True,
+                or_(
+                    ShopInventory.is_pan_india_eligible == True,
+                    Shop.delivery_scope.in_(["PAN_INDIA", "BOTH"])
+                ),
+                ShopInventory.in_stock == True,
+                ShopInventory.available_stock > 0
             )
         )
-        result = await db.execute(stmt)
-        rows = result.all()
+    )
+    pan_india_rows = (await db.execute(pan_india_stmt)).all()
 
-        clothes_rail = []
-        custom_3d_rail = []
-        all_pan_india = []
+    pan_india_items = [_format_inventory_item(inv, shop) for inv, shop in pan_india_rows]
+    clothes_rail = [item for item in pan_india_items if item["category"] == "Clothes"]
+    custom_3d_rail = [item for item in pan_india_items if item["category"] in ["Custom/3D", "Handicrafts"]]
 
-        for inv, shop in rows:
-            formatted = _format_inventory_item(inv, shop)
-            all_pan_india.append(formatted)
-            if inv.category == "Clothes":
-                clothes_rail.append(formatted)
-            elif inv.category in ["Custom/3D", "Handicrafts"]:
-                custom_3d_rail.append(formatted)
-
+    if clean_mode == "PAN_INDIA":
         feed_data = {
             "mode": "PAN_INDIA",
+            "is_area_serviceable": True,
             "banner_badge": "Ships All India • 3-5 Days Courier Delivery",
-            "all_products": all_pan_india,
+            "all_products": pan_india_items,
             "rails": {
                 "clothes_rail": clothes_rail,
                 "custom_3d_rail": custom_3d_rail,
             }
         }
-
         await set_cached_json(cache_key, feed_data, ttl_seconds=30)
         return feed_data
 
-    # ── LOCAL MODE (Hyperlocal Instant Delivery with Strict Area Isolation) ──
+    # ── LOCAL HYPERLOCAL MODE ──────────────────────────────────────────
     shop_stmt = select(Shop).where(Shop.is_verified == True)
     shop_result = await db.execute(shop_stmt)
     all_shops = shop_result.scalars().all()
@@ -143,7 +149,13 @@ async def get_discovery_feed(
     # Sort shops: Open first, then by closest distance
     served_shops.sort(key=lambda x: (not x["is_open"], x["distance_km"]))
 
-    # Query inventory items strictly for served shops
+    # Dynamic Serviceability Check
+    is_serviceable = len(served_shops) > 0
+    unserviceable_message = None if is_serviceable else (
+        "Instant delivery is not available in your area yet, but you can shop from our "
+        "Pan-India store or register as the first partner here!"
+    )
+
     kirana_rail = []
     fast_food_rail = []
     street_stalls_rail = []
@@ -175,21 +187,56 @@ async def get_discovery_feed(
 
     feed_data = {
         "mode": "LOCAL",
-        "locality": locality or ("Kukas" if lat >= 27.0 else "Kunda"),
+        "is_area_serviceable": is_serviceable,
+        "unserviceable_message": unserviceable_message,
+        "user_coordinates": {"lat": lat, "lng": lng},
+        "locality": locality or f"Location ({round(lat, 4)}, {round(lng, 4)})",
         "total_shops_in_radius": len(served_shops),
         "featured_shops": served_shops,
         "rails": {
             "kirana_rail": kirana_rail[:20],
             "fast_food_rail": fast_food_rail[:20],
             "street_stalls_rail": street_stalls_rail[:20],
-        }
+        },
+        # Never dead fallback: Pan-India products shown even in unserviceable areas
+        "pan_india_fallback_items": pan_india_items[:15],
     }
 
     await set_cached_json(cache_key, feed_data, ttl_seconds=30)
     return feed_data
 
 
-# ── 2. GET /api/discovery/search-suggest ─────────────────────────────────
+# ── 2. POST /api/discovery/request-area ─────────────────────────────────
+
+@router.post("/request-area", status_code=status.HTTP_201_CREATED)
+async def submit_area_demand_request(
+    req: AreaDemandSubmitRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Demand-aggregation tool:
+    Users in unserviceable areas submit their locality and contact info.
+    Admin dashboard visualizes demand heatmaps to prioritize next delivery launch zones.
+    """
+    demand = AreaDemandRequest(
+        lat=req.lat,
+        lng=req.lng,
+        locality_name=req.locality_name.strip(),
+        pincode=req.pincode.strip() if req.pincode else None,
+        phone_or_email=req.phone_or_email.strip().lower(),
+    )
+    db.add(demand)
+    await db.commit()
+    await db.refresh(demand)
+
+    return {
+        "success": True,
+        "message": f"Demand recorded for '{req.locality_name}'! We will alert you the moment ServoLocal delivery launches in your area.",
+        "request_id": demand.id,
+    }
+
+
+# ── 3. GET /api/discovery/search-suggest ─────────────────────────────────
 
 @router.get("/search-suggest", status_code=status.HTTP_200_OK)
 async def search_suggest(
@@ -199,10 +246,7 @@ async def search_suggest(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Instant search auto-complete across:
-    1. Master Catalog items & Shop Inventories
-    2. Local shops in delivery radius
-    3. Category and keyword tags
+    Instant search auto-complete across Master Catalog, inventories, and shops.
     """
     query_str = f"%{q.strip().lower()}%"
 

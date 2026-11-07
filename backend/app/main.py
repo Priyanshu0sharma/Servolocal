@@ -13,6 +13,7 @@ from app.api.routes_seller import router as seller_router
 from app.api.routes_partner import router as partner_router
 from app.api.routes_orders import router as orders_router
 from app.api.routes_admin import router as admin_router
+from app.api.routes_legal import router as legal_router
 
 
 # ── Lifespan Event: Auto Table Creation & Master Catalog Seeding ───
@@ -62,6 +63,7 @@ app.include_router(seller_router)
 app.include_router(partner_router)
 app.include_router(orders_router)
 app.include_router(admin_router)
+app.include_router(legal_router)
 
 
 # ── Root Endpoint ────────────────────────────────────────────────
@@ -79,6 +81,7 @@ async def root():
             "partner": "/api/partner",
             "orders": "/api/orders",
             "admin": "/api/admin",
+            "legal": "/api/legal",
         }
     }
 

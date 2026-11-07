@@ -43,6 +43,8 @@ def _format_user_response(user: User) -> Dict[str, Any]:
         "wallet_balance": user.wallet_balance,
         "dues_limit": user.dues_limit,
         "upi_id": user.upi_id,
+        "terms_accepted": getattr(user, "terms_accepted", True),
+        "location_permission_granted": getattr(user, "location_permission_granted", False),
         "is_active": user.is_active,
     }
 
@@ -219,3 +221,33 @@ async def get_me_endpoint(
     return {
         "user": _format_user_response(current_user)
     }
+
+
+# ── 5. POST /api/auth/update-permission ─────────────────────────────────
+
+class UpdatePermissionsRequest(BaseModel):
+    location_permission_granted: Optional[bool] = None
+    terms_accepted: Optional[bool] = None
+
+
+@router.post("/update-permission", status_code=status.HTTP_200_OK)
+async def update_user_permissions(
+    req: UpdatePermissionsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Updates user location permission status and terms acceptance."""
+    if req.location_permission_granted is not None:
+        current_user.location_permission_granted = req.location_permission_granted
+    if req.terms_accepted is not None:
+        current_user.terms_accepted = req.terms_accepted
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    return {
+        "success": True,
+        "message": "User permissions and compliance status updated",
+        "user": _format_user_response(current_user)
+    }
+

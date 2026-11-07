@@ -34,6 +34,8 @@ class User(Base):
     dues_limit = Column(Float, default=-200.0, nullable=False)   # Account auto-locked if balance < dues_limit
     upi_id = Column(String(100), nullable=True)                  # For direct UPI payout / settlement
     fcm_token = Column(String(500), nullable=True)               # Push notifications / loud buzzer ring
+    terms_accepted = Column(Boolean, default=True, nullable=False) # Razorpay & Play Store Compliance
+    location_permission_granted = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -280,4 +282,21 @@ class WalletLedger(Base):
     # Relationships
     user = relationship("User", back_populates="ledger_entries")
     order = relationship("Order", back_populates="ledger_records")
+
+
+class AreaDemandRequest(Base):
+    """
+    Captures user demand in currently unserviceable GPS coordinates or pincodes
+    so Admin can prioritize expanding delivery fleet and onboarding local vendors.
+    """
+    __tablename__ = "area_demand_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    locality_name = Column(String(150), nullable=False)
+    pincode = Column(String(20), nullable=True)
+    phone_or_email = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
 
