@@ -1,15 +1,27 @@
+import asyncio
+import json
+import logging
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, EmailStr
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.db.database import get_db
 from app.db.models import User, Shop, Order, WalletLedger
 from app.core.security import require_partner
-from app.core.redis_cache import update_rider_gps, get_rider_gps
+from app.core.redis_cache import (
+    update_rider_gps,
+    get_rider_gps,
+    set_rider_duty_status,
+    get_rider_duty_status,
+    update_rider_duty_gps,
+    get_all_active_riders,
+)
 from app.core.payment_engine import calculate_order_financials
 from app.core.fcm_notify import send_push_notification, send_customer_order_update, send_rider_job_ping
+
+logger = logging.getLogger("routes_partner")
 
 router = APIRouter(prefix="/api/partner", tags=["Delivery Partner & Field Fleet"])
 
@@ -35,6 +47,17 @@ class UpdateGPSRequest(BaseModel):
     lat: float
     lng: float
     heading: float = 0.0
+
+
+class DutyToggleRequest(BaseModel):
+    is_on_duty: bool
+    lat: float = 0.0
+    lng: float = 0.0
+
+
+class DutyGPSUpdateRequest(BaseModel):
+    lat: float
+    lng: float
 
 
 class VerifyPickupPinRequest(BaseModel):
@@ -295,3 +318,178 @@ async def verify_delivery_pin(
         "review_prompt": True,
         "message": "Order delivered successfully! Dues and earnings split processed."
     }
+
+
+# ── 5. POST /api/partner/duty-toggle ────────────────────────────────────
+
+@router.post("/duty-toggle", status_code=status.HTTP_200_OK)
+async def toggle_duty_status(
+    req: DutyToggleRequest,
+    current_user: User = Depends(require_partner),
+):
+    """
+    Rider goes ON_DUTY or OFF_DUTY.
+    On-duty riders appear in the job radar for new order dispatching.
+    GPS coordinates are stored in Redis with 8-hour auto-expiry.
+    """
+    await set_rider_duty_status(
+        partner_id=current_user.id,
+        is_on_duty=req.is_on_duty,
+        lat=req.lat,
+        lng=req.lng,
+        name=current_user.name,
+    )
+    return {
+        "success": True,
+        "partner_id": current_user.id,
+        "is_on_duty": req.is_on_duty,
+        "message": f"Duty {'ON — You will receive new order pings!' if req.is_on_duty else 'OFF — Rest well!'}"
+    }
+
+
+# ── 6. POST /api/partner/duty-gps ──────────────────────────────────────
+
+@router.post("/duty-gps", status_code=status.HTTP_200_OK)
+async def update_duty_gps(
+    req: DutyGPSUpdateRequest,
+    current_user: User = Depends(require_partner),
+):
+    """
+    Updates the rider's idle GPS position while on duty (not on a specific order).
+    Called every 10 seconds from mobile app for job radar proximity matching.
+    """
+    await update_rider_duty_gps(
+        partner_id=current_user.id,
+        lat=req.lat,
+        lng=req.lng,
+    )
+    return {"success": True, "lat": req.lat, "lng": req.lng}
+
+
+# ── 7. GET /api/partner/duty-status ─────────────────────────────────────
+
+@router.get("/duty-status", status_code=status.HTTP_200_OK)
+async def get_duty_status(
+    current_user: User = Depends(require_partner),
+):
+    """Returns current rider's duty status from Redis."""
+    data = await get_rider_duty_status(current_user.id)
+    if not data:
+        return {"is_on_duty": False, "message": "Currently OFF duty."}
+    return {
+        "is_on_duty": data.get("status") == "ON_DUTY",
+        "lat": data.get("lat", 0.0),
+        "lng": data.get("lng", 0.0),
+        "updated_at": data.get("updated_at"),
+    }
+
+
+# ── 8. GET /api/partner/active-riders ───────────────────────────────────
+
+@router.get("/active-riders", status_code=status.HTTP_200_OK)
+async def list_active_riders(
+    current_user: User = Depends(require_partner),
+):
+    """
+    Returns all currently ON_DUTY riders.
+    Used by Admin and job dispatch engine to see available fleet.
+    """
+    riders = await get_all_active_riders()
+    return {
+        "success": True,
+        "count": len(riders),
+        "riders": riders,
+    }
+
+
+# ── 9. GET /api/partner/track-order/{order_id} (REST Polling Fallback) ──
+
+@router.get("/track-order/{order_id}", status_code=status.HTTP_200_OK)
+async def track_order_rest(
+    order_id: int,
+):
+    """
+    REST fallback for customer-side rider tracking.
+    Returns latest GPS coordinates from Redis.
+    Clients poll this every 5 seconds as WebSocket fallback.
+    """
+    gps = await get_rider_gps(order_id)
+    if not gps:
+        return {
+            "tracking": False,
+            "message": "Rider GPS not yet available. Waiting for rider to start delivery.",
+        }
+    return {
+        "tracking": True,
+        "order_id": gps.get("order_id"),
+        "partner_id": gps.get("partner_id"),
+        "lat": gps.get("lat"),
+        "lng": gps.get("lng"),
+        "heading": gps.get("heading", 0.0),
+        "updated_at": gps.get("updated_at"),
+    }
+
+
+# ── 10. WebSocket /ws/track/{order_id} (Real-Time GPS Stream) ──────────
+
+@router.websocket("/ws/track/{order_id}")
+async def websocket_track_order(
+    websocket: WebSocket,
+    order_id: int,
+):
+    """
+    Real-time WebSocket GPS stream for customer's Leaflet tracking map.
+    Sends rider's latest lat/lng every 5 seconds from Redis.
+    Auto-closes when order is DELIVERED or client disconnects.
+
+    Protocol:
+      - Server → Client: JSON {"lat": 26.85, "lng": 75.76, "heading": 45.0, "updated_at": 1699999}
+      - Client can send "ping" to keep alive
+      - Server sends {"status": "DELIVERED"} when order completes, then closes
+    """
+    await websocket.accept()
+    logger.info(f"[WS TRACK] Client connected for order #{order_id}")
+
+    consecutive_empty = 0
+    max_empty_cycles = 360  # 360 * 5s = 30 minutes max idle before auto-close
+
+    try:
+        while True:
+            gps = await get_rider_gps(order_id)
+
+            if gps:
+                consecutive_empty = 0
+                await websocket.send_json({
+                    "type": "gps_update",
+                    "lat": gps.get("lat"),
+                    "lng": gps.get("lng"),
+                    "heading": gps.get("heading", 0.0),
+                    "partner_id": gps.get("partner_id"),
+                    "updated_at": gps.get("updated_at"),
+                })
+            else:
+                consecutive_empty += 1
+                await websocket.send_json({
+                    "type": "waiting",
+                    "message": "Waiting for rider GPS signal...",
+                })
+
+            # Auto-close after 30 min of no GPS data
+            if consecutive_empty >= max_empty_cycles:
+                await websocket.send_json({
+                    "type": "timeout",
+                    "message": "Tracking session timed out. Please refresh.",
+                })
+                break
+
+            # Wait 5 seconds before next update
+            await asyncio.sleep(5)
+
+    except WebSocketDisconnect:
+        logger.info(f"[WS TRACK] Client disconnected for order #{order_id}")
+    except Exception as e:
+        logger.error(f"[WS TRACK ERROR] order #{order_id}: {e}")
+        try:
+            await websocket.close(code=1011, reason=str(e))
+        except Exception:
+            pass
