@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.db.models import MasterCatalogItem
+from app.db.models import MasterCatalogItem, User
 
 PRODUCTS_DATA = [
     # ─── Biscuits & Snacks (Parle, Lay's, Kurkure) ──────────────────────────
@@ -373,4 +373,24 @@ async def seed_master_catalog(session: AsyncSession) -> int:
     await session.commit()
     print(f"[CATALOG SEEDER] Successfully populated {len(items_to_add)} Master Catalog items.")
     return len(items_to_add)
+
+
+async def seed_initial_admin(session: AsyncSession) -> User:
+    """Ensures a default super admin user exists in the database."""
+    admin_stmt = select(User).where(User.email == "admin@servolocal.in")
+    admin = (await session.execute(admin_stmt)).scalar_one_or_none()
+    if not admin:
+        admin = User(
+            email="admin@servolocal.in",
+            name="ServoLocal Super Admin",
+            role="admin",
+            is_active=True,
+            terms_accepted=True,
+            location_permission_granted=True,
+        )
+        session.add(admin)
+        await session.commit()
+        await session.refresh(admin)
+        print("[ADMIN SEEDER] Created initial super admin: admin@servolocal.in")
+    return admin
 

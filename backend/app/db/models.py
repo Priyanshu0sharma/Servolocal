@@ -300,3 +300,39 @@ class AreaDemandRequest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class AppVersionConfig(Base):
+    """
+    Super Admin controlled dynamic app versioning and update modal.
+    Enforces forced or soft updates without hard app recompilation.
+    """
+    __tablename__ = "app_version_config"
+
+    id = Column(Integer, primary_key=True, index=True)
+    latest_version = Column(String(20), default="1.0.0", nullable=False)
+    min_required_version = Column(String(20), default="1.0.0", nullable=False)
+    force_update = Column(Boolean, default=False, nullable=False)
+    update_message = Column(String(500), default="A brand new version of ServoLocal is available with performance improvements!", nullable=False)
+    playstore_url = Column(String(500), default="https://play.google.com/store/apps/details?id=in.servolocal.app", nullable=False)
+    maintenance_mode = Column(Boolean, default=False, nullable=False)
+    maintenance_message = Column(String(500), default="ServoLocal is undergoing scheduled speed optimizations.", nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class PromoBanner(Base):
+    """
+    Dynamic promotional banners displayed in customer and partner apps.
+    Admin can toggle or re-order banners without pushing frontend code.
+    """
+    __tablename__ = "promo_banners"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(150), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    target_route = Column(String(100), default="/", nullable=False)
+    badge_text = Column(String(50), default="SPECIAL OFFER", nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+

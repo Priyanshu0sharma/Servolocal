@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.database import engine, Base, AsyncSessionLocal, check_db_connection
-from app.db.seed_catalog import seed_master_catalog
+from app.db.database import engine, Base, AsyncSessionLocal, check_db_connection, get_db
+from app.db.seed_catalog import seed_master_catalog, seed_initial_admin
 
 # ── Import API Routers ───────────────────────────────────────────
 from app.api.routes_auth import router as auth_router
@@ -12,7 +13,7 @@ from app.api.routes_discovery import router as discovery_router
 from app.api.routes_seller import router as seller_router
 from app.api.routes_partner import router as partner_router
 from app.api.routes_orders import router as orders_router
-from app.api.routes_admin import router as admin_router
+from app.api.routes_admin import router as admin_router, fetch_app_config_data
 from app.api.routes_legal import router as legal_router
 
 
@@ -27,11 +28,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[DATABASE INIT ERROR] {e}")
 
-    # 2. Seed Master Brand Catalog if table is empty
+    # 2. Seed Master Brand Catalog & Super Admin User
     try:
         async with AsyncSessionLocal() as session:
             count = await seed_master_catalog(session)
             print(f"[DATABASE] Master catalog ready ({count} items available).")
+            await seed_initial_admin(session)
     except Exception as e:
         print(f"[DATABASE SEED ERROR] {e}")
 
@@ -139,3 +141,12 @@ async def get_app_version():
             "show_banner": False,
         }
     }
+
+
+# ── Live Public App Config & Promo Banners ───────────────────────
+@app.get("/api/app-config")
+async def get_app_config(db: AsyncSession = Depends(get_db)):
+    """
+    Public live app configuration and promo banners endpoint for customer & partner apps.
+    """
+    return await fetch_app_config_data(db)

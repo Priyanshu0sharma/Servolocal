@@ -17,9 +17,11 @@ router = APIRouter(prefix="/api/discovery", tags=["Discovery"])
 class AreaDemandSubmitRequest(BaseModel):
     lat: float
     lng: float
-    locality_name: str = Field(..., min_length=2)
+    locality_name: Optional[str] = None
+    area_name: Optional[str] = None
     pincode: Optional[str] = None
-    phone_or_email: str = Field(..., min_length=5)
+    phone_or_email: Optional[str] = None
+    email: Optional[str] = None
 
 
 def _format_shop_dict(shop: Shop, distance_km: Optional[float] = None, eta: Optional[str] = None) -> Dict[str, Any]:
@@ -114,6 +116,37 @@ async def get_discovery_feed(
     pan_india_rows = (await db.execute(pan_india_stmt)).all()
 
     pan_india_items = [_format_inventory_item(inv, shop) for inv, shop in pan_india_rows]
+
+    # Graceful catalog fallback: If vendor inventory has no Pan-India items yet,
+    # pull from the Master Brand Catalog so the app is NEVER blank or dead.
+    if not pan_india_items:
+        master_stmt = select(MasterCatalogItem).limit(30)
+        master_rows = (await db.execute(master_stmt)).scalars().all()
+        pan_india_items = [
+            {
+                "id": m.id,
+                "shop_id": None,
+                "shop_name": "ServoLocal Pan-India Direct",
+                "shop_locality": "National Fulfillment Center",
+                "shop_is_open": True,
+                "master_item_id": m.id,
+                "is_not_listed_custom": False,
+                "name": m.name,
+                "category": m.category,
+                "sub_category": m.sub_category,
+                "image_url": m.image_url,
+                "gallery_images": m.gallery_images or [],
+                "default_weight_or_size": m.default_weight_or_size,
+                "selling_price": m.mrp,
+                "mrp": m.mrp,
+                "in_stock": True,
+                "available_stock": 100,
+                "is_pan_india_eligible": True,
+                "estimated_delivery": "3-5 Days (Courier)",
+            }
+            for m in master_rows
+        ]
+
     clothes_rail = [item for item in pan_india_items if item["category"] == "Clothes"]
     custom_3d_rail = [item for item in pan_india_items if item["category"] in ["Custom/3D", "Handicrafts"]]
 
@@ -151,9 +184,8 @@ async def get_discovery_feed(
 
     # Dynamic Serviceability Check
     is_serviceable = len(served_shops) > 0
-    unserviceable_message = None if is_serviceable else (
-        "Instant delivery is not available in your area yet, but you can shop from our "
-        "Pan-India store or register as the first partner here!"
+    area_message = None if is_serviceable else (
+        "Instant 15-min delivery is coming soon to your area! Meanwhile, shop Pan-India items or register as the first shop/partner here."
     )
 
     kirana_rail = []
@@ -188,7 +220,8 @@ async def get_discovery_feed(
     feed_data = {
         "mode": "LOCAL",
         "is_area_serviceable": is_serviceable,
-        "unserviceable_message": unserviceable_message,
+        "area_message": area_message,
+        "unserviceable_message": area_message,
         "user_coordinates": {"lat": lat, "lng": lng},
         "locality": locality or f"Location ({round(lat, 4)}, {round(lng, 4)})",
         "total_shops_in_radius": len(served_shops),
@@ -198,7 +231,8 @@ async def get_discovery_feed(
             "fast_food_rail": fast_food_rail[:20],
             "street_stalls_rail": street_stalls_rail[:20],
         },
-        # Never dead fallback: Pan-India products shown even in unserviceable areas
+        # All Pan-India products returned so the app is never empty
+        "pan_india_items": pan_india_items,
         "pan_india_fallback_items": pan_india_items[:15],
     }
 
@@ -206,8 +240,9 @@ async def get_discovery_feed(
     return feed_data
 
 
-# ── 2. POST /api/discovery/request-area ─────────────────────────────────
+# ── 2. POST /api/discovery/request-service & /request-area ─────────────
 
+@router.post("/request-service", status_code=status.HTTP_201_CREATED)
 @router.post("/request-area", status_code=status.HTTP_201_CREATED)
 async def submit_area_demand_request(
     req: AreaDemandSubmitRequest,
@@ -218,12 +253,15 @@ async def submit_area_demand_request(
     Users in unserviceable areas submit their locality and contact info.
     Admin dashboard visualizes demand heatmaps to prioritize next delivery launch zones.
     """
+    loc_name = (req.locality_name or req.area_name or f"Location ({round(req.lat, 4)}, {round(req.lng, 4)})").strip()
+    contact = (req.phone_or_email or req.email or "unspecified").strip().lower()
+
     demand = AreaDemandRequest(
         lat=req.lat,
         lng=req.lng,
-        locality_name=req.locality_name.strip(),
+        locality_name=loc_name,
         pincode=req.pincode.strip() if req.pincode else None,
-        phone_or_email=req.phone_or_email.strip().lower(),
+        phone_or_email=contact,
     )
     db.add(demand)
     await db.commit()
@@ -231,7 +269,7 @@ async def submit_area_demand_request(
 
     return {
         "success": True,
-        "message": f"Demand recorded for '{req.locality_name}'! We will alert you the moment ServoLocal delivery launches in your area.",
+        "message": f"Demand recorded for '{loc_name}'! We will alert you the moment ServoLocal delivery launches in your area.",
         "request_id": demand.id,
     }
 

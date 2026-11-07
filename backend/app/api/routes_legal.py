@@ -1,122 +1,151 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, Query, status
 
 router = APIRouter(prefix="/api/legal", tags=["Legal & Compliance"])
 
+
+# ── Shared Master Policy Definitions ────────────────────────────────────────
+
+MASTER_PRIVACY_POLICY = {
+    "title": "ServoLocal Privacy & Location Data Governance Policy",
+    "last_updated": "2026-11-01",
+    "version": "2.1-compliance",
+    "data_controller": "ServoLocal Technologies Private Limited, Jaipur, Rajasthan, India",
+    "highlights": [
+        "Precise GPS location is collected strictly to identify nearby hyperlocal stores within a 3km radius and enable live turn-by-turn delivery tracking.",
+        "Customer phone numbers and email addresses are cryptographically stored and used solely for secure 6-digit OTP logins and critical order alerts.",
+        "ServoLocal does NOT store debit/credit card numbers or UPI MPINs. All payments are processed through RBI-licensed gateways (Razorpay) or direct NPCI UPI deep links.",
+        "Customer, Seller, and Partner location data is NEVER sold, rented, or shared with third-party data brokers or marketing aggregators.",
+        "Background location access for delivery partners is active ONLY during an assigned delivery trip to broadcast real-time rider coordinates to the customer."
+    ],
+    "retention_and_deletion": "Users can request full account and data deletion at any time via support@servolocal.in or through the profile settings.",
+}
+
+MASTER_COMPANY_INFO = {
+    "platform_name": "ServoLocal",
+    "legal_entity": "ServoLocal Technologies Private Limited",
+    "headquarters": "Jaipur, Rajasthan, 302028, India",
+    "support_email": "support@servolocal.in",
+    "grievance_officer": "grievance@servolocal.in",
+    "jurisdiction": "High Court of Judicature for Rajasthan at Jaipur Bench",
+}
+
+CUSTOMER_TERMS = {
+    "title": "Customer Terms of Use & Order Service Agreement",
+    "rules": [
+        "ServoLocal operates a hybrid marketplace connecting consumers with verified neighborhood kirana stores, food stalls, and Pan-India direct artisans.",
+        "Estimated delivery arrival times (e.g. 10-15 mins) are dynamic indicators calculated using real-time Haversine distance, vendor prep time, and rider traffic.",
+        "Customers must provide accurate GPS coordinates and be present at the delivery location with their 4-digit Delivery PIN to receive their order.",
+        "ServoCoins earned on eligible orders can be redeemed for delivery fee waivers or instant cart discounts according to promotional rules.",
+        "Free delivery thresholds (e.g. ₹99) are set individually by participating neighborhood shops or platform campaigns."
+    ]
+}
+
+SELLER_TERMS = {
+    "title": "Merchant & Vendor Master Marketplace Terms",
+    "rules": [
+        "Merchants must maintain accurate selling prices, fresh perishable goods, and honest inventory stock levels.",
+        "The 1-Tap Open/Close switch must be toggled to CLOSED if the physical store is shut to avoid unfulfilled orders and cancellation penalties.",
+        "ServoLocal levies an agreed platform commission (typically 8% to 15%) on completed orders.",
+        "Direct UPI payments from customers are routed directly to the merchant's linked UPI VPA with zero platform escrow delay."
+    ]
+}
+
+PARTNER_TERMS = {
+    "title": "Delivery Partner & Field Fleet Agreement",
+    "rules": [
+        "Partners are independent delivery contractors connecting neighborhood vendors to local customers.",
+        "Partners must broadcast live GPS coordinates at 5-second intervals during active order delivery.",
+        "Mandatory 2-Digit Pickup PIN verification at the merchant store and 4-Digit Delivery PIN verification at the customer doorstep prevent fraud and misdelivery.",
+        "Field Scouting Royalty: Partners who onboard street stalls (e.g. Kachori/Momos thele) receive a ₹2.00 lifetime referral royalty on every completed order from that vendor.",
+        "Runner Stall Mode: For non-app street stalls, the partner purchases items with cash and delivers to customer, receiving full trip reimbursement upon customer delivery confirmation.",
+        "Partners must follow Indian Motor Vehicles Act safety laws and hold valid driving licenses and vehicle insurance."
+    ]
+}
+
+REFUND_AND_CANCELLATION_POLICY = {
+    "title": "Universal Refund & Cancellation Policy",
+    "rules": [
+        "Customer Cancellation Window: Orders can be cancelled free of charge within 3 minutes of placement, or before the shop accepts and starts preparing the items.",
+        "Vendor Stock-Out Cancellation: If a shop rejects an order due to unavailable stock, 100% of the payment is instantly refunded to the original payment source (UPI/Card/Wallet).",
+        "Quality & Tamper Disputes: Defective, stale, or incorrect items reported with photo proof within 2 hours of delivery will be investigated and refunded immediately.",
+        "Pan-India Marketplace Returns: For courier-shipped Pan-India orders (3-5 days delivery), return or replacement requests are accepted within 3 days of delivery for damaged or incorrect goods.",
+        "Refund Processing Time: Direct UPI refunds reflect in the customer's bank account within 15 minutes to 2 business hours; card refunds settle in 3-5 banking days."
+    ]
+}
+
+PREPAID_WALLET_DUES_POLICY = {
+    "title": "Seller & Partner Prepaid Wallet Dues Policy (-₹200 Cutoff Agreement)",
+    "description": "Zero-tax risk direct customer UPI settlement model with automatic dues safety cutoff.",
+    "rules": [
+        "Zero-Tax Escrow Model: Customers pay merchants directly via UPI. ServoLocal does NOT hold customer sales funds in escrow, avoiding GST/TDS marketplace liability.",
+        "Commission Debit: Platform commission (e.g. 10%) and platform fee (₹5) are debited from the Seller's ServoLocal prepaid wallet ledger upon order completion.",
+        "Maximum Negative Dues Limit (-₹200.00): The Seller's and Partner's wallet is permitted to operate up to a negative dues limit of -₹200.00 to allow uninterrupted business during the day.",
+        "Auto-Pause & Lockout Threshold: Once the wallet balance drops below -₹200.00, the shop is automatically hidden from the customer discovery feed and new orders are paused.",
+        "Instant Reactivation: The vendor can instantly clear dues and unpause their store 24/7 using the 1-Tap 'Pay Dues via UPI' button in the ServoPartner app.",
+        "Partner Wallet Settlements: Delivery fees and scouting royalties accumulate in the Partner Wallet and can be withdrawn directly to the partner's UPI VPA on demand."
+    ]
+}
+
+
+# ── 1. GET /api/legal/policies (Full Master Legal Document) ─────────────────
+
+@router.get("/policies", status_code=status.HTTP_200_OK)
+async def get_all_legal_policies() -> Dict[str, Any]:
+    """
+    Returns complete structured legal policies required for:
+    - Razorpay Payment Gateway Merchant KYC
+    - Google Play Store & Apple App Store App Review
+    - Consumer Protection (E-Commerce) Rules, 2020 compliance
+    """
+    return {
+        "success": True,
+        "company": MASTER_COMPANY_INFO,
+        "privacy_policy": MASTER_PRIVACY_POLICY,
+        "terms_of_service": {
+            "customer": CUSTOMER_TERMS,
+            "seller": SELLER_TERMS,
+            "partner": PARTNER_TERMS,
+        },
+        "refund_and_cancellation_policy": REFUND_AND_CANCELLATION_POLICY,
+        "prepaid_wallet_dues_policy": PREPAID_WALLET_DUES_POLICY,
+    }
+
+
+# ── 2. GET /api/legal/terms (Role-filtered terms for in-app modals) ──────────
 
 @router.get("/terms", status_code=status.HTTP_200_OK)
 async def get_legal_terms(
     role: str = Query("customer", description="'customer', 'seller', or 'partner'")
 ) -> Dict[str, Any]:
     """
-    Returns structured legal policies, terms, refund rules, and wallet dues compliance.
-    Required for Razorpay Payment Gateway KYC, Google Play Store, and Apple App Store compliance.
+    Returns role-filtered terms and agreements for quick in-app acceptance dialogs.
     """
     clean_role = role.lower().strip()
-
-    base_privacy_policy = {
-        "title": "Privacy & Location Data Policy",
-        "last_updated": "2026-11-01",
-        "highlights": [
-            "Precise GPS location is collected exclusively to detect nearby verified local stores and enable real-time delivery tracking.",
-            "Phone numbers and emails are encrypted and used solely for secure 6-digit OTP logins and order status alerts.",
-            "ServoLocal does NOT store debit/credit card numbers or UPI MPINs. All payments are processed via RBI-licensed gateways (Razorpay) or direct UPI intent.",
-            "User location is never sold to third-party data brokers."
-        ]
-    }
-
-    base_company_info = {
-        "platform_name": "ServoLocal",
-        "entity": "ServoLocal Technologies Private Limited (Incorporated in India)",
-        "support_email": "support@servolocal.in",
-        "compliance_officer": "compliance@servolocal.in",
-        "jurisdiction": "Jaipur, Rajasthan, India"
-    }
 
     if clean_role == "seller":
         return {
             "role": "seller",
-            "company": base_company_info,
-            "privacy_policy": base_privacy_policy,
-            "terms_and_conditions": {
-                "title": "Seller & Vendor Master Terms of Service",
-                "rules": [
-                    "Merchants must maintain accurate pricing, fresh perishable goods, and honest inventory stock levels.",
-                    "1-Tap Open/Close switch must be toggled to CLOSED if the physical store is shut to prevent customer cancellations.",
-                    "ServoLocal levies an agreed platform commission (typically 8% to 15%) on completed orders.",
-                    "Direct UPI payments from customers are routed directly to the merchant's linked VPA/UPI account."
-                ]
-            },
-            "prepaid_wallet_dues_policy": {
-                "title": "Prepaid Dues & Auto-Pause Threshold Policy (-₹200 Cutoff)",
-                "rules": [
-                    "Platform commission and ₹5 platform fees are debited from the Seller's ServoLocal prepaid wallet on completed orders.",
-                    "When the Seller's wallet balance reaches or drops below -₹200.00 (Maximum Dues Limit), store orders are automatically paused.",
-                    "To resume accepting customer orders, the Seller must settle the outstanding dues via the in-app UPI or Razorpay payment button.",
-                    "Zero tax risk model: Customers pay sellers directly, and sellers settle only platform commission dues."
-                ]
-            },
-            "refund_and_dispute_policy": {
-                "title": "Merchant Refund & Cancellation Policy",
-                "rules": [
-                    "If an order cannot be prepared due to stock-out, the merchant must reject the order within 3 minutes for instant customer refund.",
-                    "Defective, stale, or incorrect items reported by customers within 2 hours of delivery will be investigated and settled mutually."
-                ]
-            }
+            "company": MASTER_COMPANY_INFO,
+            "privacy_policy": MASTER_PRIVACY_POLICY,
+            "terms_and_conditions": SELLER_TERMS,
+            "prepaid_wallet_dues_policy": PREPAID_WALLET_DUES_POLICY,
+            "refund_and_dispute_policy": REFUND_AND_CANCELLATION_POLICY,
         }
-
     elif clean_role == "partner":
         return {
             "role": "partner",
-            "company": base_company_info,
-            "privacy_policy": base_privacy_policy,
-            "terms_and_conditions": {
-                "title": "Delivery Partner & Field Fleet Agreement",
-                "rules": [
-                    "Partners are independent service providers connecting neighborhood vendors to customers.",
-                    "Partners must broadcast live GPS coordinates at 5-second intervals during active order fulfillment.",
-                    "Mandatory 2-Digit Pickup PIN verification at the merchant store and 4-Digit Delivery PIN verification at the customer doorstep prevent fraud.",
-                    "Partners must follow local traffic safety laws and maintain valid driving licenses and vehicle insurance."
-                ]
-            },
-            "earnings_and_royalty_policy": {
-                "title": "Delivery Earnings & Field-Scouting Lifetime Royalty",
-                "rules": [
-                    "Partners receive 100% of the customer delivery fee for completed deliveries.",
-                    "Field Scouting Royalty: Partners who onboard street stalls (e.g. Kachori/Momos thele) receive a ₹2.00 lifetime referral royalty on every completed order from that vendor.",
-                    "Runner Stall Mode: For non-app stalls, the partner purchases items with cash and delivers to customer, receiving full trip reimbursement."
-                ]
-            },
-            "prepaid_wallet_dues_policy": {
-                "title": "Partner Wallet Settlement Policy",
-                "rules": [
-                    "Delivery fees and royalties accumulate in the Partner Wallet and can be withdrawn to bank/UPI on weekly cycles.",
-                    "Cash collected from COD orders must be settled within 24 hours to avoid wallet debit lockouts."
-                ]
-            }
+            "company": MASTER_COMPANY_INFO,
+            "privacy_policy": MASTER_PRIVACY_POLICY,
+            "terms_and_conditions": PARTNER_TERMS,
+            "earnings_and_royalty_policy": PARTNER_TERMS,
+            "prepaid_wallet_dues_policy": PREPAID_WALLET_DUES_POLICY,
         }
-
     else:
-        # Customer Terms
         return {
             "role": "customer",
-            "company": base_company_info,
-            "privacy_policy": base_privacy_policy,
-            "terms_and_conditions": {
-                "title": "Customer Terms of Use",
-                "rules": [
-                    "ServoLocal connects consumers to verified local neighborhood stores and Pan-India artisans.",
-                    "Estimated delivery times (e.g. 15-20 mins) are dynamic indicators based on distance, traffic, and vendor preparation speed.",
-                    "Customers must provide accurate GPS coordinates and be available at the delivery location with the 4-digit Delivery PIN.",
-                    "ServoCoins earned on eligible orders can be redeemed for delivery fee waivers or cart discounts."
-                ]
-            },
-            "refund_and_cancellation_policy": {
-                "title": "Customer Refund & Cancellation Policy",
-                "rules": [
-                    "Orders can be cancelled free of charge before the shop accepts and begins preparing the items.",
-                    "In the event of an unserviceable delivery attempt or vendor rejection, full 100% refund is initiated immediately to original payment source (UPI/Card).",
-                    "For Pan-India orders (3-5 days delivery), returns are accepted within 3 days of delivery for damaged or incorrect apparel/custom items."
-                ]
-            }
+            "company": MASTER_COMPANY_INFO,
+            "privacy_policy": MASTER_PRIVACY_POLICY,
+            "terms_and_conditions": CUSTOMER_TERMS,
+            "refund_and_cancellation_policy": REFUND_AND_CANCELLATION_POLICY,
         }
