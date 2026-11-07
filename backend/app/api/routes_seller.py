@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.db.database import get_db
-from app.db.models import User, Shop, ShopInventory, MasterCatalogItem
+from app.db.models import User, Shop, ShopInventory, MasterCatalogItem, Order, OrderItem
 from app.core.security import require_seller
 from app.core.storage_r2 import upload_image_to_r2
-from app.core.fcm_notify import send_low_stock_alert
+from app.core.fcm_notify import send_low_stock_alert, send_customer_order_update
 
 router = APIRouter(prefix="/api/seller", tags=["Seller Hub"])
 
@@ -53,6 +53,15 @@ class AddCustomInventoryRequest(BaseModel):
     stock_quantity: int = Field(50, ge=1)
     low_stock_threshold: int = Field(5, ge=1)
     is_pan_india_eligible: bool = False
+
+
+class UpdateOrderStatusRequest(BaseModel):
+    status: str = Field(..., description="ACCEPTED, PREPARING, READY_FOR_PICKUP, CANCELLED")
+
+
+class ShopToggleRequest(BaseModel):
+    is_open: Optional[bool] = None
+
 
 
 # ── 1. POST /api/seller/shop-setup ──────────────────────────────────────
@@ -369,3 +378,154 @@ async def get_seller_inventory(
         },
         "items": items_list
     }
+
+
+# ── 5. GET /api/seller/orders ───────────────────────────────────────────
+
+@router.get("/orders", status_code=status.HTTP_200_OK)
+async def get_seller_orders(
+    current_user: User = Depends(require_seller),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns live incoming orders for the logged-in seller's shop.
+    Includes item breakdown, 2-digit pickup PIN for rider matching, and customer details.
+    """
+    shop_stmt = select(Shop).where(Shop.owner_id == current_user.id)
+    shop_res = await db.execute(shop_stmt)
+    shop = shop_res.scalar_one_or_none()
+    if not shop:
+        return {"orders": []}
+
+    order_stmt = (
+        select(Order)
+        .where(Order.shop_id == shop.id)
+        .order_by(Order.created_at.desc())
+        .limit(50)
+    )
+    order_res = await db.execute(order_stmt)
+    orders = order_res.scalars().all()
+
+    results = []
+    for o in orders:
+        items_stmt = select(OrderItem).where(OrderItem.order_id == o.id)
+        items_res = await db.execute(items_stmt)
+        items = items_res.scalars().all()
+
+        cust_stmt = select(User).where(User.id == o.customer_id)
+        cust_res = await db.execute(cust_stmt)
+        customer = cust_res.scalar_one_or_none()
+        cust_name = customer.name if (customer and customer.name) else f"Customer #{o.customer_id}"
+        cust_email = customer.email if customer else ""
+
+        results.append({
+            "id": o.id,
+            "order_code": o.order_code,
+            "customer_name": cust_name,
+            "customer_phone": cust_email,
+            "delivery_address": o.delivery_address,
+            "status": o.status,
+            "payment_method": o.payment_method,
+            "payment_status": o.payment_status,
+            "items_total": o.items_total,
+            "delivery_fee": o.delivery_fee,
+            "platform_fee": o.platform_fee,
+            "grand_total": o.grand_total,
+            "created_at": o.created_at.isoformat() if o.created_at else "",
+            "pickup_pin": o.pickup_pin,
+            "items": [
+                {
+                    "id": i.id,
+                    "item_name": i.item_name,
+                    "quantity": i.quantity,
+                    "unit_price": i.unit_price,
+                    "total_price": i.total_price,
+                    "weight_or_size": i.weight_or_size,
+                    "selected_pack_label": i.selected_pack_label
+                }
+                for i in items
+            ]
+        })
+
+    return {"orders": results}
+
+
+# ── 6. POST /api/seller/orders/{order_id}/status ────────────────────────
+
+@router.post("/orders/{order_id}/status", status_code=status.HTTP_200_OK)
+async def update_seller_order_status(
+    order_id: int,
+    req: UpdateOrderStatusRequest,
+    current_user: User = Depends(require_seller),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Seller updates order workflow status:
+    PLACED -> ACCEPTED -> PREPARING -> READY_FOR_PICKUP.
+    Sends FCM update to the customer.
+    """
+    shop_stmt = select(Shop).where(Shop.owner_id == current_user.id)
+    shop = (await db.execute(shop_stmt)).scalar_one_or_none()
+    if not shop:
+        raise HTTPException(status_code=400, detail="Shop profile required")
+
+    order_stmt = select(Order).where(and_(Order.id == order_id, Order.shop_id == shop.id))
+    order = (await db.execute(order_stmt)).scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found for this shop")
+
+    new_status = req.status.upper().strip()
+    order.status = new_status
+    await db.commit()
+    await db.refresh(order)
+
+    # Notify customer via FCM
+    cust_stmt = select(User).where(User.id == order.customer_id)
+    customer = (await db.execute(cust_stmt)).scalar_one_or_none()
+    if customer and customer.fcm_token:
+        send_customer_order_update(
+            customer.fcm_token,
+            order.order_code,
+            new_status,
+            shop_name=shop.name
+        )
+
+    return {
+        "success": True,
+        "order_id": order.id,
+        "status": order.status,
+        "message": f"Order #{order.order_code} marked as {new_status}"
+    }
+
+
+# ── 7. POST /api/seller/shop-toggle ─────────────────────────────────────
+
+@router.post("/shop-toggle", status_code=status.HTTP_200_OK)
+async def toggle_shop_status(
+    req: Optional[ShopToggleRequest] = None,
+    current_user: User = Depends(require_seller),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Instant 1-click toggle to open or close the shop.
+    """
+    shop_stmt = select(Shop).where(Shop.owner_id == current_user.id)
+    shop = (await db.execute(shop_stmt)).scalar_one_or_none()
+    if not shop:
+        raise HTTPException(status_code=400, detail="Shop not found")
+
+    if req and req.is_open is not None:
+        shop.is_open = req.is_open
+    else:
+        shop.is_open = not shop.is_open
+
+    await db.commit()
+    await db.refresh(shop)
+
+    return {
+        "success": True,
+        "shop_id": shop.id,
+        "is_open": shop.is_open,
+        "message": f"Shop is now {'OPEN' if shop.is_open else 'CLOSED'}"
+    }
+

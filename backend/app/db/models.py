@@ -342,4 +342,23 @@ class PromoBanner(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class Coupon(Base):
+    """
+    Promotional discount coupon engine (e.g. WELCOME50, SERVO20).
+    Configurable by Super Admin, validated at Cart Quote and Checkout.
+    """
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, index=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    discount_type = Column(String(20), default="FLAT", nullable=False) # FLAT or PERCENT
+    discount_value = Column(Float, nullable=False)                      # e.g. 50.0 for ₹50 off or 20.0 for 20%
+    min_order_amount = Column(Float, default=100.0, nullable=False)     # Minimum items total to activate
+    max_discount_amount = Column(Float, default=100.0, nullable=False)  # Cap on percent discounts
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+
 

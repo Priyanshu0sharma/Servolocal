@@ -135,6 +135,10 @@ export interface CartQuoteResponse {
   items_total: number;
   delivery_fee: number;
   platform_fee: number;
+  discount_amount?: number;
+  coupon_code?: string;
+  coupon_applied?: boolean;
+  coupon_message?: string;
   grand_total: number;
   free_delivery_threshold: number;
   amount_needed_for_free_delivery: number;
@@ -220,13 +224,15 @@ export async function getCartQuote(
   shop_id: number,
   items: Array<{ inventory_id: number; quantity: number; variant_id?: string; pack_label?: string }>,
   delivery_lat: number = 27.0544,
-  delivery_lng: number = 75.8942
+  delivery_lng: number = 75.8942,
+  coupon_code?: string
 ): Promise<CartQuoteResponse> {
   const res = await api.post("/api/orders/cart-quote", {
     shop_id,
     items,
     delivery_lat,
     delivery_lng,
+    coupon_code,
   });
   return res.data;
 }
@@ -239,6 +245,7 @@ export async function checkoutOrder(payload: {
   delivery_lng: number;
   payment_method: string;
   customer_notes?: string;
+  coupon_code?: string;
 }): Promise<OrderCheckoutResponse> {
   const res = await api.post("/api/orders/checkout", payload);
   return res.data;

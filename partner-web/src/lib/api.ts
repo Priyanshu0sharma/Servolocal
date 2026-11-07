@@ -326,6 +326,11 @@ export async function updateOrderStatus(order_id: number, status: string) {
   return res.data;
 }
 
+export async function toggleShopStatus(is_open?: boolean) {
+  const res = await api.post("/api/seller/shop-toggle", { is_open });
+  return res.data;
+}
+
 export async function verifyPickupPin(order_id: number, pickup_pin: string) {
   const res = await api.post("/api/partner/verify-pickup-pin", {
     order_id,
@@ -540,6 +545,24 @@ export async function pushAppUpdateAdmin(payload: PushAppUpdatePayload) {
 
 export async function createPromoBanner(payload: PromoBannerPayload) {
   const res = await api.post("/api/admin/banners", payload);
+  return res.data;
+}
+
+export async function getAdminCoupons() {
+  const res = await api.get("/api/admin/coupons");
+  return res.data?.coupons || [];
+}
+
+export async function createAdminCoupon(payload: {
+  code: string;
+  description?: string;
+  discount_type: string;
+  discount_value: number;
+  min_order_amount: number;
+  max_discount_amount?: number;
+  is_active?: boolean;
+}) {
+  const res = await api.post("/api/admin/coupons", payload);
   return res.data;
 }
 

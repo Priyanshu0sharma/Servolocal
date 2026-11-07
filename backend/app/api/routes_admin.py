@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, desc, or_
 
 from app.db.database import get_db
-from app.db.models import User, Shop, Order, WalletLedger, AreaDemandRequest, AppVersionConfig, PromoBanner
+from app.db.models import User, Shop, Order, WalletLedger, AreaDemandRequest, AppVersionConfig, PromoBanner, Coupon
 from app.core.security import require_admin
 from app.core.fcm_notify import send_push_notification
 
@@ -43,6 +43,17 @@ class PromoBannerCreateRequest(BaseModel):
     badge_text: Optional[str] = "SPECIAL OFFER"
     is_active: bool = True
     display_order: int = 0
+
+
+class CreateCouponRequest(BaseModel):
+    code: str = Field(..., min_length=3, max_length=50)
+    description: Optional[str] = None
+    discount_type: str = Field("FLAT", description="FLAT or PERCENT")
+    discount_value: float = Field(..., gt=0.0)
+    min_order_amount: float = Field(100.0, ge=0.0)
+    max_discount_amount: float = Field(100.0, ge=0.0)
+    is_active: bool = True
+
 
 
 # ── Helper for Public App Config ─────────────────────────────────────────
@@ -443,3 +454,77 @@ async def get_admin_app_config(
 ):
     """Admin endpoint to inspect current live app-config and promotional banners."""
     return await fetch_app_config_data(db)
+
+
+# ── 9. GET & POST /api/admin/coupons ────────────────────────────────────
+
+@router.get("/coupons", status_code=status.HTTP_200_OK)
+async def list_admin_coupons(
+    admin_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all promotional coupons with status, rules, and usage constraints."""
+    stmt = select(Coupon).order_by(Coupon.created_at.desc())
+    res = await db.execute(stmt)
+    coupons = res.scalars().all()
+    return {
+        "coupons": [
+            {
+                "id": c.id,
+                "code": c.code,
+                "description": c.description,
+                "discount_type": c.discount_type,
+                "discount_value": c.discount_value,
+                "min_order_amount": c.min_order_amount,
+                "max_discount_amount": c.max_discount_amount,
+                "is_active": c.is_active,
+                "created_at": c.created_at.isoformat() if c.created_at else "",
+            }
+            for c in coupons
+        ]
+    }
+
+
+@router.post("/coupons", status_code=status.HTTP_201_CREATED)
+async def create_or_update_coupon(
+    req: CreateCouponRequest,
+    admin_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update a promotional discount coupon (e.g. WELCOME50, SERVO20)."""
+    code_clean = req.code.strip().upper()
+    check = await db.execute(select(Coupon).where(Coupon.code == code_clean))
+    existing = check.scalar_one_or_none()
+    if existing:
+        existing.description = req.description
+        existing.discount_type = req.discount_type.upper()
+        existing.discount_value = req.discount_value
+        existing.min_order_amount = req.min_order_amount
+        existing.max_discount_amount = req.max_discount_amount
+        existing.is_active = req.is_active
+        await db.commit()
+        return {
+            "success": True,
+            "message": f"Coupon '{code_clean}' updated successfully",
+            "coupon_id": existing.id
+        }
+
+    new_coupon = Coupon(
+        code=code_clean,
+        description=req.description,
+        discount_type=req.discount_type.upper(),
+        discount_value=req.discount_value,
+        min_order_amount=req.min_order_amount,
+        max_discount_amount=req.max_discount_amount,
+        is_active=req.is_active,
+    )
+    db.add(new_coupon)
+    await db.commit()
+    await db.refresh(new_coupon)
+
+    return {
+        "success": True,
+        "message": f"Coupon '{code_clean}' created successfully",
+        "coupon_id": new_coupon.id
+    }
+

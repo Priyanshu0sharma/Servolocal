@@ -59,12 +59,15 @@ export default function SmartCartDrawer({
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [hasCelebratedFreeDelivery, setHasCelebratedFreeDelivery] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponMessage, setCouponMessage] = useState("");
 
   // QR modal state for Direct Shop UPI
   const [showUpiQrModal, setShowUpiQrModal] = useState(false);
   const [upiIntentData, setUpiIntentData] = useState<{ link?: string; amount?: number } | null>(null);
 
-  // Fetch Cart Quote from backend whenever cart changes
+  // Fetch Cart Quote from backend whenever cart or coupon changes
   useEffect(() => {
     if (cart.length === 0) {
       setQuote(null);
@@ -80,9 +83,12 @@ export default function SmartCartDrawer({
     }));
 
     setLoadingQuote(true);
-    getCartQuote(shopId, itemsPayload)
+    getCartQuote(shopId, itemsPayload, 27.0544, 75.8942, appliedCoupon || undefined)
       .then((data) => {
         setQuote(data);
+        if (data.coupon_message) {
+          setCouponMessage(data.coupon_message);
+        }
         if (data.free_delivery_unlocked && !hasCelebratedFreeDelivery) {
           try {
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
@@ -109,7 +115,44 @@ export default function SmartCartDrawer({
         });
       })
       .finally(() => setLoadingQuote(false));
-  }, [cart, hasCelebratedFreeDelivery]);
+  }, [cart, hasCelebratedFreeDelivery, appliedCoupon]);
+
+  const handleApplyCoupon = async (codeToApply: string) => {
+    if (!codeToApply.trim() || cart.length === 0) return;
+    const clean = codeToApply.trim().toUpperCase();
+    setLoadingQuote(true);
+    try {
+      const shopId = cart[0].shop_id;
+      const itemsPayload = cart.map((c) => ({
+        inventory_id: c.inventory_id,
+        quantity: c.quantity,
+        variant_id: c.variant_id,
+        pack_label: c.pack_label,
+      }));
+      const data = await getCartQuote(shopId, itemsPayload, 27.0544, 75.8942, clean);
+      setQuote(data);
+      if (data.coupon_applied) {
+        setAppliedCoupon(clean);
+        setCouponMessage(data.coupon_message || `🎉 Coupon ${clean} applied!`);
+        try {
+          confetti({ particleCount: 40, spread: 50 });
+        } catch {}
+      } else {
+        setCouponMessage(data.coupon_message || "Coupon cannot be applied to this order");
+      }
+    } catch {
+      setCouponMessage("Failed to apply coupon");
+    } finally {
+      setLoadingQuote(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponMessage("");
+  };
+
 
   // Handle Checkout
   const handleCheckout = async () => {
@@ -136,6 +179,7 @@ export default function SmartCartDrawer({
         delivery_lng: 75.8942,
         payment_method: paymentMethod,
         customer_notes: "Leave package at front gate / reception",
+        coupon_code: appliedCoupon || undefined,
       };
 
       const res = await checkoutOrder(payload);
@@ -354,6 +398,85 @@ export default function SmartCartDrawer({
                 />
               </div>
 
+              {/* Promo Coupon Box */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Apply Promo Code</span>
+                  </label>
+                  {appliedCoupon && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-[11px] font-bold text-rose-500 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                {!appliedCoupon ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        placeholder="e.g. WELCOME50, SERVO20"
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono uppercase text-slate-900 focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon(couponInput)}
+                        disabled={!couponInput.trim() || loadingQuote}
+                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition-all disabled:opacity-40"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {/* Quick suggestion chips */}
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCouponInput("WELCOME50");
+                          handleApplyCoupon("WELCOME50");
+                        }}
+                        className="px-2 py-0.5 rounded-lg border border-dashed border-emerald-400 bg-emerald-50 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                      >
+                        WELCOME50 (₹50 OFF on ₹149)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCouponInput("SERVO20");
+                          handleApplyCoupon("SERVO20");
+                        }}
+                        className="px-2 py-0.5 rounded-lg border border-dashed border-indigo-400 bg-indigo-50 text-[10px] font-bold text-indigo-800 hover:bg-indigo-100 transition-colors"
+                      >
+                        SERVO20 (₹20 OFF on ₹99)
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-emerald-100/70 border border-emerald-300 flex items-center justify-between text-xs text-emerald-900">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>{couponMessage || `Code '${appliedCoupon}' active`}</span>
+                    </span>
+                    <span className="font-black text-emerald-700">SAVED ₹{quote?.discount_amount?.toFixed(0) || "50"}</span>
+                  </div>
+                )}
+
+                {couponMessage && !appliedCoupon && (
+                  <p className="text-[11px] font-medium text-amber-700">
+                    {couponMessage}
+                  </p>
+                )}
+              </div>
+
               {/* 3-Way Payment Method Selector */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-700">
@@ -435,6 +558,12 @@ export default function SmartCartDrawer({
                       <span>₹{quote.delivery_fee.toFixed(2)}</span>
                     )}
                   </div>
+                  {quote.discount_amount && quote.discount_amount > 0 ? (
+                    <div className="flex justify-between items-center text-emerald-600 font-extrabold">
+                      <span>Promo Discount ({quote.coupon_code || appliedCoupon})</span>
+                      <span>-₹{quote.discount_amount.toFixed(2)}</span>
+                    </div>
+                  ) : null}
                   <div className="pt-2 border-t border-slate-200 flex justify-between text-sm font-black text-slate-900">
                     <span>To Pay</span>
                     <span>₹{quote.grand_total.toFixed(2)}</span>

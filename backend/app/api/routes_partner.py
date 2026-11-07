@@ -281,27 +281,43 @@ async def verify_delivery_pin(
     )
     db.add(ledger_partner)
 
-    # 3. Credit Referral Royalty to Scouting Partner if applicable
+    # 3. Credit Referral Royalty to Scouting Partner if within 60-day window
     if has_referral and shop.onboarded_by_partner_id != current_user.id:
-        scout_stmt = select(User).where(User.id == shop.onboarded_by_partner_id)
-        scout_partner = (await db.execute(scout_stmt)).scalar_one_or_none()
-        if scout_partner:
-            scout_partner.wallet_balance += 2.0
-            ledger_royalty = WalletLedger(
-                user_id=scout_partner.id,
-                order_id=order.id,
-                transaction_type="PARTNER_ROYALTY",
-                amount=2.0,
-                balance_after=scout_partner.wallet_balance,
-                notes=f"Lifetime scouting royalty for shop '{shop.name}'"
-            )
-            db.add(ledger_royalty)
+        from datetime import datetime, timezone
+        now_dt = datetime.now(timezone.utc)
+        shop_dt = shop.created_at
+        is_within_60_days = True
+        if shop_dt:
+            if shop_dt.tzinfo is None:
+                shop_dt = shop_dt.replace(tzinfo=timezone.utc)
+            days_since_onboard = (now_dt - shop_dt).days
+            is_within_60_days = days_since_onboard <= 60
+
+        if is_within_60_days:
+            scout_stmt = select(User).where(User.id == shop.onboarded_by_partner_id)
+            scout_partner = (await db.execute(scout_stmt)).scalar_one_or_none()
+            if scout_partner:
+                scout_partner.wallet_balance += 2.0
+                ledger_royalty = WalletLedger(
+                    user_id=scout_partner.id,
+                    order_id=order.id,
+                    transaction_type="PARTNER_ROYALTY",
+                    amount=2.0,
+                    balance_after=scout_partner.wallet_balance,
+                    notes=f"60-Day Field Scout referral royalty for shop '{shop.name}'"
+                )
+                db.add(ledger_royalty)
+
+    # 4. Award ServoCoins to Customer (5% of items total or min 5 coins)
+    customer_stmt = select(User).where(User.id == order.customer_id)
+    customer = (await db.execute(customer_stmt)).scalar_one_or_none()
+    earned_coins = max(5, int(order.items_total * 0.05))
+    if customer:
+        customer.servo_coins = (customer.servo_coins or 0) + earned_coins
 
     await db.commit()
 
     # Notify customer that order has been delivered
-    customer_stmt = select(User).where(User.id == order.customer_id)
-    customer = (await db.execute(customer_stmt)).scalar_one_or_none()
     if customer and customer.fcm_token:
         send_customer_order_update(
             customer.fcm_token,
@@ -315,8 +331,9 @@ async def verify_delivery_pin(
         "order_id": order.id,
         "status": "DELIVERED",
         "partner_earning": fin["partner_earning_amount"],
+        "coins_awarded": earned_coins,
         "review_prompt": True,
-        "message": "Order delivered successfully! Dues and earnings split processed."
+        "message": f"Order delivered successfully! Split processed & +{earned_coins} ServoCoins awarded."
     }
 
 

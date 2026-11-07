@@ -30,6 +30,194 @@ interface ProductCardAndRailsProps {
   onUpdateCartQuantity: (inventoryId: number, newQty: number, variantId?: string) => void;
 }
 
+// ── In-Card Product Component with Photo Swipe Carousel ─────────────────────
+function SingleProductCard({
+  product,
+  cart,
+  onAddToCart,
+  onUpdateCartQuantity,
+  onSelectVariants,
+}: {
+  product: ProductItem;
+  cart: CartItem[];
+  onAddToCart: (product: ProductItem, variant?: ProductVariant) => void;
+  onUpdateCartQuantity: (inventoryId: number, newQty: number, variantId?: string) => void;
+  onSelectVariants: (product: ProductItem) => void;
+}) {
+  const images =
+    product.gallery_images && product.gallery_images.length > 0
+      ? product.gallery_images
+      : [product.image_url];
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
+
+  const getCartQuantity = (inventoryId: number, variantId?: string) => {
+    const item = cart.find(
+      (c) => c.inventory_id === inventoryId && (variantId ? c.variant_id === variantId : true)
+    );
+    return item ? item.quantity : 0;
+  };
+
+  const qty = getCartQuantity(product.id);
+  const hasVariants = product.variants && product.variants.length > 1;
+  const displayPrice = product.selling_price || product.mrp;
+  const discountPct =
+    product.discount_percent ||
+    (product.mrp > displayPrice
+      ? Math.round(((product.mrp - displayPrice) / product.mrp) * 100)
+      : 0);
+
+  const handleNextImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImgIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrevImg = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImgIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  return (
+    <div className="w-40 sm:w-44 shrink-0 bg-white rounded-3xl p-3 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative group select-none">
+      {/* Product Top Image Box with Carousel */}
+      <div>
+        <div className="w-full h-32 sm:h-36 rounded-2xl bg-slate-50 overflow-hidden relative mb-2.5 flex items-center justify-center border border-slate-100/60">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeImgIndex}
+              src={images[activeImgIndex]}
+              alt={product.name}
+              initial={{ opacity: 0.7, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0.7 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+            />
+          </AnimatePresence>
+
+          {/* In-Card Photo Carousel Navigation (when 2+ images exist) */}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrevImg}
+                className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow text-slate-700 hover:text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNextImg}
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow text-slate-700 hover:text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center gap-1 pointer-events-none">
+                {images.map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`h-1.5 rounded-full transition-all ${
+                      idx === activeImgIndex ? "w-3 bg-emerald-600" : "w-1.5 bg-slate-300"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Veg / Non-Veg Green Dot Icon */}
+          <div className="absolute top-2 left-2 w-4 h-4 rounded border border-emerald-600 bg-white flex items-center justify-center p-0.5 shadow-xs">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+          </div>
+
+          {/* Discount Badge */}
+          {discountPct > 0 && (
+            <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-indigo-600 text-white font-extrabold text-[9px] shadow-xs">
+              {discountPct}% OFF
+            </span>
+          )}
+
+          {/* Low Stock Indicator with Pulsing Alert */}
+          {product.available_stock > 0 && product.available_stock <= 5 && (
+            <span className="absolute bottom-1.5 left-2 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-black animate-pulse">
+              Only {product.available_stock} left!
+            </span>
+          )}
+        </div>
+
+        {/* Weight / Pack Badge */}
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase">
+            {product.weight_or_size || "1 Unit"}
+          </span>
+          {hasVariants && (
+            <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+              {product.variants?.length} Options
+            </span>
+          )}
+        </div>
+
+        {/* Product Name */}
+        <h3 className="font-bold text-xs text-slate-900 line-clamp-2 leading-snug h-8">
+          {product.name}
+        </h3>
+      </div>
+
+      {/* Price & Spring-Morphing Add Button */}
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-50">
+        <div>
+          <span className="text-xs sm:text-sm font-black text-slate-900 block leading-none">
+            ₹{displayPrice}
+          </span>
+          {product.mrp > displayPrice && (
+            <span className="text-[10px] text-slate-400 line-through">
+              ₹{product.mrp}
+            </span>
+          )}
+        </div>
+
+        {/* Spring Animated Morphing Button: + ADD <--> [- 1 +] */}
+        {hasVariants ? (
+          <button
+            onClick={() => onSelectVariants(product)}
+            className="px-2.5 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-50 text-emerald-600 font-black text-xs transition-all active:scale-95 shadow-sm"
+          >
+            OPTIONS
+          </button>
+        ) : qty === 0 ? (
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onAddToCart(product)}
+            className="px-3 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-500 text-emerald-600 hover:text-white font-black text-xs transition-all shadow-sm flex items-center gap-1"
+          >
+            <span>ADD</span>
+          </motion.button>
+        ) : (
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            className="flex items-center bg-emerald-500 text-white rounded-xl overflow-hidden shadow-sm"
+          >
+            <button
+              onClick={() => onUpdateCartQuantity(product.id, qty - 1)}
+              className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="px-2 font-black text-xs font-mono">{qty}</span>
+            <button
+              onClick={() => onUpdateCartQuantity(product.id, qty + 1)}
+              className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Rail Container ─────────────────────────────────────────────────────
 export default function ProductCardAndRails({
   title,
   badge,
@@ -39,10 +227,9 @@ export default function ProductCardAndRails({
   onAddToCart,
   onUpdateCartQuantity,
 }: ProductCardAndRailsProps) {
-  // Variant modal state (Exact replica of user's Screenshot 2)
+  // Variant modal state
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<ProductItem | null>(null);
 
-  // Helper to find quantity in cart for this product/variant
   const getCartQuantity = (inventoryId: number, variantId?: string) => {
     const item = cart.find(
       (c) => c.inventory_id === inventoryId && (variantId ? c.variant_id === variantId : true)
@@ -114,118 +301,17 @@ export default function ProductCardAndRails({
           </div>
         ))}
 
-        {/* Render Product Cards */}
-        {products.map((product) => {
-          const qty = getCartQuantity(product.id);
-          const hasVariants = product.variants && product.variants.length > 1;
-          const displayPrice = product.selling_price || product.mrp;
-          const discountPct =
-            product.discount_percent ||
-            (product.mrp > displayPrice
-              ? Math.round(((product.mrp - displayPrice) / product.mrp) * 100)
-              : 0);
-
-          return (
-            <div
-              key={product.id}
-              className="w-40 sm:w-44 shrink-0 bg-white rounded-3xl p-3 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative group"
-            >
-              {/* Product Top Image Box */}
-              <div>
-                <div className="w-full h-32 sm:h-36 rounded-2xl bg-slate-50 overflow-hidden relative mb-2.5 flex items-center justify-center border border-slate-100/60">
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                  />
-
-                  {/* Veg / Non-Veg Green Dot Icon */}
-                  <div className="absolute top-2 left-2 w-4 h-4 rounded border border-emerald-600 bg-white flex items-center justify-center p-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                  </div>
-
-                  {/* Discount Badge */}
-                  {discountPct > 0 && (
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-indigo-600 text-white font-extrabold text-[9px]">
-                      {discountPct}% OFF
-                    </span>
-                  )}
-
-                  {/* Low Stock Indicator */}
-                  {product.available_stock > 0 && product.available_stock <= 5 && (
-                    <span className="absolute bottom-1.5 left-2 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 text-[9px] font-black animate-pulse">
-                      Only {product.available_stock} left!
-                    </span>
-                  )}
-                </div>
-
-                {/* Weight / Pack Badge */}
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase">
-                    {product.weight_or_size || "1 Unit"}
-                  </span>
-                  {hasVariants && (
-                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
-                      {product.variants?.length} Options
-                    </span>
-                  )}
-                </div>
-
-                {/* Product Name */}
-                <h3 className="font-bold text-xs text-slate-900 line-clamp-2 leading-snug h-8">
-                  {product.name}
-                </h3>
-              </div>
-
-              {/* Price & Morphing Add Button */}
-              <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-50">
-                <div>
-                  <span className="text-xs sm:text-sm font-black text-slate-900 block leading-none">
-                    ₹{displayPrice}
-                  </span>
-                  {product.mrp > displayPrice && (
-                    <span className="text-[10px] text-slate-400 line-through">
-                      ₹{product.mrp}
-                    </span>
-                  )}
-                </div>
-
-                {/* Spring Animated Morphing Button: + ADD <--> [- 1 +] */}
-                {hasVariants ? (
-                  <button
-                    onClick={() => setSelectedProductForVariants(product)}
-                    className="px-2.5 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-50 text-emerald-600 font-black text-xs transition-all active:scale-95 shadow-sm"
-                  >
-                    OPTIONS
-                  </button>
-                ) : qty === 0 ? (
-                  <button
-                    onClick={() => onAddToCart(product)}
-                    className="px-3 py-1.5 rounded-xl border border-emerald-500/80 bg-white hover:bg-emerald-500 text-emerald-600 hover:text-white font-black text-xs transition-all active:scale-95 shadow-sm flex items-center gap-1"
-                  >
-                    <span>ADD</span>
-                  </button>
-                ) : (
-                  <div className="flex items-center bg-emerald-500 text-white rounded-xl overflow-hidden shadow-sm">
-                    <button
-                      onClick={() => onUpdateCartQuantity(product.id, qty - 1)}
-                      className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="px-2 font-black text-xs font-mono">{qty}</span>
-                    <button
-                      onClick={() => onUpdateCartQuantity(product.id, qty + 1)}
-                      className="px-2 py-1.5 hover:bg-emerald-600 transition-colors"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {/* Render Single Product Cards with Photo Swipe Carousels */}
+        {products.map((product) => (
+          <SingleProductCard
+            key={product.id}
+            product={product}
+            cart={cart}
+            onAddToCart={onAddToCart}
+            onUpdateCartQuantity={onUpdateCartQuantity}
+            onSelectVariants={(p) => setSelectedProductForVariants(p)}
+          />
+        ))}
       </div>
 
       {/* ── Multi-Pack Variant Selector Modal (Screenshot 2 Replica) ── */}
@@ -350,4 +436,3 @@ export default function ProductCardAndRails({
     </section>
   );
 }
-

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 
 from app.db.database import get_db
-from app.db.models import User, Shop, ShopInventory, Order, OrderItem, OrderReview, WalletLedger
+from app.db.models import User, Shop, ShopInventory, Order, OrderItem, OrderReview, WalletLedger, Coupon
 from app.core.security import require_customer, get_current_user
 from app.core.payment_engine import (
     create_razorpay_order,
@@ -34,6 +34,7 @@ class CartQuoteRequest(BaseModel):
     items: List[CartItemRequest]
     delivery_lat: Optional[float] = 27.0544
     delivery_lng: Optional[float] = 75.8942
+    coupon_code: Optional[str] = None
 
 
 class CheckoutRequest(BaseModel):
@@ -44,6 +45,55 @@ class CheckoutRequest(BaseModel):
     delivery_lng: float
     payment_method: str = Field("DIRECT_SHOP_UPI", description="RAZORPAY, DIRECT_SHOP_UPI, COD")
     customer_notes: Optional[str] = None
+    coupon_code: Optional[str] = None
+
+
+async def evaluate_coupon(coupon_code: Optional[str], items_total: float, db: AsyncSession) -> Dict[str, Any]:
+    if not coupon_code or not coupon_code.strip():
+        return {"discount": 0.0, "code": None, "applied": False, "message": ""}
+
+    code_clean = coupon_code.strip().upper()
+
+    # 1. Check database for active coupon
+    c_stmt = select(Coupon).where(and_(Coupon.code == code_clean, Coupon.is_active == True))
+    coupon = (await db.execute(c_stmt)).scalar_one_or_none()
+
+    if coupon:
+        if items_total < coupon.min_order_amount:
+            needed = coupon.min_order_amount - items_total
+            return {
+                "discount": 0.0,
+                "code": code_clean,
+                "applied": False,
+                "message": f"Add ₹{needed:.0f} more items to apply '{code_clean}'"
+            }
+        if coupon.discount_type == "PERCENT":
+            discount = min(coupon.max_discount_amount, round(items_total * (coupon.discount_value / 100.0), 2))
+        else:
+            discount = min(items_total, coupon.discount_value)
+        return {
+            "discount": discount,
+            "code": code_clean,
+            "applied": True,
+            "message": f"🎉 Coupon '{code_clean}' applied! Saved ₹{discount:.0f}"
+        }
+
+    # 2. Built-in instant promo codes (WELCOME50, SERVO20)
+    if code_clean == "WELCOME50":
+        if items_total >= 149.0:
+            return {"discount": 50.0, "code": code_clean, "applied": True, "message": "🎉 WELCOME50 applied! Flat ₹50 OFF"}
+        else:
+            needed = 149.0 - items_total
+            return {"discount": 0.0, "code": code_clean, "applied": False, "message": f"Add ₹{needed:.0f} more to apply WELCOME50"}
+    elif code_clean == "SERVO20":
+        if items_total >= 99.0:
+            return {"discount": 20.0, "code": code_clean, "applied": True, "message": "🎉 SERVO20 applied! Flat ₹20 OFF"}
+        else:
+            needed = 99.0 - items_total
+            return {"discount": 0.0, "code": code_clean, "applied": False, "message": f"Add ₹{needed:.0f} more to apply SERVO20"}
+
+    return {"discount": 0.0, "code": code_clean, "applied": False, "message": f"Coupon code '{code_clean}' is invalid"}
+
 
 
 class ClearDuesRequest(BaseModel):
@@ -104,7 +154,12 @@ async def get_cart_quote(
     delivery_fee = 0.0 if is_free else shop.base_delivery_fee
     amount_needed = max(0.0, round(free_delivery_threshold - items_total, 2))
     platform_fee = 5.0
-    grand_total = round(items_total + delivery_fee + platform_fee, 2)
+
+    # Coupon Evaluation
+    coupon_eval = await evaluate_coupon(req.coupon_code, items_total, db)
+    discount_amount = coupon_eval["discount"]
+
+    grand_total = max(0.0, round(items_total + delivery_fee + platform_fee - discount_amount, 2))
 
     # Smart Upsell Suggestions from same shop (small impulse add-ons ₹15 - ₹60)
     upsell_stmt = (
@@ -129,6 +184,10 @@ async def get_cart_quote(
         "items_total": round(items_total, 2),
         "delivery_fee": delivery_fee,
         "platform_fee": platform_fee,
+        "discount_amount": discount_amount,
+        "coupon_code": coupon_eval["code"],
+        "coupon_applied": coupon_eval["applied"],
+        "coupon_message": coupon_eval["message"],
         "grand_total": grand_total,
         "free_delivery_threshold": free_delivery_threshold,
         "amount_needed_for_free_delivery": amount_needed,
@@ -238,7 +297,11 @@ async def checkout_order(
     is_free = shop.free_delivery_enabled and (items_total >= shop.min_order_for_free_delivery)
     delivery_fee = 0.0 if is_free else shop.base_delivery_fee
     platform_fee = 5.0
-    grand_total = round(items_total + delivery_fee + platform_fee, 2)
+
+    # Coupon Evaluation & Discount
+    coupon_eval = await evaluate_coupon(req.coupon_code, items_total, db)
+    discount_amount = coupon_eval["discount"]
+    grand_total = max(0.0, round(items_total + delivery_fee + platform_fee - discount_amount, 2))
 
     # Unique Codes & PINs
     order_code = f"SL-{secrets.randbelow(900000) + 100000}"
@@ -278,6 +341,7 @@ async def checkout_order(
         items_total=round(items_total, 2),
         delivery_fee=delivery_fee,
         platform_fee=platform_fee,
+        discount_amount=discount_amount,
         grand_total=grand_total,
         delivery_address=req.delivery_address.strip(),
         delivery_lat=req.delivery_lat,

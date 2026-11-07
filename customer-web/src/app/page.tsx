@@ -69,6 +69,7 @@ export default function CustomerHomePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Active tracking order state
   const [activeOrder, setActiveOrder] = useState<OrderCheckoutResponse["order"] | null>(null);
@@ -190,6 +191,17 @@ export default function CustomerHomePage() {
 
   // Extract rails from feedData or fallback
   const allProducts = feedData?.all_products || [];
+  const filteredCategoryProducts = selectedCategory
+    ? allProducts.filter((p) => {
+        const catObj = CATEGORY_GRID.find((c) => c.name === selectedCategory);
+        const q = (catObj?.query || selectedCategory).toLowerCase();
+        return (
+          p.category?.toLowerCase().includes(q) ||
+          (p.sub_category && p.sub_category.toLowerCase().includes(q)) ||
+          p.name.toLowerCase().includes(q)
+        );
+      })
+    : [];
   const kiranaProducts =
     feedData?.rails?.kirana_rail ||
     allProducts.filter((p) => p.category === "Kirana" || p.sub_category?.includes("Dairy") || p.sub_category?.includes("Atta"));
@@ -274,26 +286,84 @@ export default function CustomerHomePage() {
           </div>
 
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
-            {CATEGORY_GRID.map((cat) => (
-              <button
-                key={cat.name}
-                onClick={() => {
-                  // Scroll to rail
-                  const el = document.getElementById("snacks-rail");
-                  el?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="p-2 sm:p-3 rounded-2xl bg-white border border-slate-100 shadow-xs hover:shadow-md hover:border-emerald-200 transition-all flex flex-col items-center text-center group cursor-pointer"
-              >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${cat.color} flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 transition-transform`}>
-                  {cat.icon}
-                </div>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-800 line-clamp-2 leading-tight">
-                  {cat.name}
-                </span>
-              </button>
-            ))}
+            {CATEGORY_GRID.map((cat) => {
+              const isSelected = selectedCategory === cat.name;
+              return (
+                <button
+                  key={cat.name}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedCategory(null);
+                    } else {
+                      setSelectedCategory(cat.name);
+                    }
+                  }}
+                  className={`p-2 sm:p-3 rounded-2xl border transition-all flex flex-col items-center text-center group cursor-pointer relative ${
+                    isSelected
+                      ? "bg-emerald-500 text-white border-emerald-600 shadow-md scale-105"
+                      : "bg-white border-slate-100 shadow-xs hover:shadow-md hover:border-emerald-200"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${
+                      isSelected ? "bg-white/20 text-white" : cat.color
+                    } flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 transition-transform`}
+                  >
+                    {cat.icon}
+                  </div>
+                  <span
+                    className={`text-[10px] sm:text-xs font-bold line-clamp-2 leading-tight ${
+                      isSelected ? "text-white" : "text-slate-800"
+                    }`}
+                  >
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* ── Active Category Filtered Products ─────────────────────── */}
+        {selectedCategory && (
+          <div className="p-4 rounded-3xl bg-emerald-50/70 border border-emerald-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">
+                  {CATEGORY_GRID.find((c) => c.name === selectedCategory)?.icon || "📦"}
+                </span>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-emerald-950">
+                    {selectedCategory}
+                  </h3>
+                  <p className="text-[11px] text-emerald-700 font-semibold">
+                    {filteredCategoryProducts.length} items found
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 text-xs font-black hover:bg-emerald-100 transition-colors shadow-xs"
+              >
+                Clear Filter ✕
+              </button>
+            </div>
+            {filteredCategoryProducts.length > 0 ? (
+              <ProductCardAndRails
+                title={`All ${selectedCategory}`}
+                products={filteredCategoryProducts}
+                cart={cart}
+                onAddToCart={handleAddToCart}
+                onUpdateCartQuantity={handleUpdateCartQuantity}
+              />
+            ) : (
+              <div className="py-6 text-center text-xs text-emerald-800 font-medium">
+                No items currently loaded in this category. Showing all other available rails below.
+              </div>
+            )}
+          </div>
+        )}
+
 
         {/* ── 4. Unserviceable Area Fallback Card (Demand Capture) ─── */}
         {feedData && !feedData.is_area_serviceable && (
