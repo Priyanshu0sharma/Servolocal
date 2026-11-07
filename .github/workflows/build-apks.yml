@@ -1,0 +1,81 @@
+name: Build Dual Android APKs (Customer + Partner)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mobile-apps/servolocal_flutter/**"
+      - ".github/workflows/build-apks.yml"
+  workflow_dispatch:
+
+jobs:
+  build-apks:
+    name: Compile Release APKs in Cloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # 1. Checkout Repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Setup Java 17 for Android Gradle Compilation
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # 3. Setup Flutter Environment
+      - name: Setup Flutter (Stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      # 4. Initialize Platform & Fetch Dependencies
+      - name: Prepare Flutter Project & Android Platform Files
+        working-directory: mobile-apps/servolocal_flutter
+        run: |
+          if [ ! -d "android" ]; then
+            echo "Initializing Android platform files..."
+            flutter create . --platforms android --org in.servolocal
+          fi
+          flutter pub get
+
+      # 5. Build Customer Flavor APK (ServoLocal)
+      - name: Build ServoLocal Customer APK
+        working-directory: mobile-apps/servolocal_flutter
+        run: |
+          echo "Building Customer APK (ServoLocal)..."
+          flutter build apk --release \
+            --dart-define=APP_FLAVOR=customer \
+            --dart-define=WEB_URL=https://servolocal.in \
+            --dart-define=API_URL=https://servolocal-api.onrender.com
+
+          mkdir -p ../../release-apks
+          cp build/app/outputs/flutter-apk/app-release.apk ../../release-apks/ServoLocal-Customer-Release.apk
+          echo "ServoLocal-Customer-Release.apk created successfully."
+
+      # 6. Build Partner Flavor APK (ServoPartner)
+      - name: Build ServoPartner Business & Fleet APK
+        working-directory: mobile-apps/servolocal_flutter
+        run: |
+          echo "Building Partner APK (ServoPartner)..."
+          flutter build apk --release \
+            --dart-define=APP_FLAVOR=partner \
+            --dart-define=WEB_URL=https://partner.servolocal.in \
+            --dart-define=API_URL=https://servolocal-api.onrender.com
+
+          cp build/app/outputs/flutter-apk/app-release.apk ../../release-apks/ServoPartner-Business-Release.apk
+          echo "ServoPartner-Business-Release.apk created successfully."
+
+      # 7. Upload Downloadable APK Artifacts (Single-Click Download on GitHub)
+      - name: Upload Both Release APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ServoLocal-Dual-APKs
+          path: release-apks/*.apk
+          retention-days: 30
+          if-no-files-found: error

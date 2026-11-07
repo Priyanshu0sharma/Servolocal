@@ -24,3 +24,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/customer_logo.jpeg
+    - assets/partner_logo.jpeg
+
