@@ -1,0 +1,72 @@
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║   ServoLocal — Maximum Security Git Ignore                   ║
+# ║   Koi bhi credential ya secret file KABHI push nahi hogi     ║
+# ╚═══════════════════════════════════════════════════════════════╝
+
+# ─── ALL Secrets & Environment Files (CRITICAL) ──────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ─── Firebase Admin SDK (Block every possible pattern) ───────────
+*firebase-adminsdk*
+*firebase*.json
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
+*secret*.json
+
+# ─── Python / Backend ───────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.db
+*.sqlite3
+
+# ─── Node / Frontend ────────────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.vercel/
+
+# ─── Flutter / Mobile ───────────────────────────────────────────
+mobile-apps/**/build/
+mobile-apps/**/.dart_tool/
+mobile-apps/**/.flutter-plugins
+mobile-apps/**/.flutter-plugins-dependencies
+mobile-apps/**/.packages
+mobile-apps/**/android/.gradle/
+mobile-apps/**/android/app/debug/
+mobile-apps/**/android/app/profile/
+mobile-apps/**/android/app/release/
+*.apk
+*.aab
+
+# ─── OS Junk ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── IDE / Editor ────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+
+# ─── Logs & Temp ─────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+.temp/
+tmp/
