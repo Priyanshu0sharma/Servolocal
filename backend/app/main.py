@@ -1,7 +1,32 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.db.database import check_db_connection
+from app.db.database import engine, Base, AsyncSessionLocal, check_db_connection
+from app.db.seed_catalog import seed_master_catalog
+
+
+# ── Lifespan Event: Auto Table Creation & Master Catalog Seeding ───
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Ensure all database tables exist
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("[DATABASE] Tables initialized successfully.")
+    except Exception as e:
+        print(f"[DATABASE INIT ERROR] {e}")
+
+    # 2. Seed Master Brand Catalog if table is empty
+    try:
+        async with AsyncSessionLocal() as session:
+            count = await seed_master_catalog(session)
+            print(f"[DATABASE] Master catalog ready ({count} items available).")
+    except Exception as e:
+        print(f"[DATABASE SEED ERROR] {e}")
+
+    yield
+
 
 # ── FastAPI App ──────────────────────────────────────────────────
 app = FastAPI(
@@ -9,6 +34,7 @@ app = FastAPI(
     version=settings.VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ── CORS — Allow Customer Web, Partner Web & Local Dev ───────────
@@ -64,4 +90,3 @@ async def health_check():
         "all_keys_loaded": all_keys_ok,
         "version": settings.VERSION,
     }
-
