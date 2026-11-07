@@ -1,0 +1,24 @@
+{
+  "name": "ServoPartner - Seller, Rider & Admin",
+  "short_name": "ServoPartner",
+  "description": "Seller Hub, Delivery Fleet & Admin Control Center for ServoLocal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
