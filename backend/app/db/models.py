@@ -280,3 +280,4 @@ class WalletLedger(Base):
     # Relationships
     user = relationship("User", back_populates="ledger_entries")
     order = relationship("Order", back_populates="ledger_records")
+

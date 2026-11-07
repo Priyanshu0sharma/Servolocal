@@ -373,3 +373,4 @@ async def seed_master_catalog(session: AsyncSession) -> int:
     await session.commit()
     print(f"[CATALOG SEEDER] Successfully populated {len(items_to_add)} Master Catalog items.")
     return len(items_to_add)
+
