@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.database import engine, Base, AsyncSessionLocal, check_db_connection
 from app.db.seed_catalog import seed_master_catalog
+from app.api.routes_auth import router as auth_router
 
 
 # ── Lifespan Event: Auto Table Creation & Master Catalog Seeding ───
@@ -45,6 +46,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Include Routers ──────────────────────────────────────────────
+app.include_router(auth_router)
 
 
 # ── Root Endpoint ────────────────────────────────────────────────
