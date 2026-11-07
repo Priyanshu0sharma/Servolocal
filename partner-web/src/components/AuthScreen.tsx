@@ -342,3 +342,4 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     </div>
   );
 }
+

@@ -353,3 +353,4 @@ export function TermsModal({ isOpen, onAccept, role = "seller" }: TermsModalProp
     </div>
   );
 }
+
