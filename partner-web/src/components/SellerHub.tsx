@@ -22,3 +22,4 @@ interface SellerHubProps {
 export default function SellerHub({ user, onLogout }: SellerHubProps) {
   return <SellerDashboard user={user} onLogout={onLogout} />;
 }
+
