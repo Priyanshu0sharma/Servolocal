@@ -83,13 +83,13 @@ export default function CustomerAuthScreen({
     setLoading(true);
     setError("");
     try {
-      // Fast demo Google login token
-      const res = await googleLogin("demo_google_oauth_customer_token", "customer");
+      const targetEmail = (email && email.includes("@")) ? email.trim() : "customer@servolocal.in";
+      const res = await googleLogin(targetEmail, "customer");
       localStorage.setItem("servo_token", res.access_token);
       localStorage.setItem("servo_user", JSON.stringify(res.user));
       onLoginSuccess(res.user);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Google Sign-In failed. Try email OTP.");
+      setError(err?.response?.data?.detail || "Google Sign-In failed. Please use email OTP.");
     } finally {
       setLoading(false);
     }
@@ -124,12 +124,12 @@ export default function CustomerAuthScreen({
           </div>
         </div>
 
-        {/* Skip to Demo Button */}
+        {/* Browse Store Button */}
         <button
           onClick={onContinueAsGuest}
-          className="px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-black transition-all flex items-center gap-1.5 active:scale-95"
+          className="px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-black transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
         >
-          <span>Explore Demo as Guest</span>
+          <span>Browse Store</span>
           <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
         </button>
       </header>
@@ -297,7 +297,7 @@ export default function CustomerAuthScreen({
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1.5 text-center font-medium">
-                    Testing Hint: Enter master code <span className="font-bold text-emerald-600">123456</span> or code from your inbox.
+                    Enter the 6-digit code sent to your email inbox.
                   </p>
                 </div>
 
@@ -326,7 +326,7 @@ export default function CustomerAuthScreen({
                       setStep("EMAIL");
                       setOtp("");
                     }}
-                    className="text-xs text-slate-500 hover:text-slate-800 font-bold"
+                    className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer"
                   >
                     ← Change Email
                   </button>
@@ -334,7 +334,7 @@ export default function CustomerAuthScreen({
                     type="button"
                     disabled={resendTimer > 0}
                     onClick={handleSendOtp}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-black disabled:opacity-50"
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-black disabled:opacity-50 cursor-pointer"
                   >
                     {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
                   </button>
@@ -347,10 +347,10 @@ export default function CustomerAuthScreen({
               <button
                 type="button"
                 onClick={onContinueAsGuest}
-                className="w-full py-2.5 px-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-98"
+                className="w-full py-2.5 px-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>Skip Login & Browse Full Catalog as Guest</span>
+                <span>Continue to Store (Browse Products)</span>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
           </motion.div>

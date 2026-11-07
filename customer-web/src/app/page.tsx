@@ -40,7 +40,6 @@ import ProductCardAndRails from "@/components/ProductCardAndRails";
 import SmartCartDrawer from "@/components/SmartCartDrawer";
 import LiveOrderTrackerAndReview from "@/components/LiveOrderTrackerAndReview";
 import CustomerAuthScreen from "@/components/CustomerAuthScreen";
-import { DEMO_PRODUCTS, DEMO_SHOPS } from "@/lib/mockData";
 
 // 14 Iconic Quick Categories Grid (Blinkit Standard)
 const CATEGORY_GRID = [
@@ -214,12 +213,9 @@ export default function CustomerHomePage() {
     );
   }
 
-  // 2. Data Resolution: Combine Live Data with Rich Demo Catalog so app is NEVER empty
-  const liveProducts = feedData?.all_products || [];
-  const allProducts: ProductItem[] = liveProducts.length > 0 ? liveProducts : DEMO_PRODUCTS;
-
-  const liveShops = feedData?.shops || [];
-  const shops: ShopItem[] = liveShops.length > 0 ? liveShops : DEMO_SHOPS;
+  // 2. Real Live Database Products & Shops from Neon PostgreSQL
+  const allProducts: ProductItem[] = feedData?.all_products || [];
+  const shops: ShopItem[] = feedData?.shops || [];
 
   // Filtered Products for Active Category Tab
   const filteredCategoryProducts = selectedCategory
@@ -459,7 +455,7 @@ export default function CustomerHomePage() {
 
             <ProductCardAndRails
               title={`Items in ${selectedCategory}`}
-              products={filteredCategoryProducts.length > 0 ? filteredCategoryProducts : allProducts.slice(0, 6)}
+              products={filteredCategoryProducts}
               cart={cart}
               onAddToCart={handleAddToCart}
               onUpdateCartQuantity={handleUpdateCartQuantity}
@@ -479,7 +475,7 @@ export default function CustomerHomePage() {
                   Instant 15-Minute Fleet is onboarding stores in {currentLocality}!
                 </h3>
                 <p className="text-xs text-amber-800 leading-relaxed max-w-xl">
-                  Our delivery radius will soon cover your exact doorstep. You can explore the live demo catalog below, or enter your WhatsApp number to be alerted when our riders go live.
+                  Our delivery fleet is rapidly onboarding neighborhood stores in your area. Enter your WhatsApp number below to get notified as soon as local delivery launches in {currentLocality}.
                 </p>
               </div>
             </div>
@@ -525,86 +521,114 @@ export default function CustomerHomePage() {
         )}
 
         {/* Rail B: Chips, Snacks & Munchies */}
-        <div id="snacks-rail">
+        {chipsProducts.length > 0 && (
+          <div id="snacks-rail">
+            <ProductCardAndRails
+              title="Chips, Namkeen & Munchies"
+              badge="Multi-pack Deals"
+              products={chipsProducts}
+              cart={cart}
+              onAddToCart={handleAddToCart}
+              onUpdateCartQuantity={handleUpdateCartQuantity}
+            />
+          </div>
+        )}
+
+        {/* Rail C: Dairy, Bread & Fresh Milk */}
+        {dairyProducts.length > 0 && (
           <ProductCardAndRails
-            title="Chips, Namkeen & Munchies"
-            badge="Multi-pack Deals"
-            products={chipsProducts.length > 0 ? chipsProducts : allProducts.slice(0, 5)}
+            title="Dairy, Bread & Farm Fresh Eggs"
+            badge="Fresh Daily"
+            products={dairyProducts}
             cart={cart}
             onAddToCart={handleAddToCart}
             onUpdateCartQuantity={handleUpdateCartQuantity}
           />
-        </div>
-
-        {/* Rail C: Dairy, Bread & Fresh Milk */}
-        <ProductCardAndRails
-          title="Dairy, Bread & Farm Fresh Eggs"
-          badge="Fresh Daily"
-          products={dairyProducts.length > 0 ? dairyProducts : allProducts.slice(4, 9)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        )}
 
         {/* Rail D: Cold Drinks, Juices & Refreshments */}
-        <ProductCardAndRails
-          title="Cold Drinks, Juices & Energy Boosters"
-          badge="Chilled"
-          products={coldDrinksProducts.length > 0 ? coldDrinksProducts : allProducts.slice(8, 13)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {coldDrinksProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Cold Drinks, Juices & Energy Boosters"
+            badge="Chilled"
+            products={coldDrinksProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
 
         {/* Rail E: Maggi & Instant Breakfast */}
-        <ProductCardAndRails
-          title="Maggi & Instant Breakfast Cravings"
-          badge="Quick 2-Min"
-          products={instantProducts.length > 0 ? instantProducts : allProducts.slice(12, 16)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {instantProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Maggi & Instant Breakfast Cravings"
+            badge="Quick 2-Min"
+            products={instantProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
 
         {/* Rail F: Chocolates & Sweet Tooth */}
-        <ProductCardAndRails
-          title="Chocolates & Sweet Tooth Treats"
-          badge="Cravings"
-          products={sweetsProducts.length > 0 ? sweetsProducts : allProducts.slice(14, 18)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {sweetsProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Chocolates & Sweet Tooth Treats"
+            badge="Cravings"
+            products={sweetsProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
 
         {/* Rail G: Biscuits & Bakery */}
-        <ProductCardAndRails
-          title="Biscuits, Cookies & Tea-time Bakery"
-          badge="Top Rated"
-          products={bakeryProducts.length > 0 ? bakeryProducts : allProducts.slice(16, 20)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {bakeryProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Biscuits, Cookies & Tea-time Bakery"
+            badge="Top Rated"
+            products={bakeryProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
 
         {/* Rail H: Daily Kirana & Atta/Oil Staples */}
-        <ProductCardAndRails
-          title="Daily Kitchen Staples (Atta, Oil & Salt)"
-          badge="Purity Guaranteed"
-          products={staplesProducts.length > 0 ? staplesProducts : allProducts.slice(18, 22)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {staplesProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Daily Kitchen Staples (Atta, Oil & Salt)"
+            badge="Purity Guaranteed"
+            products={staplesProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
 
         {/* Rail I: Pan-India Direct Merch & 3D Prints */}
-        <ProductCardAndRails
-          title="Pan-India Custom Apparel & 3D Gifts"
-          badge="3-5 Days Courier"
-          products={panIndiaProducts.length > 0 ? panIndiaProducts : allProducts.slice(21, 24)}
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateCartQuantity={handleUpdateCartQuantity}
-        />
+        {panIndiaProducts.length > 0 && (
+          <ProductCardAndRails
+            title="Pan-India Custom Apparel & 3D Gifts"
+            badge="3-5 Days Courier"
+            products={panIndiaProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
+
+        {/* Fallback All Store Catalog if specific rails are few */}
+        {allProducts.length > 0 && (
+          <ProductCardAndRails
+            title="All Available Essentials"
+            badge="Verified Stock"
+            products={allProducts}
+            cart={cart}
+            onAddToCart={handleAddToCart}
+            onUpdateCartQuantity={handleUpdateCartQuantity}
+          />
+        )}
       </main>
 
       {/* ── 6. Bottom Sticky Cart Bar for Mobile ───────────────────── */}
