@@ -28,6 +28,8 @@ interface ProductCardAndRailsProps {
   cart: CartItem[];
   onAddToCart: (product: ProductItem, variant?: ProductVariant) => void;
   onUpdateCartQuantity: (inventoryId: number, newQty: number, variantId?: string) => void;
+  onSelectShop?: (shopName: string, shopId?: number) => void;
+  onSeeAll?: () => void;
 }
 
 // ── In-Card Product Component with Photo Swipe Carousel ─────────────────────
@@ -37,12 +39,14 @@ function SingleProductCard({
   onAddToCart,
   onUpdateCartQuantity,
   onSelectVariants,
+  onSelectShop,
 }: {
   product: ProductItem;
   cart: CartItem[];
   onAddToCart: (product: ProductItem, variant?: ProductVariant) => void;
   onUpdateCartQuantity: (inventoryId: number, newQty: number, variantId?: string) => void;
   onSelectVariants: (product: ProductItem) => void;
+  onSelectShop?: (shopName: string, shopId?: number) => void;
 }) {
   const images =
     product.gallery_images && product.gallery_images.length > 0
@@ -144,6 +148,29 @@ function SingleProductCard({
           )}
         </div>
 
+        {/* Zomato-Style Shop Badge directly below the image */}
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelectShop && (product.shop_name || (product as any).shop?.name)) {
+                onSelectShop(product.shop_name || (product as any).shop?.name, product.shop_id || undefined);
+              }
+            }}
+            className="w-full text-left px-2 py-0.5 rounded-md bg-emerald-50/80 hover:bg-emerald-100/90 border border-emerald-200/60 text-emerald-800 text-[10px] font-bold truncate flex items-center justify-between gap-1 transition-colors cursor-pointer group/shop"
+            title={`Sold by ${product.shop_name || "Verified Local Store"}`}
+          >
+            <span className="truncate flex items-center gap-1">
+              <Store className="w-2.5 h-2.5 text-emerald-600 shrink-0 inline" />
+              <span className="truncate font-extrabold">{product.shop_name || "Verified Store"}</span>
+            </span>
+            <span className="text-[9px] text-emerald-700 shrink-0 font-black">
+              {product.local_eta_mins || "⚡ 10m"}
+            </span>
+          </button>
+        </div>
+
         {/* Weight / Pack Badge */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase">
@@ -226,6 +253,8 @@ export default function ProductCardAndRails({
   cart,
   onAddToCart,
   onUpdateCartQuantity,
+  onSelectShop,
+  onSeeAll,
 }: ProductCardAndRailsProps) {
   // Variant modal state
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<ProductItem | null>(null);
@@ -251,7 +280,10 @@ export default function ProductCardAndRails({
             </span>
           )}
         </div>
-        <span className="text-xs sm:text-sm font-extrabold text-[#0C831F] hover:underline cursor-pointer">
+        <span 
+          onClick={onSeeAll}
+          className="text-xs sm:text-sm font-extrabold text-[#0C831F] hover:underline cursor-pointer"
+        >
           see all
         </span>
       </div>
@@ -262,14 +294,15 @@ export default function ProductCardAndRails({
         {shops.map((shop) => (
           <div
             key={shop.id}
-            className="w-64 sm:w-72 shrink-0 bg-white rounded-3xl p-3.5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+            onClick={() => onSelectShop && onSelectShop(shop.name, shop.id)}
+            className="w-64 sm:w-72 shrink-0 bg-white rounded-3xl p-3.5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between cursor-pointer group"
           >
             <div>
               <div className="w-full h-32 rounded-2xl bg-slate-100 overflow-hidden relative mb-3">
                 <img
                   src={shop.image_url || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500"}
                   alt={shop.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md text-[10px] font-black text-white flex items-center gap-1">
                   <Clock className="w-3 h-3 text-emerald-400" />
@@ -281,7 +314,7 @@ export default function ProductCardAndRails({
                 </span>
               </div>
 
-              <h3 className="font-extrabold text-sm text-slate-900 truncate">
+              <h3 className="font-extrabold text-sm text-slate-900 truncate group-hover:text-[#0C831F] transition-colors">
                 {shop.name}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5 truncate">
@@ -291,7 +324,7 @@ export default function ProductCardAndRails({
 
             <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
               <span className="text-slate-500 font-medium">
-                {shop.is_scheduled_route ? "Scheduled Route" : `${shop.distance_km.toFixed(1)} km away`}
+                {shop.is_scheduled_route ? "Scheduled Route" : `${shop.distance_km ? shop.distance_km.toFixed(1) : "0.8"} km away`}
               </span>
               <span
                 className={`font-black ${
@@ -313,6 +346,7 @@ export default function ProductCardAndRails({
             onAddToCart={onAddToCart}
             onUpdateCartQuantity={onUpdateCartQuantity}
             onSelectVariants={(p) => setSelectedProductForVariants(p)}
+            onSelectShop={onSelectShop}
           />
         ))}
       </div>

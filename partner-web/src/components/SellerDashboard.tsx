@@ -30,7 +30,8 @@ import {
   CreditCard,
   QrCode,
   Flame,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import {
@@ -75,6 +76,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [addStock, setAddStock] = useState<number>(50);
   const [addPanIndia, setAddPanIndia] = useState<boolean>(false);
   const [addingMaster, setAddingMaster] = useState(false);
+  const [bulkAdding, setBulkAdding] = useState(false);
 
   // Custom Item Form State
   const [customName, setCustomName] = useState("");
@@ -352,6 +354,41 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
       alert(err?.response?.data?.detail || "Could not add item to inventory. Ensure shop is configured.");
     } finally {
       setAddingMaster(false);
+    }
+  };
+
+  // Bulk 1-Click Category Onboarding (No Photo Upload Required)
+  const handleBulkAddCategory = async (categoryKeyword: string, label: string) => {
+    setBulkAdding(true);
+    setStatusMsg(`Adding all ${label} items in 1 click...`);
+    try {
+      const itemsToAdd = masterCatalog.filter(
+        (m) =>
+          !inventory.some((inv) => inv.name === m.name) &&
+          (m.category.toLowerCase().includes(categoryKeyword.toLowerCase()) ||
+           (m.sub_category && m.sub_category.toLowerCase().includes(categoryKeyword.toLowerCase())))
+      );
+
+      if (itemsToAdd.length === 0) {
+        setStatusMsg(`All items in ${label} are already added to your shop!`);
+        setTimeout(() => setStatusMsg(""), 3000);
+        setBulkAdding(false);
+        return;
+      }
+
+      for (const item of itemsToAdd) {
+        await addFromMasterCatalog(item.id, item.mrp, 50, item.category === "Kirana");
+      }
+
+      const invData = await getShopInventory();
+      if (invData?.items) setInventory(invData.items);
+      confetti({ particleCount: 70, spread: 60 });
+      setStatusMsg(`Successfully added ${itemsToAdd.length} items from ${label}!`);
+      setTimeout(() => setStatusMsg(""), 3500);
+    } catch (err: any) {
+      alert("Error in bulk adding items: " + (err?.response?.data?.detail || err.message));
+    } finally {
+      setBulkAdding(false);
     }
   };
 
@@ -863,6 +900,55 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                   }}
                   className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
+              </div>
+            </div>
+
+            {/* 1-Click Category Bulk Onboarding Shortcuts */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 fill-emerald-400" />
+                  <span>1-Click Bulk Catalog Onboarding (Zero Photos Needed)</span>
+                </span>
+                {bulkAdding && (
+                  <span className="text-xs text-amber-400 font-bold animate-pulse">
+                    Adding bulk items to store...
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={bulkAdding}
+                  onClick={() => handleBulkAddCategory("Kirana", "Kirana & Snacks")}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-white hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  ⚡ Add 15 Common Kirana Items
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkAdding}
+                  onClick={() => handleBulkAddCategory("Dairy", "Fresh Dairy & Eggs")}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-white hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  🥛 Add 7 Fresh Dairy & Eggs
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkAdding}
+                  onClick={() => handleBulkAddCategory("Fast Food", "Street Stalls & Cravings")}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-white hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  🥟 Add 8 Street Food & Drinks
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkAdding}
+                  onClick={() => handleBulkAddCategory("Sweets", "Sweets & Mithai")}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-white hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  🍫 Add Sweets & Mithai
+                </button>
               </div>
             </div>
 

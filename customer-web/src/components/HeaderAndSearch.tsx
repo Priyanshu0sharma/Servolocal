@@ -193,20 +193,19 @@ export default function HeaderAndSearch({
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* ── Brand Logo & Location (Blinkit Style) ─────────────── */}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl overflow-hidden border border-emerald-500/20 shadow-sm bg-white shrink-0 p-0.5">
-              <Image
-                src="/logo.jpeg"
-                alt="ServoLocal"
-                width={40}
-                height={40}
-                priority
-                className="object-cover w-full h-full rounded-xl"
-              />
+          <div 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-1.5 cursor-pointer select-none group"
+          >
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#0C831F] to-emerald-400 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-white text-white" />
             </div>
-            <div className="hidden sm:block">
-              <span className="text-xl font-black tracking-tight text-slate-900 block leading-tight">
+            <div className="flex flex-col">
+              <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 block leading-none">
                 servo<span className="text-[#0C831F]">local</span>
+              </span>
+              <span className="text-[8px] sm:text-[9px] font-black tracking-wider text-amber-500 uppercase leading-none mt-0.5">
+                ⚡ 12 MINS APP
               </span>
             </div>
           </div>

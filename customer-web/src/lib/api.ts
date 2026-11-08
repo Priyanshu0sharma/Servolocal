@@ -55,6 +55,7 @@ export interface ProductItem {
   master_item_id?: number | null;
   is_not_listed_custom?: boolean;
   name: string;
+  brand?: string;
   category: string;
   sub_category?: string | null;
   image_url: string;
@@ -62,12 +63,14 @@ export interface ProductItem {
   variants?: ProductVariant[];
   is_veg?: boolean;
   weight_or_size?: string;
+  default_weight_or_size?: string;
   selling_price: number;
   mrp: number;
   discount_percent?: number;
   available_stock: number;
   in_stock: boolean;
   is_pan_india_eligible: boolean;
+  local_eta_mins?: string;
   estimated_delivery?: string;
 }
 
