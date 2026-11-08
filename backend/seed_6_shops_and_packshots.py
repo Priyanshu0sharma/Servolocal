@@ -149,7 +149,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 18.0,
         "mrp": 20.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/149/150/3020/front_en.35.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -162,7 +162,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 18.0,
         "mrp": 20.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/149/110/1837/front_en.26.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -175,7 +175,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 18.0,
         "mrp": 20.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1621447504864-d8686e12698c?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/149/110/0519/front_en.48.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -188,7 +188,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 18.0,
         "mrp": 20.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1621447504864-d8686e12698c?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/149/110/0519/front_en.48.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -201,7 +201,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 49.0,
         "mrp": 55.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/406/321/4393/front_en.4.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -214,7 +214,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 49.0,
         "mrp": 55.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/400/440/1189/front_fr.6.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -227,7 +227,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 13.0,
         "mrp": 14.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/105/802/3800/front_en.3.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -240,7 +240,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 22.0,
         "mrp": 25.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/171/913/4852/front_en.25.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -253,7 +253,20 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 36.0,
         "mrp": 40.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/106/309/2617/front_en.17.400.jpg",
+        "is_pan_india_eligible": True,
+    },
+    {
+        "shop_id": 1,
+        "name": "Oreo Vanilla Creme Sandwich Biscuits",
+        "brand": "Oreo",
+        "category": "Bakery",
+        "sub_category": "Biscuits",
+        "default_weight_or_size": "120 g",
+        "selling_price": 35.0,
+        "mrp": 40.0,
+        "is_veg": True,
+        "image_url": "https://images.openfoodfacts.org/images/products/762/230/033/6738/front_en.407.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -266,7 +279,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 235.0,
         "mrp": 260.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/172/512/1129/front_en.30.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -279,7 +292,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 138.0,
         "mrp": 155.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/600/728/0242/front_en.18.400.jpg",
         "is_pan_india_eligible": True,
     },
     {
@@ -305,7 +318,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 26.0,
         "mrp": 28.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/404/390/1015/front_en.34.400.jpg",
         "is_pan_india_eligible": True,
     },
 
@@ -320,7 +333,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 27.0,
         "mrp": 27.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/126/215/0217/front_en.35.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -333,7 +346,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 33.0,
         "mrp": 34.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/126/226/0107/front_en.3.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -346,7 +359,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 18.0,
         "mrp": 20.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/126/215/0217/front_en.35.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -359,20 +372,20 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 54.0,
         "mrp": 58.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/126/201/0016/front_en.53.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
         "shop_id": 2,
-        "name": "Harvest Gold White Sliced Bread",
-        "brand": "Harvest Gold",
+        "name": "Britannia 100% Whole Wheat Sliced Bread",
+        "brand": "Britannia",
         "category": "Dairy",
         "sub_category": "Bread",
         "default_weight_or_size": "400 g",
         "selling_price": 45.0,
         "mrp": 50.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/106/334/2354/front_en.3.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -398,7 +411,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 88.0,
         "mrp": 95.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/126/201/0016/front_en.53.400.jpg",
         "is_pan_india_eligible": False,
     },
 
@@ -439,7 +452,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 75.0,
         "mrp": 85.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/762/220/114/8782/front_en.27.400.jpg",
         "is_pan_india_eligible": True,
     },
 
@@ -454,7 +467,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 38.0,
         "mrp": 40.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/544/900/000/0996/front_en.1129.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -467,7 +480,7 @@ REAL_PACKSHOT_PRODUCTS = [
         "selling_price": 43.0,
         "mrp": 45.0,
         "is_veg": True,
-        "image_url": "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80",
+        "image_url": "https://images.openfoodfacts.org/images/products/890/176/404/2911/front_en.41.400.jpg",
         "is_pan_india_eligible": False,
     },
     {
@@ -702,3 +715,4 @@ async def seed():
 
 if __name__ == "__main__":
     asyncio.run(seed())
+

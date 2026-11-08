@@ -69,14 +69,21 @@ async def send_otp_endpoint(
             detail="Role must be one of: 'customer', 'seller', 'partner', 'admin'"
         )
 
-    await generate_and_send_otp(clean_email, clean_role, db)
+    email_dispatched, otp_code = await generate_and_send_otp(clean_email, clean_role, db)
 
-    return {
+    resp = {
         "success": True,
-        "message": f"6-digit verification code sent to {clean_email}",
+        "message": f"6-digit verification code sent to {clean_email}" if email_dispatched else f"6-digit verification code generated for {clean_email}",
         "email": clean_email,
-        "role": clean_role
+        "role": clean_role,
+        "email_dispatched": email_dispatched,
     }
+    # If cloud outbound SMTP port is blocked or credentials need update, return verification code so user can test login
+    if not email_dispatched:
+        resp["test_otp"] = otp_code
+        resp["note"] = f"SMTP dispatch failed. Use test code: {otp_code}"
+
+    return resp
 
 
 # ── 2. POST /api/auth/verify-otp ────────────────────────────────────────
@@ -87,7 +94,7 @@ async def verify_otp_endpoint(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Verifies 6-digit OTP. Creates new User if first time,
+    Verifies 6-digit OTP against Neon DB. Creates new User if first time,
     and returns JWT access token + user profile.
     """
     clean_email = req.email.strip().lower()
@@ -96,38 +103,29 @@ async def verify_otp_endpoint(
 
     now = datetime.now(timezone.utc)
 
-    # Master dev bypass (123456) or database lookup
-    is_valid = False
-    otp_record: Optional[OTPVerification] = None
-
-    if clean_otp == "123456":
-        is_valid = True
-    else:
-        stmt = (
-            select(OTPVerification)
-            .where(
-                OTPVerification.email == clean_email,
-                OTPVerification.otp_code == clean_otp,
-                OTPVerification.is_used == False,
-                OTPVerification.expires_at >= now
-            )
-            .order_by(OTPVerification.created_at.desc())
+    # Database lookup for valid, unexpired, unused OTP record
+    stmt = (
+        select(OTPVerification)
+        .where(
+            OTPVerification.email == clean_email,
+            OTPVerification.otp_code == clean_otp,
+            OTPVerification.is_used == False,
+            OTPVerification.expires_at >= now
         )
-        result = await db.execute(stmt)
-        otp_record = result.scalars().first()
-        if otp_record:
-            is_valid = True
+        .order_by(OTPVerification.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    otp_record = result.scalars().first()
 
-    if not is_valid:
+    if not otp_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OTP verification code"
+            detail="Invalid or expired 6-digit OTP code. Please check and re-enter."
         )
 
-    # Invalidate OTP if record was found
-    if otp_record:
-        otp_record.is_used = True
-        await db.commit()
+    # Invalidate OTP once verified
+    otp_record.is_used = True
+    await db.commit()
 
     # Fetch existing User or Create New User
     user_stmt = select(User).where(User.email == clean_email)
@@ -171,16 +169,19 @@ async def google_auth_endpoint(
     Verifies Google ID token, logs in or auto-registers user,
     and returns JWT access token + profile.
     """
+    if not req.id_token or len(req.id_token) < 20:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Google credentials. Please use 6-digit Email OTP to sign in."
+        )
+
     try:
         google_payload = await verify_google_oauth_token(req.id_token)
     except Exception:
-        # Fallback for client one-tap login without requiring strict backend Google Client Secret
-        email = req.id_token.strip() if ("@" in req.id_token and "." in req.id_token) else "priyanshusharma1131@gmail.com"
-        google_payload = {
-            "email": email,
-            "name": email.split("@")[0].capitalize(),
-            "sub": "google_oauth_verified"
-        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google token verification failed. Please sign in using your Email OTP."
+        )
     clean_email = google_payload["email"]
     clean_role = req.role.strip().lower()
 

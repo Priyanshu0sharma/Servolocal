@@ -82,6 +82,8 @@ export default function HeaderAndSearch({
   const [authOtp, setAuthOtp] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
+  const [testOtp, setTestOtp] = useState("");
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const totalCartValue = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -131,20 +133,28 @@ export default function HeaderAndSearch({
     }
   };
 
-  // Auth Handlers
+  // Auth Handlers (Real OTP Verification)
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authEmail.includes("@")) {
-      setAuthError("Please enter a valid email address");
+    if (!authEmail.includes("@") || !authEmail.includes(".")) {
+      setAuthError("Please enter a valid email address (e.g. yourname@gmail.com)");
       return;
     }
     setAuthLoading(true);
     setAuthError("");
+    setAuthSuccessMsg("");
+    setTestOtp("");
     try {
-      await sendOtp(authEmail.trim().toLowerCase(), "customer");
+      const res = await sendOtp(authEmail.trim().toLowerCase(), "customer");
       setAuthStep("OTP");
+      if (res?.test_otp) {
+        setTestOtp(res.test_otp);
+        setAuthSuccessMsg(`6-digit code generated for ${authEmail}`);
+      } else {
+        setAuthSuccessMsg(res?.message || `6-digit OTP code sent to ${authEmail}`);
+      }
     } catch (err: any) {
-      setAuthError(err?.response?.data?.detail || "Failed to send OTP. Try again.");
+      setAuthError(err?.response?.data?.detail || "Failed to generate OTP. Please try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -153,7 +163,7 @@ export default function HeaderAndSearch({
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (authOtp.length < 6) {
-      setAuthError("Enter the complete 6-digit OTP");
+      setAuthError("Please enter all 6 digits of the OTP code");
       return;
     }
     setAuthLoading(true);
@@ -165,26 +175,17 @@ export default function HeaderAndSearch({
       setAuthStep("EMAIL");
       setAuthEmail("");
       setAuthOtp("");
+      setTestOtp("");
+      setAuthSuccessMsg("");
     } catch (err: any) {
-      setAuthError(err?.response?.data?.detail || "Invalid OTP code");
+      setAuthError(err?.response?.data?.detail || "Invalid or expired OTP verification code.");
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setAuthLoading(true);
-    setAuthError("");
-    try {
-      const targetEmail = authEmail && authEmail.includes("@") ? authEmail.trim() : "customer@servolocal.in";
-      const res = await googleLogin(targetEmail, "customer");
-      onLoginSuccess(res.user);
-      setIsAuthModalOpen(false);
-    } catch (err: any) {
-      setAuthError(err?.response?.data?.detail || "Google authentication failed.");
-    } finally {
-      setAuthLoading(false);
-    }
+  const handleGoogleLogin = () => {
+    setAuthError("Google OAuth requires domain redirect. Please enter your email above to receive a secure 6-digit OTP code.");
   };
 
   return (
@@ -195,16 +196,23 @@ export default function HeaderAndSearch({
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <div 
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-1.5 cursor-pointer select-none group"
+            className="flex items-center gap-2 cursor-pointer select-none group shrink-0"
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#0C831F] to-emerald-400 flex items-center justify-center text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-white text-white" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-emerald-500/25 shadow-sm bg-white shrink-0 p-0.5 group-hover:scale-105 transition-transform">
+              <Image
+                src="/logo.jpeg"
+                alt="ServoLocal"
+                width={44}
+                height={44}
+                priority
+                className="object-cover w-full h-full rounded-xl"
+              />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 block leading-none">
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 block leading-none">
                 servo<span className="text-[#0C831F]">local</span>
               </span>
-              <span className="text-[8px] sm:text-[9px] font-black tracking-wider text-amber-500 uppercase leading-none mt-0.5">
+              <span className="text-[8px] sm:text-[9px] font-black tracking-wider text-amber-500 uppercase leading-none mt-1">
                 ⚡ 12 MINS APP
               </span>
             </div>
@@ -501,8 +509,14 @@ export default function HeaderAndSearch({
               </div>
 
               {authError && (
-                <div className="mb-3 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold">
+                <div className="mb-3 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold leading-relaxed">
                   {authError}
+                </div>
+              )}
+
+              {authSuccessMsg && (
+                <div className="mb-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold leading-relaxed">
+                  {authSuccessMsg}
                 </div>
               )}
 
@@ -530,7 +544,7 @@ export default function HeaderAndSearch({
                     disabled={authLoading}
                     className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Login OTP"}
+                    {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send 6-Digit OTP"}
                   </button>
 
                   <div className="relative flex py-1 items-center">
@@ -571,9 +585,22 @@ export default function HeaderAndSearch({
               ) : (
                 <form onSubmit={handleVerifyOtp} className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Enter 6-Digit OTP sent to {authEmail}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Enter 6-Digit OTP code
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthStep("EMAIL");
+                          setAuthError("");
+                          setAuthSuccessMsg("");
+                        }}
+                        className="text-[11px] font-bold text-emerald-600 hover:underline"
+                      >
+                        Change Email
+                      </button>
+                    </div>
                     <div className="relative">
                       <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
@@ -581,20 +608,30 @@ export default function HeaderAndSearch({
                         maxLength={6}
                         value={authOtp}
                         onChange={(e) => setAuthOtp(e.target.value.replace(/\D/g, ""))}
-                        placeholder="123456"
+                        placeholder="••••••"
                         required
                         autoFocus
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-center font-mono font-bold text-base tracking-[0.3em] text-slate-900 focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-center font-mono font-bold text-lg tracking-[0.35em] text-slate-900 focus:outline-none focus:border-emerald-500"
                       />
                     </div>
                   </div>
 
+                  {testOtp && (
+                    <div 
+                      onClick={() => setAuthOtp(testOtp)}
+                      className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors"
+                    >
+                      <span className="font-semibold">⚡ Code: <span className="font-mono font-black">{testOtp}</span></span>
+                      <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-200/60 px-2 py-0.5 rounded-md">Tap to Fill</span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={authLoading || authOtp.length < 6}
-                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify & Start Shopping"}
+                    {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify & Sign In"}
                   </button>
                 </form>
               )}

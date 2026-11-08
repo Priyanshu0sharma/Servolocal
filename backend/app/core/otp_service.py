@@ -61,16 +61,17 @@ def _build_html_email(otp: str, role: str) -> str:
     """
 
 
-async def generate_and_send_otp(email: str, role: str, db: AsyncSession) -> bool:
+async def generate_and_send_otp(email: str, role: str, db: AsyncSession) -> tuple[bool, str]:
     """
     1. Generates 6-digit cryptographic numeric OTP.
     2. Saves record to OTPVerification table (5-minute expiry).
     3. Sends email via Gmail SMTP (or logs to console on local network/fallback).
+    Returns (email_dispatched: bool, otp_code: str).
     """
     clean_email = email.strip().lower()
     clean_role = role.strip().lower()
 
-    # Generate 6-digit OTP
+    # Generate real 6-digit cryptographic OTP
     otp_code = f"{secrets.randbelow(900000) + 100000}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
@@ -88,6 +89,7 @@ async def generate_and_send_otp(email: str, role: str, db: AsyncSession) -> bool
     # Send via SMTP with safe fallback
     smtp_user = settings.SMTP_USER
     smtp_password = settings.clean_smtp_password
+    email_dispatched = False
 
     if smtp_user and smtp_password:
         try:
@@ -108,15 +110,16 @@ async def generate_and_send_otp(email: str, role: str, db: AsyncSession) -> bool
                 server.sendmail(smtp_user, [clean_email], msg.as_string())
 
             print(f"[OTP SERVICE] Email successfully dispatched to {clean_email}")
-            return True
+            email_dispatched = True
+            return True, otp_code
         except Exception as e:
             print(f"[OTP SERVICE SMTP WARNING] {e}. Falling back to console log.")
 
-    # Local fallback console logging
+    # Local / cloud network fallback console logging
     print("=" * 60)
     print(f"[LOCAL OTP LOG] Email: {clean_email} | Role: {clean_role} | Code: {otp_code}")
     print("=" * 60)
-    return True
+    return False, otp_code
 
 
 async def verify_google_oauth_token(id_token: str) -> Dict[str, Any]:
