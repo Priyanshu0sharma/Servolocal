@@ -98,10 +98,6 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     }
   };
 
-  const handleDemoBypass = () => {
-    setOtpCode("123456");
-  };
-
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background ambient lighting */}
@@ -276,13 +272,9 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                 <span className="text-slate-400">
                   Sent to <b className="text-slate-300">{email}</b>
                 </span>
-                <button
-                  type="button"
-                  onClick={handleDemoBypass}
-                  className="text-amber-400 hover:text-amber-300 font-semibold"
-                >
-                  Fill Dev OTP (123456)
-                </button>
+                <span className="text-slate-500 font-mono">
+                  Valid for 5 mins
+                </span>
               </div>
             </div>
 

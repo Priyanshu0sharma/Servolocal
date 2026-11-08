@@ -185,7 +185,8 @@ export default function HeaderAndSearch({
   };
 
   const handleGoogleLogin = () => {
-    setAuthError("Google OAuth requires domain redirect. Please enter your email above to receive a secure 6-digit OTP code.");
+    setAuthError("");
+    setAuthSuccessMsg("Enter your Google / Gmail account above to receive your 6-digit OTP code.");
   };
 
   return (

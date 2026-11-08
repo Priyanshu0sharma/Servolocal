@@ -102,19 +102,8 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     }
   };
 
-  const handleGoogleDemoLogin = async () => {
-    setLoading(true);
-    setErrorMsg("");
-    try {
-      const demoToken = `google_oauth_mock_${role}_${Date.now()}`;
-      const res = await googleLogin(demoToken, role);
-      const user = res.user as UserProfile;
-      onLoginSuccess(user);
-    } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || "Google authentication failed.");
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleLoginPrompt = () => {
+    setErrorMsg("Please enter your registered Google/Business email above to receive a secure 6-digit OTP code.");
   };
 
   const handleTermsAccepted = () => {
@@ -294,10 +283,10 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                 <div className="flex-grow border-t border-slate-800"></div>
               </div>
 
-              {/* Instant 1-Click Google Login Button */}
+              {/* 1-Click Google Login Button */}
               <button
                 type="button"
-                onClick={handleGoogleDemoLogin}
+                onClick={handleGoogleLoginPrompt}
                 disabled={loading}
                 className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-slate-950 hover:bg-slate-800 border border-slate-700/80 text-slate-200 transition-all flex items-center justify-center gap-2.5 active:scale-[0.99]"
               >

@@ -53,13 +53,13 @@ import BlinkitSplitViewStorefront from "@/components/BlinkitSplitViewStorefront"
 const CATEGORY_GRID = [
   {
     name: "Dairy, Bread & Eggs",
-    img: "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/890/126/215/0217/front_en.35.400.jpg",
     query: "Dairy",
     bg: "bg-blue-50/60",
   },
   {
     name: "Snacks & Munchies",
-    img: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/890/149/150/3020/front_en.35.400.jpg",
     query: "Chips",
     bg: "bg-amber-50/60",
   },
@@ -71,31 +71,31 @@ const CATEGORY_GRID = [
   },
   {
     name: "Cold Drinks & Juices",
-    img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/544/900/000/0996/front_en.1129.400.jpg",
     query: "Cold Drinks",
     bg: "bg-cyan-50/60",
   },
   {
     name: "Breakfast & Instant Food",
-    img: "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/890/105/802/3800/front_en.3.400.jpg",
     query: "Instant Food",
     bg: "bg-yellow-50/60",
   },
   {
     name: "Sweet Tooth & Mithai",
-    img: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/762/220/114/8782/front_en.27.400.jpg",
     query: "Sweets",
     bg: "bg-pink-50/60",
   },
   {
     name: "Bakery & Biscuits",
-    img: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/890/171/913/4852/front_en.25.400.jpg",
     query: "Bakery",
     bg: "bg-orange-50/60",
   },
   {
     name: "Atta, Rice & Staples",
-    img: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=200&auto=format&fit=crop&q=80",
+    img: "https://images.openfoodfacts.org/images/products/890/172/512/1129/front_en.30.400.jpg",
     query: "Atta",
     bg: "bg-stone-50/60",
   },
@@ -428,9 +428,9 @@ export default function CustomerHomePage() {
                 Order Now →
               </button>
             </div>
-            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-85 pointer-events-none">
+            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-90 pointer-events-none">
               <img
-                src="https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80"
+                src="https://images.openfoodfacts.org/images/products/890/126/226/0107/front_en.3.400.jpg"
                 alt="Dairy"
                 className="w-full h-full object-contain drop-shadow-md"
               />
@@ -458,9 +458,9 @@ export default function CustomerHomePage() {
                 Order Now →
               </button>
             </div>
-            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-85 pointer-events-none">
+            <div className="absolute right-2 bottom-2 top-2 w-1/3 flex items-center justify-center opacity-90 pointer-events-none">
               <img
-                src="https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=300&auto=format&fit=crop&q=80"
+                src="https://images.openfoodfacts.org/images/products/890/149/150/3020/front_en.35.400.jpg"
                 alt="Snacks"
                 className="w-full h-full object-contain drop-shadow-md"
               />

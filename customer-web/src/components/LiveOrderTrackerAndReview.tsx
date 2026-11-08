@@ -277,24 +277,7 @@ export default function LiveOrderTrackerAndReview({
           </div>
         </div>
 
-        {/* ── Testing Demo Trigger: Advance to Delivered ────────────── */}
-        {currentStatus !== "DELIVERED" && (
-          <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-            <span className="text-slate-400">Testing Demo:</span>
-            <button
-              onClick={() => {
-                setCurrentStatus("DELIVERED");
-                setShowReviewModal(true);
-                try {
-                  confetti({ particleCount: 80, spread: 80 });
-                } catch {}
-              }}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-bold transition-colors"
-            >
-              Simulate &quot;Delivered&quot; Handover
-            </button>
-          </div>
-        )}
+
 
         {/* ── 5-Star Rating & Review Modal ──────────────────────────── */}
         <AnimatePresence>
