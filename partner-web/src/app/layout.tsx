@@ -7,8 +7,14 @@ export const metadata: Metadata = {
   description: "Official business app for shopkeepers, delivery riders, and administrators of ServoLocal.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.jpeg",
-    apple: "/logo.jpeg",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/logo.jpeg", sizes: "192x192", type: "image/jpeg" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 
