@@ -86,16 +86,26 @@ class Settings(BaseSettings):
 
     # ─── CORS Origins Allowlist ─────────────────────────────────
     CORS_ALLOWED_ORIGINS: Optional[str] = None
-    CORS_ORIGIN_REGEX: Optional[str] = None  # Restricted trusted regex, e.g. for Vercel preview builds
+    CORS_ORIGIN_REGEX: Optional[str] = (
+        r"^https://(customer(-web)?|partner(-web)?)(-[a-zA-Z0-9-]+)?\.vercel\.app$"
+    )
     BACKEND_CORS_ORIGINS: List[str] = [
+        # Local development
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        # Custom production domains
         "https://servolocal.in",
         "https://www.servolocal.in",
         "https://partner.servolocal.in",
+        # Stable Vercel production domains
         "https://customer-web-alpha-eight.vercel.app",
+        "https://customer-web.vercel.app",
+        "https://partner-web-inky.vercel.app",
+        "https://partner-web.vercel.app",
+        # Active customer preview deployment
+        "https://customer-fo2kzwr8v-priyanshu0sharmas-projects.vercel.app",
     ]
 
     # ── Derived Properties ───────────────────────────────────────
@@ -156,12 +166,13 @@ class Settings(BaseSettings):
         """
         Builds the explicit trusted-origins list:
         Combines BACKEND_CORS_ORIGINS with any custom CORS_ALLOWED_ORIGINS specified in .env.
+        Safeguards against combining wildcard '*' with credentials.
         """
         origins = list(self.BACKEND_CORS_ORIGINS)
         if self.CORS_ALLOWED_ORIGINS:
             for o in self.CORS_ALLOWED_ORIGINS.split(","):
                 clean = o.strip()
-                if clean and clean not in origins:
+                if clean and clean != "*" and clean not in origins:
                     origins.append(clean)
         return origins
 
