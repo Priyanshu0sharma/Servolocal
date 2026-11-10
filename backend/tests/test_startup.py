@@ -1,7 +1,6 @@
 import pytest
 import logging
 from unittest.mock import AsyncMock, patch, MagicMock
-from sqlalchemy.exc import SQLAlchemyError
 from starlette.testclient import TestClient
 
 from app.core.config import settings
@@ -53,46 +52,32 @@ def test_health_check_endpoint(client):
 
 
 @pytest.mark.asyncio
-async def test_startup_logs_schema_warning_not_silent(caplog):
+async def test_startup_does_not_call_create_all_or_alter_table():
     """
-    Startup must log schema compatibility warnings (SQLAlchemyError) rather than
-    silently swallowing errors with 'except Exception: pass'.
+    Startup must NOT call Base.metadata.create_all() or execute manual ALTER TABLE statements.
+    Alembic is the single migration mechanism.
     """
-    mock_conn = AsyncMock()
-    mock_conn.run_sync = AsyncMock()
-    mock_conn.execute.side_effect = SQLAlchemyError("column already exists in table")
-
-    mock_begin = MagicMock()
-    mock_begin.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_begin.__aexit__ = AsyncMock(return_value=None)
-
-    mock_engine = MagicMock()
-    mock_engine.begin.return_value = mock_begin
-
-    with patch("app.main.engine", mock_engine), \
+    mock_db_check = AsyncMock(return_value=True)
+    with patch("app.main.check_db_connection", mock_db_check), \
+         patch("app.db.database.Base.metadata.create_all") as mock_create_all, \
          patch.object(settings, "NODE_ENV", "development"), \
          patch.object(settings, "SEED_DEV_DATA", False):
-        with caplog.at_level(logging.WARNING, logger="servolocal.startup"):
-            async with lifespan(app):
-                pass
+        async with lifespan(app):
+            pass
 
-    # Verify structured warning was recorded in logger
-    assert any("Compatibility migration notice" in record.message for record in caplog.records)
+    # Verify Base.metadata.create_all was NEVER called during startup
+    mock_create_all.assert_not_called()
+    mock_db_check.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_startup_fails_in_production_on_db_error():
-    """Startup in production must raise and halt if database initialization fails."""
-    mock_begin = MagicMock()
-    mock_begin.__aenter__ = AsyncMock(side_effect=ConnectionError("Cannot connect to Neon DB"))
-
-    mock_engine = MagicMock()
-    mock_engine.begin.return_value = mock_begin
-
-    with patch("app.main.engine", mock_engine), \
+async def test_startup_fails_in_production_on_db_disconnect():
+    """Startup in production must raise and halt if database connection check fails."""
+    with patch("app.main.check_db_connection", AsyncMock(return_value=False)), \
          patch.object(settings, "NODE_ENV", "production"), \
          patch.object(settings, "DATABASE_URL", "postgresql://user:pass@ep-test.neon.tech/neondb"), \
          patch.object(settings, "JWT_SECRET", "super-secret-production-key-32chars"):
-        with pytest.raises(ConnectionError):
+        with pytest.raises(ConnectionError) as exc_info:
             async with lifespan(app):
                 pass
+        assert "Database health probe failed" in str(exc_info.value)

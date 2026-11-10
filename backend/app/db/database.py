@@ -96,9 +96,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Creates all tables on startup (development convenience)."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """
+    Deprecated: Database schema migrations are strictly managed through Alembic.
+    Use 'alembic upgrade head' from the backend directory to apply migrations.
+    """
+    logger.warning(
+        "init_db() is deprecated and no longer creates schema tables directly. "
+        "Use 'alembic upgrade head' to apply migrations."
+    )
 
 
 async def check_db_connection() -> bool:

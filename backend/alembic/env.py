@@ -32,7 +32,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = settings.async_database_url or config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option("sqlalchemy.url") or settings.async_database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -54,10 +54,11 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine & SSL support."""
     section = config.get_section(config.config_ini_section, {})
-    section["sqlalchemy.url"] = settings.async_database_url
+    target_url = config.get_main_option("sqlalchemy.url") or settings.async_database_url
+    section["sqlalchemy.url"] = target_url
 
     connect_args = {}
-    if "sqlite" not in settings.async_database_url:
+    if "sqlite" not in target_url:
         ssl_ctx = get_ssl_context()
         if ssl_ctx is not None:
             connect_args["ssl"] = ssl_ctx

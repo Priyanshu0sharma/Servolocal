@@ -73,8 +73,16 @@ def upgrade() -> None:
     """
     bind = op.get_bind()
     dialect = bind.dialect.name
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
 
     for table_name, column_name, precision, scale in MONETARY_FIELDS:
+        if table_name not in existing_tables:
+            continue
+        cols = {col['name'] for col in inspector.get_columns(table_name)}
+        if column_name not in cols:
+            continue
+
         target_type = sa.Numeric(precision=precision, scale=scale)
         if dialect == "postgresql":
             # Safe explicit cast with rounding in Postgres
@@ -100,8 +108,16 @@ def downgrade() -> None:
     """Reverts columns back to Float if rollback is required."""
     bind = op.get_bind()
     dialect = bind.dialect.name
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
 
     for table_name, column_name, _, _ in MONETARY_FIELDS:
+        if table_name not in existing_tables:
+            continue
+        cols = {col['name'] for col in inspector.get_columns(table_name)}
+        if column_name not in cols:
+            continue
+
         if dialect == "postgresql":
             op.execute(
                 sa.text(

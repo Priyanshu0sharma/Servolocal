@@ -34,35 +34,15 @@ async def lifespan(app: FastAPI):
         if settings.is_production:
             raise
 
-    # 2. Database table verification and migration compatibility checks
+    # 2. Database connectivity health check (Alembic is the single migration mechanism)
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            migrations = [
-                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS variants JSON DEFAULT '[]'::json;",
-                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS gallery_images JSON DEFAULT '[]'::json;",
-                "ALTER TABLE shop_inventory ADD COLUMN IF NOT EXISTS is_veg BOOLEAN DEFAULT TRUE;",
-                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS variants JSON DEFAULT '[]'::json;",
-                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS gallery_images JSON DEFAULT '[]'::json;",
-                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS is_veg BOOLEAN DEFAULT TRUE;",
-                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS discount_percent FLOAT DEFAULT 0.0;",
-                "ALTER TABLE master_catalog_items ADD COLUMN IF NOT EXISTS selling_price FLOAT DEFAULT 0.0;",
-                "ALTER TABLE shops ADD COLUMN IF NOT EXISTS custom_serviceable_areas JSON DEFAULT '[]'::json;",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT TRUE;",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_permission_granted BOOLEAN DEFAULT FALSE;",
-            ]
-            for m in migrations:
-                try:
-                    logger.debug("Executing startup compatibility check: %s", m)
-                    await conn.execute(text(m))
-                except SQLAlchemyError as exc:
-                    # Log structured warning with statement details
-                    logger.warning("Compatibility migration notice: %s | Statement: %s", exc, m)
-                except Exception as exc:
-                    logger.error("Unexpected error executing migration: %s | Statement: %s", exc, m)
-                    if settings.is_production:
-                        raise
-        logger.info("[DATABASE] Database connection verified and schema compatibility checks passed.")
+        db_ok = await check_db_connection()
+        if db_ok:
+            logger.info("[DATABASE] Database connectivity verified successfully.")
+        else:
+            logger.warning("[DATABASE] Database health probe returned false.")
+            if settings.is_production:
+                raise ConnectionError("Database health probe failed during startup.")
     except Exception as e:
         logger.error("[DATABASE INIT ERROR] %s", e)
         if settings.is_production:
