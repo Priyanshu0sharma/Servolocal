@@ -20,7 +20,7 @@ import AuthModal from "@/components/AuthModal";
 import SellerHub from "@/components/SellerHub";
 import DeliveryPartnerHub from "@/components/DeliveryPartnerHub";
 import AdminControlRoom from "@/components/AdminControlRoom";
-import { AppUpdateModal, DevicePermissionsBanner } from "@/components/ComplianceModals";
+import { DevicePermissionsBanner } from "@/components/ComplianceModals";
 
 export default function PartnerHomePage() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -88,12 +88,7 @@ export default function PartnerHomePage() {
 
   // Not logged in -> Render Unified Auth Screen
   if (!user) {
-    return (
-      <>
-        <AppUpdateModal />
-        <AuthModal onLoginSuccess={handleLoginSuccess} />
-      </>
-    );
+    return <AuthModal onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Helper banner for Founder / Admin to switch role views for testing
@@ -152,7 +147,6 @@ export default function PartnerHomePage() {
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col font-sans">
-      <AppUpdateModal />
       {renderRoleSwitcherBar()}
 
       <div className="p-2 max-w-6xl mx-auto w-full">
