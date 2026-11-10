@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
@@ -128,14 +128,18 @@ async def root():
 
 
 # ── Health Check — DB + All API Keys Verification ────────────────
+@app.get("/health")
 @app.get("/api/health")
-async def health_check():
+async def health_check(response: Response):
     """
     Production health probe:
     1. Tests live Neon PostgreSQL connection
     2. Confirms every .env API key is loaded (non-empty)
+    Returns 200 OK when healthy/degraded, 503 if database disconnected.
     """
     db_ok = await check_db_connection()
+    if not db_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
     key_checks = {
         "neon_db": settings.check_key_loaded("DATABASE_URL"),
@@ -153,7 +157,7 @@ async def health_check():
     all_keys_ok = all(key_checks.values())
 
     return {
-        "status": "healthy" if (db_ok and all_keys_ok) else "degraded",
+        "status": "healthy" if (db_ok and all_keys_ok) else ("degraded" if db_ok else "unhealthy"),
         "database": "connected" if db_ok else "disconnected",
         "env_keys": key_checks,
         "all_keys_loaded": all_keys_ok,

@@ -41,7 +41,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
   const [pendingUser, setPendingUser] = useState<UserProfile | null>(null);
 
   const startCooldown = () => {
-    setResendCooldown(30);
+    setResendCooldown(60);
     const interval = setInterval(() => {
       setResendCooldown((prev) => {
         if (prev <= 1) {
@@ -151,7 +151,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
         </div>
 
         {/* Role Selector Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/70 border border-slate-800 rounded-2xl mb-6">
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/70 border border-slate-800 rounded-2xl mb-4">
           <button
             type="button"
             onClick={() => {
@@ -203,6 +203,13 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
             <span>Admin</span>
           </button>
         </div>
+
+        {role === "admin" && (
+          <div className="mb-4 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Restricted: Only pre-registered administrator emails can request access.</span>
+          </div>
+        )}
 
         {/* Alerts */}
         {errorMsg && (

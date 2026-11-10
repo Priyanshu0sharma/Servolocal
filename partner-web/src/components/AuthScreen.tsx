@@ -37,7 +37,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const [pendingUser, setPendingUser] = useState<UserProfile | null>(null);
 
   const startCooldown = () => {
-    setResendCooldown(30);
+    setResendCooldown(60);
     const interval = setInterval(() => {
       setResendCooldown((prev) => {
         if (prev <= 1) {
@@ -171,6 +171,13 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             <span>Founder Admin</span>
           </button>
         </div>
+
+        {role === "admin" && (
+          <div className="mb-4 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Restricted: Only pre-registered administrator emails can request access.</span>
+          </div>
+        )}
 
         {/* Dynamic Alerts */}
         <AnimatePresence mode="wait">

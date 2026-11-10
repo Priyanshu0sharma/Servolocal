@@ -83,7 +83,20 @@ export default function HeaderAndSearch({
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authSuccessMsg, setAuthSuccessMsg] = useState("");
-  const [testOtp, setTestOtp] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const startCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const totalCartValue = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -134,8 +147,8 @@ export default function HeaderAndSearch({
   };
 
   // Auth Handlers (Real OTP Verification)
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!authEmail.includes("@") || !authEmail.includes(".")) {
       setAuthError("Please enter a valid email address (e.g. yourname@gmail.com)");
       return;
@@ -143,18 +156,13 @@ export default function HeaderAndSearch({
     setAuthLoading(true);
     setAuthError("");
     setAuthSuccessMsg("");
-    setTestOtp("");
     try {
       const res = await sendOtp(authEmail.trim().toLowerCase(), "customer");
       setAuthStep("OTP");
-      if (res?.test_otp) {
-        setTestOtp(res.test_otp);
-        setAuthSuccessMsg(`6-digit code generated for ${authEmail}`);
-      } else {
-        setAuthSuccessMsg(res?.message || `6-digit OTP code sent to ${authEmail}`);
-      }
+      startCooldown();
+      setAuthSuccessMsg(res?.message || `6-digit OTP code sent to ${authEmail}`);
     } catch (err: any) {
-      setAuthError(err?.response?.data?.detail || "Failed to generate OTP. Please try again.");
+      setAuthError(err?.response?.data?.detail || "Failed to send OTP. Please try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -175,7 +183,6 @@ export default function HeaderAndSearch({
       setAuthStep("EMAIL");
       setAuthEmail("");
       setAuthOtp("");
-      setTestOtp("");
       setAuthSuccessMsg("");
     } catch (err: any) {
       setAuthError(err?.response?.data?.detail || "Invalid or expired OTP verification code.");
@@ -617,16 +624,6 @@ export default function HeaderAndSearch({
                     </div>
                   </div>
 
-                  {testOtp && (
-                    <div 
-                      onClick={() => setAuthOtp(testOtp)}
-                      className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors"
-                    >
-                      <span className="font-semibold">⚡ Code: <span className="font-mono font-black">{testOtp}</span></span>
-                      <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-200/60 px-2 py-0.5 rounded-md">Tap to Fill</span>
-                    </div>
-                  )}
-
                   <button
                     type="submit"
                     disabled={authLoading || authOtp.length < 6}
@@ -634,6 +631,19 @@ export default function HeaderAndSearch({
                   >
                     {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify & Sign In"}
                   </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      disabled={resendCooldown > 0 || authLoading}
+                      onClick={() => handleSendOtp()}
+                      className="text-[11px] font-bold text-slate-500 hover:text-emerald-600 disabled:opacity-50 transition-colors"
+                    >
+                      {resendCooldown > 0
+                        ? `Resend OTP code in ${resendCooldown}s`
+                        : "Didn't receive code? Resend OTP"}
+                    </button>
+                  </div>
                 </form>
               )}
             </motion.div>

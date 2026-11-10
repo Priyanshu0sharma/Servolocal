@@ -1,16 +1,28 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.db.database import get_db
 from app.db.models import User, OTPVerification
 from app.core.security import create_access_token, get_current_user
-from app.core.otp_service import generate_and_send_otp, verify_google_oauth_token
+from app.core.otp_service import (
+    generate_otp_code,
+    hash_otp,
+    verify_otp_hash,
+    send_otp_email,
+    verify_google_oauth_token,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+
+# Configuration constants for OTP security
+OTP_EXPIRY_MINUTES = 5
+RESEND_COOLDOWN_SECONDS = 60
+MAX_HOURLY_REQUESTS = 5
+MAX_VERIFICATION_ATTEMPTS = 5
 
 
 # ── Request / Response Schemas ──────────────────────────────────────────
@@ -22,7 +34,7 @@ class SendOTPRequest(BaseModel):
 
 class VerifyOTPRequest(BaseModel):
     email: EmailStr
-    otp_code: str
+    otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit verification code")
     role: str = "customer"
     name: Optional[str] = None
 
@@ -57,33 +69,97 @@ async def send_otp_endpoint(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Generates a 6-digit OTP, records it with 5-minute expiry,
-    and sends a branded HTML verification email.
+    1. Validates allowed roles (blocks public admin registration).
+    2. Enforces a 60-second resend cooldown per email.
+    3. Enforces a maximum of 5 OTP requests per hour per email.
+    4. Generates a 6-digit numeric OTP.
+    5. Dispatches real email via Gmail SMTP.
+    6. Stores OTP as a salted HMAC-SHA256 hash (never plaintext).
+    7. Never returns OTP in response or production logs.
     """
     clean_email = req.email.strip().lower()
     clean_role = req.role.strip().lower()
 
-    if clean_role not in ["customer", "seller", "partner", "admin"]:
+    # Rule: Public registration must never allow users to assign themselves the Admin role
+    if clean_role == "admin":
+        user_stmt = select(User).where(User.email == clean_email)
+        existing_user = (await db.execute(user_stmt)).scalar_one_or_none()
+        if not existing_user or existing_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin registration is restricted. Only pre-configured administrators may sign in."
+            )
+    elif clean_role not in ["customer", "seller", "partner"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Role must be one of: 'customer', 'seller', 'partner', 'admin'"
+            detail="Role must be one of: 'customer', 'seller', 'partner'"
         )
 
-    email_dispatched, otp_code = await generate_and_send_otp(clean_email, clean_role, db)
+    now = datetime.now(timezone.utc)
 
-    resp = {
+    # 1. Check Resend Cooldown (60 seconds)
+    recent_stmt = (
+        select(OTPVerification)
+        .where(OTPVerification.email == clean_email)
+        .order_by(OTPVerification.created_at.desc())
+    )
+    recent_otp = (await db.execute(recent_stmt)).scalars().first()
+    if recent_otp and recent_otp.created_at:
+        # Handle naive vs aware datetime from SQLite/Postgres
+        created_at = recent_otp.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        elapsed = (now - created_at).total_seconds()
+        if elapsed < RESEND_COOLDOWN_SECONDS:
+            retry_after = max(1, int(RESEND_COOLDOWN_SECONDS - elapsed))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {retry_after} seconds before requesting a new OTP code.",
+                headers={"Retry-After": str(retry_after)}
+            )
+
+    # 2. Check Hourly Rate Limit (5 requests per hour)
+    one_hour_ago = now - timedelta(hours=1)
+    hourly_stmt = (
+        select(func.count(OTPVerification.id))
+        .where(
+            OTPVerification.email == clean_email,
+            OTPVerification.created_at >= one_hour_ago
+        )
+    )
+    hourly_count = (await db.execute(hourly_stmt)).scalar() or 0
+    if hourly_count >= MAX_HOURLY_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many OTP requests for this email address. Please try again in 1 hour."
+        )
+
+    # 3. Generate cryptographic 6-digit OTP
+    otp_code = generate_otp_code()
+    otp_hash = hash_otp(clean_email, otp_code)
+    expires_at = now + timedelta(minutes=OTP_EXPIRY_MINUTES)
+
+    # 4. Dispatch Email via SMTP first — never bypass if SMTP fails!
+    await send_otp_email(clean_email, clean_role, otp_code)
+
+    # 5. Persist hashed OTP record in database with zero attempts
+    otp_record = OTPVerification(
+        email=clean_email,
+        otp_code=otp_hash,
+        role=clean_role,
+        expires_at=expires_at,
+        is_used=False,
+        attempts=0
+    )
+    db.add(otp_record)
+    await db.commit()
+
+    return {
         "success": True,
-        "message": f"6-digit verification code sent to {clean_email}" if email_dispatched else f"6-digit verification code generated for {clean_email}",
+        "message": f"A 6-digit verification code has been sent to {clean_email}.",
         "email": clean_email,
-        "role": clean_role,
-        "email_dispatched": email_dispatched,
+        "role": clean_role
     }
-    # If cloud outbound SMTP port is blocked or credentials need update, return verification code so user can test login
-    if not email_dispatched:
-        resp["test_otp"] = otp_code
-        resp["note"] = f"SMTP dispatch failed. Use test code: {otp_code}"
-
-    return resp
 
 
 # ── 2. POST /api/auth/verify-otp ────────────────────────────────────────
@@ -94,21 +170,30 @@ async def verify_otp_endpoint(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Verifies 6-digit OTP against Neon DB. Creates new User if first time,
-    and returns JWT access token + user profile.
+    Verifies 6-digit OTP hash against database:
+    1. Checks expiration.
+    2. Enforces maximum 5 failed attempts per OTP.
+    3. Validates hash in constant time.
+    4. Auto-creates new user if first-time (blocking self-assigned Admin role).
+    5. Returns signed JWT access token and user profile.
     """
     clean_email = req.email.strip().lower()
     clean_otp = req.otp_code.strip()
     clean_role = req.role.strip().lower()
 
+    if not clean_otp.isdigit() or len(clean_otp) != 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP must be exactly 6 digits."
+        )
+
     now = datetime.now(timezone.utc)
 
-    # Database lookup for valid, unexpired, unused OTP record
+    # Database lookup for active unexpired, unused OTP record
     stmt = (
         select(OTPVerification)
         .where(
             OTPVerification.email == clean_email,
-            OTPVerification.otp_code == clean_otp,
             OTPVerification.is_used == False,
             OTPVerification.expires_at >= now
         )
@@ -120,10 +205,36 @@ async def verify_otp_endpoint(
     if not otp_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired 6-digit OTP code. Please check and re-enter."
+            detail="Invalid or expired OTP code. Please request a new code."
         )
 
-    # Invalidate OTP once verified
+    # Check attempt limit
+    if otp_record.attempts >= MAX_VERIFICATION_ATTEMPTS:
+        otp_record.is_used = True
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Maximum verification attempts exceeded. This OTP has been invalidated. Please request a new code."
+        )
+
+    # Validate HMAC-SHA256 hash in constant time
+    if not verify_otp_hash(clean_email, clean_otp, otp_record.otp_code):
+        otp_record.attempts += 1
+        await db.commit()
+        remaining = MAX_VERIFICATION_ATTEMPTS - otp_record.attempts
+        if remaining <= 0:
+            otp_record.is_used = True
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect OTP code. Maximum verification attempts exceeded. Please request a new code."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Incorrect OTP code. {remaining} attempt{'s' if remaining > 1 else ''} remaining."
+        )
+
+    # Mark OTP as used once verified
     otp_record.is_used = True
     await db.commit()
 
@@ -133,11 +244,17 @@ async def verify_otp_endpoint(
     user = user_result.scalar_one_or_none()
 
     if not user:
+        # Prevent new public registration from creating an admin user
+        if clean_role == "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin account creation is restricted."
+            )
         display_name = req.name.strip() if req.name else clean_email.split("@")[0].capitalize()
         user = User(
             email=clean_email,
             name=display_name,
-            role=clean_role,
+            role=clean_role if clean_role in ["customer", "seller", "partner"] else "customer",
             is_active=True
         )
         db.add(user)
@@ -185,6 +302,15 @@ async def google_auth_endpoint(
     clean_email = google_payload["email"]
     clean_role = req.role.strip().lower()
 
+    # Prevent public registration from assigning admin role
+    if clean_role == "admin":
+        user_check = (await db.execute(select(User).where(User.email == clean_email))).scalar_one_or_none()
+        if not user_check or user_check.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin account creation via Google OAuth is restricted."
+            )
+
     # Fetch or Create User
     user_stmt = select(User).where(User.email == clean_email)
     user_result = await db.execute(user_stmt)
@@ -195,7 +321,7 @@ async def google_auth_endpoint(
             email=clean_email,
             google_sub_id=google_payload.get("sub"),
             name=google_payload.get("name", "Google User"),
-            role=clean_role,
+            role=clean_role if clean_role in ["customer", "seller", "partner"] else "customer",
             is_active=True
         )
         db.add(user)
@@ -260,4 +386,3 @@ async def update_user_permissions(
         "message": "User permissions and compliance status updated",
         "user": _format_user_response(current_user)
     }
-

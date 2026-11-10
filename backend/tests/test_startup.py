@@ -51,6 +51,16 @@ def test_health_check_endpoint(client):
         assert "all_keys_loaded" in data
 
 
+def test_health_check_disconnected(client):
+    """Verify health check returns 503 Service Unavailable when DB is disconnected."""
+    with patch("app.main.check_db_connection", AsyncMock(return_value=False)):
+        res = client.get("/health")
+        assert res.status_code == 503
+        data = res.json()
+        assert data["database"] == "disconnected"
+        assert data["status"] == "unhealthy"
+
+
 @pytest.mark.asyncio
 async def test_startup_does_not_call_create_all_or_alter_table():
     """

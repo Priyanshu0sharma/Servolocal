@@ -96,16 +96,20 @@ def upgrade() -> None:
             'otp_verifications',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('email', sa.String(length=255), nullable=False),
-            sa.Column('otp_code', sa.String(length=10), nullable=False),
+            sa.Column('otp_code', sa.String(length=255), nullable=False),
             sa.Column('role', sa.String(length=50), nullable=False, server_default='customer'),
             sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
             sa.Column('is_used', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+            sa.Column('attempts', sa.Integer(), nullable=False, server_default='0'),
             sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
             sa.PrimaryKeyConstraint('id')
         )
         op.create_index(op.f('ix_otp_verifications_id'), 'otp_verifications', ['id'], unique=False)
         op.create_index(op.f('ix_otp_verifications_email'), 'otp_verifications', ['email'], unique=False)
     else:
+        cols = _get_existing_columns(bind, 'otp_verifications')
+        if 'attempts' not in cols:
+            op.add_column('otp_verifications', sa.Column('attempts', sa.Integer(), nullable=False, server_default='0'))
         idxs = _get_existing_indexes(bind, 'otp_verifications')
         if op.f('ix_otp_verifications_id') not in idxs and 'ix_otp_verifications_id' not in idxs:
             op.create_index(op.f('ix_otp_verifications_id'), 'otp_verifications', ['id'], unique=False)

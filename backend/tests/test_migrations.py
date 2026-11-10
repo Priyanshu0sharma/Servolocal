@@ -54,11 +54,12 @@ def test_alembic_script_directory_and_revisions():
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 migration head, found {heads}"
     head_rev = heads[0]
-    assert head_rev == "7990e45a57f6"
+    assert head_rev == "a1b2c3d4e5f6"
 
     # Walk revisions from head to base
     revisions = list(script.walk_revisions())
     rev_ids = [r.revision for r in revisions]
+    assert "a1b2c3d4e5f6" in rev_ids
     assert "7990e45a57f6" in rev_ids
     assert "60fa29d45dc9" in rev_ids
 
@@ -69,6 +70,10 @@ def test_alembic_script_directory_and_revisions():
     # Check revision 002 down_revision is 001
     rev_002 = script.get_revision("7990e45a57f6")
     assert rev_002.down_revision == "60fa29d45dc9"
+
+    # Check revision 003 down_revision is 002
+    rev_003 = script.get_revision("a1b2c3d4e5f6")
+    assert rev_003.down_revision == "7990e45a57f6"
 
 
 def test_financial_numeric_strategy_fields():

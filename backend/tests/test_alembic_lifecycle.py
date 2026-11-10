@@ -54,7 +54,7 @@ def test_fresh_database_installation(temp_db_config):
     # Verify alembic_version is at head
     cursor.execute("SELECT version_num FROM alembic_version")
     version = cursor.fetchone()[0]
-    assert version == "7990e45a57f6"
+    assert version == "a1b2c3d4e5f6"
     conn.close()
 
 
@@ -111,7 +111,7 @@ def test_existing_schema_adoption_with_stamp(temp_db_config):
 
     # Verify version reaches head
     cursor.execute("SELECT version_num FROM alembic_version")
-    assert cursor.fetchone()[0] == "7990e45a57f6"
+    assert cursor.fetchone()[0] == "a1b2c3d4e5f6"
     conn.close()
 
 
@@ -165,7 +165,7 @@ def test_existing_schema_adoption_direct_upgrade(temp_db_config):
 
     # Verify version reaches head
     cursor.execute("SELECT version_num FROM alembic_version")
-    assert cursor.fetchone()[0] == "7990e45a57f6"
+    assert cursor.fetchone()[0] == "a1b2c3d4e5f6"
     conn.close()
 
 

@@ -1,16 +1,45 @@
 import secrets
 import smtplib
+import hmac
+import hashlib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 import httpx
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.models import OTPVerification
+
+logger = logging.getLogger("servolocal.otp")
+
+
+def generate_otp_code() -> str:
+    """Generates a secure 6-digit cryptographic numeric OTP."""
+    return f"{secrets.randbelow(900000) + 100000}"
+
+
+def hash_otp(email: str, otp: str) -> str:
+    """
+    Computes a cryptographic HMAC-SHA256 hash of the OTP salted with
+    the normalized email and server JWT_SECRET.
+    Never store plaintext OTPs in the database.
+    """
+    secret = (settings.JWT_SECRET or "servolocal-default-salt").encode()
+    message = f"{email.strip().lower()}:{otp.strip()}".encode()
+    return hmac.new(secret, message, hashlib.sha256).hexdigest()
+
+
+def verify_otp_hash(email: str, candidate_otp: str, stored_hash: str) -> bool:
+    """
+    Validates a candidate OTP against the stored hash in constant time
+    to prevent timing attacks.
+    """
+    if not candidate_otp or not stored_hash:
+        return False
+    candidate_hash = hash_otp(email, candidate_otp)
+    return hmac.compare_digest(stored_hash, candidate_hash)
 
 
 def _build_html_email(otp: str, role: str) -> str:
@@ -61,65 +90,54 @@ def _build_html_email(otp: str, role: str) -> str:
     """
 
 
-async def generate_and_send_otp(email: str, role: str, db: AsyncSession) -> tuple[bool, str]:
+async def send_otp_email(email: str, role: str, otp_code: str) -> None:
     """
-    1. Generates 6-digit cryptographic numeric OTP.
-    2. Saves record to OTPVerification table (5-minute expiry).
-    3. Sends email via Gmail SMTP (or logs to console on local network/fallback).
-    Returns (email_dispatched: bool, otp_code: str).
+    Sends the 6-digit OTP code to the recipient via configured Gmail SMTP.
+    Raises HTTPException(503) if SMTP credentials are missing or sending fails.
+    Never exposes plaintext OTP in production logs.
     """
-    clean_email = email.strip().lower()
-    clean_role = role.strip().lower()
-
-    # Generate real 6-digit cryptographic OTP
-    otp_code = f"{secrets.randbelow(900000) + 100000}"
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
-
-    # Save to database
-    otp_record = OTPVerification(
-        email=clean_email,
-        otp_code=otp_code,
-        role=clean_role,
-        expires_at=expires_at,
-        is_used=False
-    )
-    db.add(otp_record)
-    await db.commit()
-
-    # Send via SMTP with safe fallback
     smtp_user = settings.SMTP_USER
     smtp_password = settings.clean_smtp_password
-    email_dispatched = False
 
-    if smtp_user and smtp_password:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"Your ServoLocal OTP: {otp_code}"
-            msg["From"] = f"ServoLocal <{smtp_user}>"
-            msg["To"] = clean_email
+    if not smtp_user or not smtp_password:
+        logger.error("SMTP credentials (SMTP_USER/SMTP_PASSWORD) are not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is temporarily unavailable. Please check system configuration."
+        )
 
-            part_text = MIMEText(f"Your ServoLocal verification code is: {otp_code}. Valid for 5 minutes.", "plain")
-            part_html = MIMEText(_build_html_email(otp_code, clean_role), "html")
-            msg.attach(part_text)
-            msg.attach(part_html)
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Your ServoLocal Verification Code: {otp_code}"
+    msg["From"] = f"ServoLocal <{smtp_user}>"
+    msg["To"] = email
 
-            # Send via Gmail SMTP
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=8) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_user, [clean_email], msg.as_string())
+    part_text = MIMEText(
+        f"Your ServoLocal verification code is: {otp_code}. Valid for 5 minutes.",
+        "plain"
+    )
+    part_html = MIMEText(_build_html_email(otp_code, role), "html")
+    msg.attach(part_text)
+    msg.attach(part_html)
 
-            print(f"[OTP SERVICE] Email successfully dispatched to {clean_email}")
-            email_dispatched = True
-            return True, otp_code
-        except Exception as e:
-            print(f"[OTP SERVICE SMTP WARNING] {e}. Falling back to console log.")
-
-    # Local / cloud network fallback console logging
-    print("=" * 60)
-    print(f"[LOCAL OTP LOG] Email: {clean_email} | Role: {clean_role} | Code: {otp_code}")
-    print("=" * 60)
-    return False, otp_code
+    try:
+        # Connect to Gmail SMTP server
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_user, [email], msg.as_string())
+        logger.info("Verification OTP email dispatched successfully to recipient.")
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error("SMTP Authentication Error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service authentication failed. Please check SMTP credentials."
+        )
+    except Exception as e:
+        logger.error("SMTP Dispatch Error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to dispatch verification email. Please try again later."
+        )
 
 
 async def verify_google_oauth_token(id_token: str) -> Dict[str, Any]:
