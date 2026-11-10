@@ -76,7 +76,17 @@ class Settings(BaseSettings):
     # ─── App Config ─────────────────────────────────────────────
     NODE_ENV: str = "development"
 
-    # ─── CORS Origins ───────────────────────────────────────────
+    # ─── Database SSL & Pooling ─────────────────────────────────
+    DB_SSL_MODE: str = "require"  # require, verify-full, verify-ca, disable
+    DB_SSL_CA_PATH: Optional[str] = None
+
+    # ─── Production Seeding Controls ────────────────────────────
+    SEED_DEV_DATA: bool = False      # Never seed dev test accounts or demo shops in prod
+    AUTO_SEED_CATALOG: bool = False  # Controlled master catalog seeding
+
+    # ─── CORS Origins Allowlist ─────────────────────────────────
+    CORS_ALLOWED_ORIGINS: Optional[str] = None
+    CORS_ORIGIN_REGEX: Optional[str] = None  # Restricted trusted regex, e.g. for Vercel preview builds
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
@@ -85,6 +95,7 @@ class Settings(BaseSettings):
         "https://servolocal.in",
         "https://www.servolocal.in",
         "https://partner.servolocal.in",
+        "https://customer-web-alpha-eight.vercel.app",
     ]
 
     # ── Derived Properties ───────────────────────────────────────
@@ -134,6 +145,61 @@ class Settings(BaseSettings):
             "client_x509_cert_url": self.FIREBASE_ADMIN_CLIENT_CERT_URL,
             "universe_domain": "googleapis.com",
         }
+
+    @property
+    def is_production(self) -> bool:
+        """Returns True if the application is configured to run in production mode."""
+        return self.NODE_ENV.strip().lower() in ("production", "prod")
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """
+        Builds the explicit trusted-origins list:
+        Combines BACKEND_CORS_ORIGINS with any custom CORS_ALLOWED_ORIGINS specified in .env.
+        """
+        origins = list(self.BACKEND_CORS_ORIGINS)
+        if self.CORS_ALLOWED_ORIGINS:
+            for o in self.CORS_ALLOWED_ORIGINS.split(","):
+                clean = o.strip()
+                if clean and clean not in origins:
+                    origins.append(clean)
+        return origins
+
+    @staticmethod
+    def sanitize_database_url(url: str) -> str:
+        """
+        Masks password in database URLs for credential-safe logging and error messages.
+        E.g. postgresql+asyncpg://user:secret@host:5432/db -> postgresql+asyncpg://user:***@host:5432/db
+        """
+        if not url:
+            return "[EMPTY_DATABASE_URL]"
+        return re.sub(r"://([^/:]+):(.*)@", r"://\1:***@", url)
+
+    def validate_production_config(self) -> None:
+        """
+        Validates required environment variables when running in production.
+        Provides clear, human-readable errors without leaking secret values or passwords.
+        """
+        if not self.is_production:
+            return
+
+        missing = []
+        if not self.DATABASE_URL or not self.DATABASE_URL.strip():
+            missing.append("DATABASE_URL")
+        elif not ("postgres://" in self.DATABASE_URL or "postgresql://" in self.DATABASE_URL):
+            raise ValueError(
+                "Production configuration error: 'DATABASE_URL' must be a valid PostgreSQL connection string."
+            )
+
+        if not self.JWT_SECRET or len(self.JWT_SECRET.strip()) < 16:
+            missing.append("JWT_SECRET (must be >= 16 characters for production security)")
+
+        if missing:
+            missing_str = ", ".join(missing)
+            raise ValueError(
+                f"Production configuration error: The following required environment variables are missing or insecure: {missing_str}. "
+                "Please configure them in your production environment / secrets manager."
+            )
 
     def check_key_loaded(self, key_name: str) -> bool:
         """Returns True if the given setting has a non-empty value."""

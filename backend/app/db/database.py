@@ -9,18 +9,68 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
 
-# ── SSL context for Neon PostgreSQL ──────────────────────────────
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+import ssl
+import logging
+from typing import AsyncGenerator, Optional, Dict, Any
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
+    AsyncEngine,
+)
+from sqlalchemy.orm import declarative_base
+from app.core.config import settings
+
+logger = logging.getLogger("servolocal.database")
+
+
+def get_ssl_context() -> Optional[ssl.SSLContext]:
+    """
+    Constructs a secure SSLContext for PostgreSQL (Neon) connections.
+    Enforces strict certificate validation and hostname checking by default.
+    """
+    mode = (getattr(settings, "DB_SSL_MODE", "require") or "require").lower().strip()
+
+    if mode in ("disable", "none", "false", "0"):
+        return None
+
+    # Secure default: full verification against system CA trust store
+    ctx = ssl.create_default_context()
+    ca_path = getattr(settings, "DB_SSL_CA_PATH", None)
+    if ca_path:
+        ctx.load_verify_locations(cafile=ca_path)
+
+    if mode == "verify-ca":
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_REQUIRED
+    else:
+        # 'require' or 'verify-full' for Neon PostgreSQL
+        ctx.check_hostname = True
+        ctx.verify_mode = ssl.CERT_REQUIRED
+
+    return ctx
+
+
+def _build_connect_args(url: str) -> Dict[str, Any]:
+    """Builds appropriate connection arguments based on database dialect."""
+    if not url or "sqlite" in url:
+        return {}
+    ssl_ctx = get_ssl_context()
+    if ssl_ctx is not None:
+        return {"ssl": ssl_ctx}
+    return {}
+
+
+# ── Active SSL context for backward compatibility ────────────────
+ssl_context = get_ssl_context()
 
 # ── Async Engine (PgBouncer connection pooling on Neon) ──────────
 engine: AsyncEngine = create_async_engine(
-    settings.async_database_url,
+    settings.async_database_url if settings.async_database_url else "sqlite+aiosqlite:///:memory:",
     echo=False,
     future=True,
     pool_pre_ping=True,
-    connect_args={"ssl": ssl_context},
+    connect_args=_build_connect_args(settings.async_database_url),
 )
 
 # ── Session Factory ──────────────────────────────────────────────
