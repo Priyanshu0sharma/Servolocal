@@ -61,3 +61,4 @@ def test_build_connect_args_postgresql(monkeypatch):
     assert isinstance(args["ssl"], ssl.SSLContext)
     assert args["ssl"].check_hostname is True
     assert args["ssl"].verify_mode == ssl.CERT_REQUIRED
+
