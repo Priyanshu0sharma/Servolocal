@@ -37,6 +37,29 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Force-clean any legacy Service Workers or stale cached bundles */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var i = 0; i < regs.length; i++) {
+                      regs[i].unregister();
+                    }
+                  });
+                }
+                if ('caches' in window) {
+                  caches.keys().then(function(keys) {
+                    for (var i = 0; i < keys.length; i++) {
+                      caches.delete(keys[i]);
+                    }
+                  });
+                }
+              }
+            `,
+          }}
+        />
       </head>
       <body className="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
         {children}
