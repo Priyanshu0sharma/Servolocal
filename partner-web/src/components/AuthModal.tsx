@@ -12,15 +12,14 @@ import {
   ArrowRight, 
   CheckCircle2, 
   Loader2, 
-  RefreshCw,
-  Lock,
-  Wallet,
-  Clock,
-  ShieldCheck,
-  MapPin,
-  ExternalLink,
-  Sparkles,
-  ArrowLeft
+  RefreshCw, 
+  Lock, 
+  Wallet, 
+  ShieldCheck, 
+  MapPin, 
+  ArrowLeft,
+  AlertCircle,
+  FileText
 } from "lucide-react";
 import { sendOtp, verifyOtp, UserProfile } from "@/lib/api";
 import { TermsModal } from "./ComplianceModals";
@@ -34,7 +33,7 @@ interface AuthModalProps {
 type RoleType = "seller" | "partner" | "admin";
 
 export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
-  // Publicly selectable roles are strictly "seller" or "partner"
+  // Publicly selectable roles are strictly "seller" (Shopkeeper) or "partner" (Delivery)
   const [role, setRole] = useState<RoleType>("seller");
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [email, setEmail] = useState("");
@@ -76,7 +75,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
     try {
       const res = await sendOtp(cleanEmail, activeRole);
-      setSuccessMsg(res.message || "6-digit OTP code sent to your email!");
+      setSuccessMsg(res.message || "6-digit OTP code sent to your email.");
       setStep("OTP");
       startCooldown();
     } catch (err: any) {
@@ -147,141 +146,132 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950 relative overflow-hidden">
-      {/* Background Ambient Lighting */}
-      <div className="absolute top-0 left-1/4 w-[650px] h-[360px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-[500px] h-[300px] bg-emerald-600/5 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen bg-[#0B1120] text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950 relative overflow-x-hidden w-full">
+      {/* Background Ambient Lighting (Constrained to prevent horizontal overflow) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[650px] h-[320px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-10 right-0 w-full max-w-[400px] h-[280px] bg-emerald-600/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
-      <header className="relative z-20 w-full border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
+      <header className="relative z-20 w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-emerald-500/30 bg-slate-900 flex items-center justify-center shadow-lg shadow-emerald-500/10 relative">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-emerald-500/30 bg-slate-900 flex items-center justify-center shadow-md relative shrink-0">
               <Image
                 src="/logo.jpeg"
-                alt="ServoPartner Logo"
+                alt="ServoLocal Partner Logo"
                 width={40}
                 height={40}
                 priority
-                className="object-cover w-full h-full"
+                className="object-contain w-full h-full"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-black tracking-tight text-white">
+                <span className="text-base sm:text-lg font-black tracking-tight text-white truncate">
                   servo<span className="text-emerald-400">partner</span>
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                  Merchant & Fleet
+                <span className="hidden xs:inline-flex px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  Partner Portal
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
-                Hyperlocal Store & Logistics Network
+              <p className="text-[11px] text-slate-400 font-medium hidden sm:block truncate">
+                Hyperlocal Merchant & Delivery Network
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <a
-              href="https://servolocal.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1.5 text-slate-400 hover:text-emerald-400 transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-800/60"
-            >
-              <span>Customer Store</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+          <div className="flex items-center gap-2 sm:gap-3 text-xs font-semibold shrink-0">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-[11px]">
-              <Lock className="w-3 h-3 text-emerald-400" />
-              <span>Production Secured</span>
+              <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span>Production SSL</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex items-center">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex items-center">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Left Column: Platform Identity & Capabilities */}
+          {/* Left Column: Platform Capabilities */}
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold tracking-wide">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Dedicated Partner Operating System</span>
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>Verified Commerce Network</span>
             </div>
 
             <div className="space-y-3">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-[1.15]">
-                Grow Your Local Business With{" "}
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-[1.2]">
+                Local Commerce Platform for{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500">
-                  ServoLocal.
+                  Shopkeepers & Delivery Riders.
                 </span>
               </h1>
-              <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
-                Empowering neighborhood kiranas, specialty shops, and local delivery riders with instant 15-minute hyperlocal fulfillment, 0% commission on direct shop UPI, and real-time inventory management.
+              <p className="text-xs sm:text-sm md:text-base text-slate-300 max-w-xl leading-relaxed">
+                Connect your physical shop or delivery fleet to neighborhood customers with real-time stock management, transparent ledger tracking, and secure PIN-verified order fulfillment.
               </p>
             </div>
 
             {/* Feature Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-              {/* Feature 1: Live Catalog */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* Feature 1: Store Catalog */}
               <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-1.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Store className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Store className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">1-Click Master Catalog</h3>
+                <h3 className="text-sm font-bold text-white">Master Catalog & Stock Control</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Browse 500+ daily essentials, add items with one tap, manage stock thresholds, and receive loud order buzzer rings.
+                  List items from category templates, manage custom products, update prices, and receive real-time order alerts.
                 </p>
               </div>
 
               {/* Feature 2: Delivery Fleet */}
               <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-1.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Bike className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Bike className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Hyperlocal Fleet Dispatch</h3>
+                <h3 className="text-sm font-bold text-white">Neighborhood Order Delivery</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Accept neighborhood deliveries in 3–5 km clusters, verify pickups with 2-digit PINs and handovers with 4-digit PINs.
+                  Accept nearby delivery requests, navigate directly to stores, and verify handovers with 2-digit and 4-digit PINs.
                 </p>
               </div>
 
-              {/* Feature 3: 0% Commission */}
+              {/* Feature 3: Direct UPI & Ledger */}
               <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-1.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Wallet className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Wallet className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Direct Shop UPI Settlements</h3>
+                <h3 className="text-sm font-bold text-white">Direct UPI & Dues Tracking</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  0% platform commission on direct customer UPI payments to shop accounts, with transparent dues ledger tracking.
+                  Accept customer payments directly to your shop UPI with an automated dues ledger and clear wallet balance tracking.
                 </p>
               </div>
 
-              {/* Feature 4: Geofenced Location */}
+              {/* Feature 4: Coordinated Logistics */}
               <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-1.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <MapPin className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <MapPin className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">15-Min Geofenced Delivery</h3>
+                <h3 className="text-sm font-bold text-white">Coordinated Local Dispatch</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Accurate neighborhood geofencing ensures orders are fulfilled within a tight 15–20 minute local radius.
+                  Coordinate seamless order handoffs between local shop staff and verified delivery partners in your area.
                 </p>
               </div>
             </div>
 
             {/* Platform Highlights */}
-            <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400 font-semibold">
+            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-400 font-semibold">
               <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Bank-Grade Email OTP</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-emerald-400" />
-                <span>15-Minute Local Radius</span>
+                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Local Order Dispatch</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-emerald-400" />
-                <span>Zero Plaintext Storage</span>
+                <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>256-Bit SSL Encrypted</span>
               </div>
             </div>
           </div>
@@ -292,23 +282,33 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-slate-900/90 backdrop-blur-xl border border-emerald-500/25 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60 relative"
+              className="bg-slate-900/95 backdrop-blur-xl border border-emerald-500/25 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-black/60 relative"
             >
-              {/* Card Header */}
-              <div className="text-center mb-6">
+              {/* Card Header with Official Logo */}
+              <div className="flex flex-col items-center text-center mb-5">
+                <div className="w-12 h-12 rounded-2xl overflow-hidden border border-emerald-500/30 bg-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/10 mb-3 relative">
+                  <Image
+                    src="/logo.jpeg"
+                    alt="ServoLocal Partner"
+                    width={48}
+                    height={48}
+                    priority
+                    className="object-contain w-full h-full"
+                  />
+                </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  Partner Access Portal
+                  {isAdminMode ? "Staff Control Room" : "Partner Access Portal"}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 font-medium">
                   {isAdminMode
-                    ? "Administrator Control Room Verification"
-                    : "Sign in with your registered email to continue"}
+                    ? "Authorized administrator credential verification"
+                    : "Sign in with your registered email address"}
                 </p>
               </div>
 
-              {/* Public Role Selector: ONLY Seller and Delivery Partner */}
+              {/* Public Role Selector: ONLY Shopkeeper & Delivery Partner */}
               {!isAdminMode ? (
-                <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5">
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/80 border border-slate-800 rounded-2xl mb-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -317,13 +317,13 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                       setErrorMsg("");
                       setSuccessMsg("");
                     }}
-                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
                       role === "seller"
                         ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                     }`}
                   >
-                    <Store className="w-4 h-4" />
+                    <Store className="w-4 h-4 shrink-0" />
                     <span>Shopkeeper</span>
                   </button>
 
@@ -335,22 +335,22 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                       setErrorMsg("");
                       setSuccessMsg("");
                     }}
-                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
                       role === "partner"
                         ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                     }`}
                   >
-                    <Bike className="w-4 h-4" />
+                    <Bike className="w-4 h-4 shrink-0" />
                     <span>Delivery Partner</span>
                   </button>
                 </div>
               ) : (
-                /* Admin Restricted Mode Banner */
-                <div className="mb-5 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-                  <div className="flex items-center justify-between mb-1.5">
+                /* Admin Restricted Mode Notice */
+                <div className="mb-4 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 font-bold text-rose-400">
-                      <ShieldAlert className="w-4 h-4" />
+                      <ShieldAlert className="w-4 h-4 shrink-0" />
                       <span>Admin Control Room</span>
                     </div>
                     <button
@@ -370,12 +370,12 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
               {/* Role Context Notice (for public roles) */}
               {!isAdminMode && (
-                <div className="mb-5 p-3 rounded-xl bg-slate-950 border border-slate-800/90 text-[11px] leading-relaxed flex items-center gap-2.5">
+                <div className="mb-4 p-2.5 rounded-xl bg-slate-950 border border-slate-800/90 text-[11px] leading-relaxed flex items-center gap-2.5">
                   {role === "seller" ? (
                     <>
                       <Store className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span className="text-slate-300">
-                        Manage shop setup, master catalog stock, active orders & pickup PINs.
+                        Manage shop catalog, live inventory, active orders & pickup PINs.
                       </span>
                     </>
                   ) : (
@@ -389,14 +389,15 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                 </div>
               )}
 
-              {/* Status / Error Alerts */}
+              {/* Alerts */}
               {errorMsg && (
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium"
+                  className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-start gap-2"
                 >
-                  {errorMsg}
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span className="flex-1">{errorMsg}</span>
                 </motion.div>
               )}
 
@@ -404,10 +405,10 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+                  className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-start gap-2"
                 >
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{successMsg}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="flex-1">{successMsg}</span>
                 </motion.div>
               )}
 
@@ -427,7 +428,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                         {isAdminMode ? "Administrator Email" : "Registered Business Email"}
                       </label>
                       <div className="relative">
-                        <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                           type="email"
                           value={email}
@@ -440,18 +441,18 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                               : "rider@gmail.com"
                           }
                           required
-                          className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                          className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono"
                         />
                       </div>
                       <p className="text-[11px] text-slate-500 mt-1.5">
-                        We will send a secure 6-digit one-time password to this email.
+                        We will send a one-time 6-digit verification code to this address.
                       </p>
                     </div>
 
                     <button
                       type="submit"
-                      disabled={loading}
-                      className="w-full py-3.5 rounded-xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      disabled={loading || !email.trim()}
+                      className="w-full py-3.5 rounded-xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
@@ -490,27 +491,29 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                         </button>
                       </div>
                       <div className="relative">
-                        <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={6}
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                           placeholder="123456"
                           required
                           autoFocus
-                          className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-lg tracking-[0.4em] font-mono text-center text-slate-100 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+                          className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-3 text-lg sm:text-xl tracking-[0.25em] sm:tracking-[0.35em] font-mono text-center text-slate-100 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-bold"
                         />
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1.5">
-                        Sent to: <span className="text-emerald-400 font-mono font-semibold">{email}</span>
+                      <p className="text-[11px] text-slate-400 mt-1.5 truncate">
+                        Code sent to: <span className="text-emerald-400 font-mono font-semibold">{email}</span>
                       </p>
                     </div>
 
                     <button
                       type="submit"
-                      disabled={loading || otpCode.length < 6}
-                      className="w-full py-3.5 rounded-xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      disabled={loading || otpCode.length !== 6}
+                      className="w-full py-3.5 rounded-xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
@@ -527,7 +530,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                         type="button"
                         onClick={handleSendOtp}
                         disabled={resendCooldown > 0 || loading}
-                        className="text-xs text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 disabled:opacity-40"
+                        className="text-xs text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:hover:text-slate-400"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                         <span>
@@ -542,26 +545,27 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
               </AnimatePresence>
 
               {/* Card Footer: Terms, Security & Discreet Admin Toggle */}
-              <div className="mt-6 pt-4 border-t border-slate-800 space-y-3">
+              <div className="mt-5 pt-4 border-t border-slate-800 space-y-3">
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
                   <div className="flex items-center gap-1.5">
-                    <Lock className="w-3 h-3 text-emerald-400" />
+                    <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>256-Bit SSL Encrypted</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>Zero Plaintext Storage</span>
                   </div>
                 </div>
 
-                {/* Discreet Admin Sign-In (NOT a public role selector) */}
+                {/* Terms Modal Trigger & Discreet Admin Toggle */}
                 <div className="pt-1 flex items-center justify-between text-[11px]">
                   <button
                     type="button"
                     onClick={() => setShowTerms(true)}
-                    className="text-slate-400 hover:text-emerald-400 hover:underline transition-colors"
+                    className="text-slate-400 hover:text-emerald-400 hover:underline transition-colors flex items-center gap-1"
                   >
-                    Terms & Privacy Policy
+                    <FileText className="w-3 h-3 shrink-0" />
+                    <span>Terms & Privacy Policy</span>
                   </button>
 
                   {!isAdminMode ? (
@@ -569,9 +573,10 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                       type="button"
                       onClick={switchToAdminMode}
                       className="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+                      title="Restricted Staff Authentication"
                     >
-                      <Lock className="w-3 h-3 text-slate-500" />
-                      <span>Staff Access</span>
+                      <Lock className="w-3 h-3 text-slate-500 shrink-0" />
+                      <span>Staff Sign-In</span>
                     </button>
                   ) : (
                     <button
@@ -589,11 +594,11 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Page Footer */}
       <footer className="relative z-20 w-full border-t border-slate-800/80 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>&copy; {new Date().getFullYear()} ServoLocal Technologies Private Limited. All rights reserved.</span>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex items-center gap-3 text-slate-400">
             <button
               type="button"
               onClick={() => setShowTerms(true)}
@@ -603,13 +608,11 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
             </button>
             <span>•</span>
             <span className="text-emerald-400 font-semibold">ServoPartner v1.0.1</span>
-            <span>•</span>
-            <span>Hyperlocal Commerce System</span>
           </div>
         </div>
       </footer>
 
-      {/* Compliance Terms Modal */}
+      {/* In-App Compliance Terms Modal */}
       {showTerms && (
         <TermsModal
           isOpen={showTerms}
