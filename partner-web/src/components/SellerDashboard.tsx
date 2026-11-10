@@ -165,52 +165,11 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
     setLoadingOrders(true);
     getSellerOrders()
       .then((data) => {
-        if (data && data.length > 0) {
-          setOrders(data);
-        } else {
-          // Provide an interactive sample incoming order so the seller can test the live buzzers and buttons
-          setOrders([
-            {
-              id: 101,
-              order_code: "SL-ORDER-9921",
-              customer_name: "Rahul Verma (Arya College)",
-              customer_phone: "+91 98290 12345",
-              delivery_address: "Hostel Block B, Room 204, Kukas",
-              status: "PENDING",
-              payment_method: "DIRECT_SHOP_UPI",
-              payment_status: "PAID_TO_SHOP",
-              items_total: 185.0,
-              delivery_fee: 0.0,
-              platform_fee: 5.0,
-              grand_total: 190.0,
-              created_at: new Date().toISOString(),
-              pickup_pin: "42",
-              items: [
-                {
-                  id: 1,
-                  item_name: "Parle-G Gold Biscuits (100g)",
-                  quantity: 2,
-                  unit_price: 15.0,
-                  total_price: 30.0,
-                },
-                {
-                  id: 2,
-                  item_name: "Maggi 2-Minute Masala Noodles (70g)",
-                  quantity: 3,
-                  unit_price: 14.0,
-                  total_price: 42.0,
-                },
-                {
-                  id: 3,
-                  item_name: "Amul Taaza Homogenised Toned Milk (500ml)",
-                  quantity: 2,
-                  unit_price: 28.0,
-                  total_price: 56.0,
-                },
-              ],
-            },
-          ]);
-        }
+        setOrders(data || []);
+      })
+      .catch((err) => {
+        console.log("[LOAD ORDERS ERROR]", err);
+        setOrders([]);
       })
       .finally(() => setLoadingOrders(false));
   };
@@ -326,9 +285,8 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
       await verifyPickupPin(orderId, pin);
       handleUpdateOrderStatus(orderId, "OUT_FOR_DELIVERY");
       alert("Pickup PIN verified successfully! Order is out for delivery.");
-    } catch {
-      // In sample mode, accept matching pin
-      handleUpdateOrderStatus(orderId, "OUT_FOR_DELIVERY");
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Invalid Pickup PIN. Please verify with the delivery partner.");
     }
   };
 

@@ -68,26 +68,12 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   const [currentLng, setCurrentLng] = useState(75.8942);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsStreaming, setGpsStreaming] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(user.wallet_balance || 340.0);
+  const [walletBalance, setWalletBalance] = useState(user.wallet_balance || 0.0);
   const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Simulated live active delivery job for demonstration & real testing
-  const [activeJob, setActiveJob] = useState<ActiveOrderJob | null>({
-    id: 101,
-    order_code: "SL-202611-8931",
-    shop_name: "Kukas Famous Pyaaz Kachori",
-    shop_locality: "Near RIICO Circle, Kukas",
-    shop_lat: 27.056,
-    shop_lng: 75.897,
-    customer_name: "Rahul Sharma",
-    customer_address: "Hostel Block B, Arya College 1st Campus, Kukas",
-    customer_lat: 27.051,
-    customer_lng: 75.891,
-    items_summary: "2x Pyaaz Kachori, 1x Kadak Chai",
-    estimated_earning: 35.0,
-    status: "ASSIGNED",
-  });
+  // Live active delivery job (null when idle)
+  const [activeJob, setActiveJob] = useState<ActiveOrderJob | null>(null);
 
   // PIN inputs
   const [pickupPinInput, setPickupPinInput] = useState("");
@@ -200,9 +186,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
         confetti({ particleCount: 40, spread: 60 });
       } catch {}
     } catch (err: any) {
-      // In demo/test fallback, still advance state for smooth tester UX
-      setActiveJob({ ...activeJob, status: "OUT_FOR_DELIVERY" });
-      setStatusMsg("✅ Pickup confirmed! Navigating to customer doorstep.");
+      setErrorMsg(err?.response?.data?.detail || "Invalid 2-digit pickup PIN. Please check with store owner.");
     } finally {
       setVerifyingPin(false);
       setTimeout(() => setStatusMsg(""), 4000);
@@ -228,13 +212,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
         confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       } catch {}
     } catch (err: any) {
-      // Demo/test graceful fallback
-      setActiveJob({ ...activeJob, status: "DELIVERED" });
-      setWalletBalance((prev) => prev + activeJob.estimated_earning);
-      setStatusMsg(`🎉 Handover complete! ₹${activeJob.estimated_earning} credited to wallet!`);
-      try {
-        confetti({ particleCount: 80, spread: 70 });
-      } catch {}
+      setErrorMsg(err?.response?.data?.detail || "Invalid 4-digit delivery PIN. Please ask customer to verify.");
     } finally {
       setVerifyingPin(false);
       setTimeout(() => setStatusMsg(""), 5000);
@@ -898,31 +876,32 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                   ₹{walletBalance.toFixed(2)}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Auto-settled to registered UPI ID
+                  Settled to registered UPI ID
                 </p>
               </div>
 
               <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                  Deliveries Completed
+                  Payout UPI Handle
                 </span>
-                <h3 className="text-2xl font-black text-white">
-                  14
+                <h3 className="text-sm font-bold text-white truncate mt-1">
+                  {user.upi_id || "Not Linked"}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  100% on-time delivery rate
+                  Direct merchant/rider payouts
                 </p>
               </div>
 
               <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                  Referral Royalties Earned
+                  Fleet Duty Status
                 </span>
-                <h3 className="text-2xl font-black text-indigo-400">
-                  ₹56.00
+                <h3 className="text-sm font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${isOnDuty ? "bg-emerald-400 animate-ping" : "bg-slate-500"}`} />
+                  <span>{isOnDuty ? "Online (Radar Active)" : "Offline"}</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  From 2 onboarded street stalls
+                  High-accuracy GPS telemetry
                 </p>
               </div>
             </div>
@@ -932,30 +911,12 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
                 Recent Earnings Ledger
               </h3>
-              <div className="divide-y divide-slate-800 text-xs">
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-white">Delivery Payout #SL-202611-8931</p>
-                    <p className="text-[11px] text-slate-400">Kukas RIICO → Arya College</p>
-                  </div>
-                  <span className="font-bold text-emerald-400">+₹35.00</span>
-                </div>
-
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-white">Referral Royalty (Sharma Ji Kachori)</p>
-                    <p className="text-[11px] text-slate-400">Lifetime ₹2 scout reward</p>
-                  </div>
-                  <span className="font-bold text-indigo-400">+₹2.00</span>
-                </div>
-
-                <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-white">Delivery Payout #SL-202611-7412</p>
-                    <p className="text-[11px] text-slate-400">Balwantpura Route</p>
-                  </div>
-                  <span className="font-bold text-emerald-400">+₹45.00</span>
-                </div>
+              <div className="py-8 text-center rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="font-semibold text-xs text-slate-300">No payout records in current period</p>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                  When you complete delivery runs or earn vendor onboarding royalties, each transaction will be recorded here with instant UPI settlement.
+                </p>
               </div>
             </div>
           </div>

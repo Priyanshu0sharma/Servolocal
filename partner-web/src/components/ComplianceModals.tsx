@@ -23,89 +23,12 @@ import {
   LegalPolicies 
 } from "@/lib/api";
 
-// ── 1. Remote App Update Popup Modal ────────────────────────────────────────
+// ── 1. Remote App Update Popup Modal (Disabled on Web) ───────────────────────
+// Mobile app update prompts must be restricted to native Android application.
+// Web applications must never prompt users to update mobile apps.
 
 export function AppUpdateModal() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [currentVersion] = useState("1.0.0"); // Current bundled partner webapp version
-
-  useEffect(() => {
-    getAppConfig()
-      .then((cfg) => {
-        if (!cfg) return;
-        setConfig(cfg);
-        // Compare semantic version or force update flag
-        if (cfg.force_update || (cfg.latest_version && cfg.latest_version !== currentVersion)) {
-          setShowModal(true);
-        }
-      })
-      .catch((err) => console.log("[APP CONFIG LOAD]", err));
-  }, [currentVersion]);
-
-  if (!showModal || !config) return null;
-
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="w-full max-w-md p-6 border shadow-2xl rounded-2xl bg-slate-900 border-emerald-500/30 shadow-emerald-500/10 text-slate-100"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 border rounded-xl bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
-                <DownloadCloud className="w-6 h-6 animate-bounce" />
-              </div>
-              <div>
-                <span className="text-xs font-bold tracking-wider uppercase text-emerald-400">
-                  {config.force_update ? "Mandatory Update" : "Update Available"}
-                </span>
-                <h3 className="text-lg font-black text-white">
-                  ServoPartner v{config.latest_version}
-                </h3>
-              </div>
-            </div>
-            {!config.force_update && (
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            {config.update_message || "A new high-performance version of ServoPartner is available with improved real-time order alerts and live GPS tracking."}
-          </p>
-
-          <div className="flex items-center gap-3">
-            <a
-              href={config.playstore_url || "https://play.google.com/store/apps/details?id=in.servolocal.app"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all"
-            >
-              <span>Update Now</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
-
-            {!config.force_update && (
-              <button
-                onClick={() => setShowModal(false)}
-                className="py-3 px-4 rounded-xl font-semibold text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-              >
-                Remind Later
-              </button>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  );
+  return null;
 }
 
 
