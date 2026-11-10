@@ -1,38 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   AlertTriangle, 
-  DownloadCloud, 
   MapPin, 
-  Bell, 
   Volume2, 
   ShieldCheck, 
-  CheckCircle2, 
-  X, 
-  ExternalLink,
   Lock,
   ChevronRight
 } from "lucide-react";
 import { 
-  getAppConfig, 
   getLegalPolicies, 
   updatePermissions, 
-  AppConfig, 
   LegalPolicies 
 } from "@/lib/api";
 
-// ── 1. Remote App Update Popup Modal (Disabled on Web) ───────────────────────
-// Mobile app update prompts must be restricted to native Android application.
-// Web applications must never prompt users to update mobile apps.
-
-export function AppUpdateModal() {
-  return null;
-}
-
-
-// ── 2. Device Permissions Banner (GPS + Audio/Push) ─────────────────────────
+// ── 1. Device Permissions Banner (GPS + Audio/Push) ─────────────────────────
 
 interface DevicePermissionsBannerProps {
   onPermissionsUpdated?: () => void;

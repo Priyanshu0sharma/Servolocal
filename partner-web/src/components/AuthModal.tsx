@@ -15,12 +15,12 @@ import {
   RefreshCw,
   Lock,
   Wallet,
-  Package,
   Clock,
   ShieldCheck,
+  MapPin,
   ExternalLink,
-  ChevronRight,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from "lucide-react";
 import { sendOtp, verifyOtp, UserProfile } from "@/lib/api";
 import { TermsModal } from "./ComplianceModals";
@@ -34,7 +34,9 @@ interface AuthModalProps {
 type RoleType = "seller" | "partner" | "admin";
 
 export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
+  // Publicly selectable roles are strictly "seller" or "partner"
   const [role, setRole] = useState<RoleType>("seller");
+  const [isAdminMode, setIsAdminMode] = useState(false);
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [step, setStep] = useState<"EMAIL" | "OTP">("EMAIL");
@@ -60,7 +62,8 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !email.includes("@")) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
       setErrorMsg("Please enter a valid business email address.");
       return;
     }
@@ -69,13 +72,18 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     setErrorMsg("");
     setSuccessMsg("");
 
+    const activeRole = isAdminMode ? "admin" : role;
+
     try {
-      const res = await sendOtp(email.trim().toLowerCase(), role);
-      setSuccessMsg(res.message || "6-digit OTP sent to your registered email!");
+      const res = await sendOtp(cleanEmail, activeRole);
+      setSuccessMsg(res.message || "6-digit OTP code sent to your email!");
       setStep("OTP");
       startCooldown();
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || "Failed to send verification code. Please check your email and try again.");
+      setErrorMsg(
+        err?.response?.data?.detail || 
+        "Failed to send verification code. Please check your email and retry."
+      );
     } finally {
       setLoading(false);
     }
@@ -83,7 +91,10 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpCode.trim() || otpCode.length < 6) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otpCode.trim();
+
+    if (!cleanOtp || cleanOtp.length !== 6) {
       setErrorMsg("Please enter the complete 6-digit OTP code.");
       return;
     }
@@ -91,17 +102,22 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     setLoading(true);
     setErrorMsg("");
 
+    const activeRole = isAdminMode ? "admin" : role;
+
     try {
-      const res = await verifyOtp(email.trim().toLowerCase(), otpCode.trim(), role);
+      const res = await verifyOtp(cleanEmail, cleanOtp, activeRole);
       const user = res.user as UserProfile;
-      if (!user.terms_accepted && (role === "seller" || role === "partner")) {
+      if (!user.terms_accepted && (activeRole === "seller" || activeRole === "partner")) {
         setPendingUser(user);
         setShowTerms(true);
       } else {
         onLoginSuccess(user);
       }
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || "Invalid or expired OTP code. Please verify and retry.");
+      setErrorMsg(
+        err?.response?.data?.detail || 
+        "Invalid or expired OTP code. Please verify and retry."
+      );
     } finally {
       setLoading(false);
     }
@@ -114,10 +130,26 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     }
   };
 
+  const switchToAdminMode = () => {
+    setIsAdminMode(true);
+    setRole("admin");
+    setStep("EMAIL");
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const switchToPublicMode = (targetRole: "seller" | "partner") => {
+    setIsAdminMode(false);
+    setRole(targetRole);
+    setStep("EMAIL");
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
   return (
     <div className="min-h-screen bg-[#0B1120] text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950 relative overflow-hidden">
-      {/* Background Lighting Elements */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[350px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
+      {/* Background Ambient Lighting */}
+      <div className="absolute top-0 left-1/4 w-[650px] h-[360px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-[500px] h-[300px] bg-emerald-600/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
@@ -171,7 +203,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex items-center">
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Left Column: Platform Capabilities & Hero */}
+          {/* Left Column: Platform Identity & Capabilities */}
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold tracking-wide">
               <Sparkles className="w-3.5 h-3.5" />
@@ -225,14 +257,14 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                 </p>
               </div>
 
-              {/* Feature 4: Pan-India Logistics */}
+              {/* Feature 4: Geofenced Location */}
               <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-1.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <Package className="w-5 h-5" />
+                  <MapPin className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Hyperlocal + Inter-City</h3>
+                <h3 className="text-sm font-bold text-white">15-Min Geofenced Delivery</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Fulfill instant 15-minute neighborhood deliveries or dispatch inter-city parcels from one unified dashboard.
+                  Accurate neighborhood geofencing ensures orders are fulfilled within a tight 15–20 minute local radius.
                 </p>
               </div>
             </div>
@@ -245,16 +277,16 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-400" />
-                <span>15-Minute Delivery Radius</span>
+                <span>15-Minute Local Radius</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Zero Fake Data Verification</span>
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <span>Zero Plaintext Storage</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Portal Login / Entry Card */}
+          {/* Right Column: Portal Login Form Card */}
           <div className="lg:col-span-5 w-full max-w-md mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 15 }}
@@ -268,96 +300,96 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                   Partner Access Portal
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 font-medium">
-                  Select your role to sign in to your dashboard
+                  {isAdminMode
+                    ? "Administrator Control Room Verification"
+                    : "Sign in with your registered email to continue"}
                 </p>
               </div>
 
-              {/* Role Selector Tabs */}
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("seller");
-                    setStep("EMAIL");
-                    setErrorMsg("");
-                    setSuccessMsg("");
-                  }}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
-                    role === "seller"
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-                  }`}
-                >
-                  <Store className="w-4 h-4 mb-1" />
-                  <span>Shopkeeper</span>
-                </button>
+              {/* Public Role Selector: ONLY Seller and Delivery Partner */}
+              {!isAdminMode ? (
+                <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole("seller");
+                      setStep("EMAIL");
+                      setErrorMsg("");
+                      setSuccessMsg("");
+                    }}
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${
+                      role === "seller"
+                        ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Shopkeeper</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("partner");
-                    setStep("EMAIL");
-                    setErrorMsg("");
-                    setSuccessMsg("");
-                  }}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
-                    role === "partner"
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-                  }`}
-                >
-                  <Bike className="w-4 h-4 mb-1" />
-                  <span>Rider Fleet</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRole("partner");
+                      setStep("EMAIL");
+                      setErrorMsg("");
+                      setSuccessMsg("");
+                    }}
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${
+                      role === "partner"
+                        ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <Bike className="w-4 h-4" />
+                    <span>Delivery Partner</span>
+                  </button>
+                </div>
+              ) : (
+                /* Admin Restricted Mode Banner */
+                <div className="mb-5 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-400">
+                      <ShieldAlert className="w-4 h-4" />
+                      <span>Admin Control Room</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => switchToPublicMode("seller")}
+                      className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                      <span>Back to Partner</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-rose-200/90 leading-relaxed">
+                    Restricted: Only pre-authorized administrator accounts can authenticate.
+                  </p>
+                </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRole("admin");
-                    setStep("EMAIL");
-                    setErrorMsg("");
-                    setSuccessMsg("");
-                  }}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-bold transition-all ${
-                    role === "admin"
-                      ? "bg-rose-500 text-white shadow-md shadow-rose-500/20 font-black"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-                  }`}
-                >
-                  <ShieldAlert className="w-4 h-4 mb-1" />
-                  <span>Admin</span>
-                </button>
-              </div>
+              {/* Role Context Notice (for public roles) */}
+              {!isAdminMode && (
+                <div className="mb-5 p-3 rounded-xl bg-slate-950 border border-slate-800/90 text-[11px] leading-relaxed flex items-center gap-2.5">
+                  {role === "seller" ? (
+                    <>
+                      <Store className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-slate-300">
+                        Manage shop setup, master catalog stock, active orders & pickup PINs.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Bike className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-slate-300">
+                        View neighborhood delivery requests, navigate routes & confirm customer PINs.
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
 
-              {/* Role Context Notice */}
-              <div className="mb-5 p-3 rounded-xl bg-slate-950 border border-slate-800/90 text-[11px] leading-relaxed flex items-center gap-2.5">
-                {role === "seller" && (
-                  <>
-                    <Store className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-slate-300">
-                      Manage shop setup, master catalog stock, active orders & pickup PINs.
-                    </span>
-                  </>
-                )}
-                {role === "partner" && (
-                  <>
-                    <Bike className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span className="text-slate-300">
-                      View neighborhood delivery requests, navigate routes & confirm customer PINs.
-                    </span>
-                  </>
-                )}
-                {role === "admin" && (
-                  <>
-                    <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span className="text-rose-300 font-medium">
-                      Restricted: Only authorized administrator emails can access the control room.
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Status / Error Messages */}
+              {/* Status / Error Alerts */}
               {errorMsg && (
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
@@ -392,7 +424,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                   >
                     <div>
                       <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                        Registered Business Email
+                        {isAdminMode ? "Administrator Email" : "Registered Business Email"}
                       </label>
                       <div className="relative">
                         <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -401,7 +433,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder={
-                            role === "admin"
+                            isAdminMode
                               ? "admin@servolocal.in"
                               : role === "seller"
                               ? "store@gmail.com"
@@ -509,15 +541,47 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                 )}
               </AnimatePresence>
 
-              {/* Footer info */}
-              <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span>256-Bit SSL Encrypted</span>
+              {/* Card Footer: Terms, Security & Discreet Admin Toggle */}
+              <div className="mt-6 pt-4 border-t border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <Lock className="w-3 h-3 text-emerald-400" />
+                    <span>256-Bit SSL Encrypted</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    <span>Zero Plaintext Storage</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  <span>Zero Plaintext Storage</span>
+
+                {/* Discreet Admin Sign-In (NOT a public role selector) */}
+                <div className="pt-1 flex items-center justify-between text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setShowTerms(true)}
+                    className="text-slate-400 hover:text-emerald-400 hover:underline transition-colors"
+                  >
+                    Terms & Privacy Policy
+                  </button>
+
+                  {!isAdminMode ? (
+                    <button
+                      type="button"
+                      onClick={switchToAdminMode}
+                      className="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+                    >
+                      <Lock className="w-3 h-3 text-slate-500" />
+                      <span>Staff Access</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => switchToPublicMode("seller")}
+                      className="text-slate-400 hover:text-emerald-400 transition-colors"
+                    >
+                      Exit Staff Mode
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -530,6 +594,14 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>&copy; {new Date().getFullYear()} ServoLocal Technologies Private Limited. All rights reserved.</span>
           <div className="flex items-center gap-4 text-slate-400">
+            <button
+              type="button"
+              onClick={() => setShowTerms(true)}
+              className="hover:text-emerald-400 transition-colors"
+            >
+              Partner Agreement
+            </button>
+            <span>•</span>
             <span className="text-emerald-400 font-semibold">ServoPartner v1.0.1</span>
             <span>•</span>
             <span>Hyperlocal Commerce System</span>
@@ -538,7 +610,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
       </footer>
 
       {/* Compliance Terms Modal */}
-      {showTerms && pendingUser && (
+      {showTerms && (
         <TermsModal
           isOpen={showTerms}
           role={role === "admin" ? "seller" : role}
