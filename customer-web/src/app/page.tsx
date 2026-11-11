@@ -199,11 +199,25 @@ export default function CustomerHomePage() {
     }));
   }, []);
 
-  // 4 Showcase Products matching Reference UI exactly
+  // 4 Showcase Products with Real High-Definition Images
   const popularNearYouProducts: ProductItem[] = useMemo(() => {
     const popularIds = [9001, 9002, 9003, 9004];
     const items = allProducts.filter((p) => popularIds.includes(p.id));
     return items.sort((a, b) => popularIds.indexOf(a.id) - popularIds.indexOf(b.id));
+  }, [allProducts]);
+
+  // Real Dairy & Morning Staples Shelf
+  const dailyDairyProducts: ProductItem[] = useMemo(() => {
+    const dairyIds = [102, 101, 104, 103];
+    const items = allProducts.filter((p) => dairyIds.includes(p.id));
+    return items.sort((a, b) => dairyIds.indexOf(a.id) - dairyIds.indexOf(b.id));
+  }, [allProducts]);
+
+  // Real Snacks, Drinks & Quick Munchies Shelf
+  const snacksAndMunchiesProducts: ProductItem[] = useMemo(() => {
+    const snackIds = [201, 501, 401, 301];
+    const items = allProducts.filter((p) => snackIds.includes(p.id));
+    return items.sort((a, b) => snackIds.indexOf(a.id) - snackIds.indexOf(b.id));
   }, [allProducts]);
 
   // Wishlisted full product objects
@@ -324,6 +338,84 @@ export default function CustomerHomePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {popularNearYouProducts.map((product) => {
+                    const cartItem = cart.find(
+                      (item) => item.inventory_id === product.id
+                    );
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        isWishlisted={wishlist.includes(product.id)}
+                        onToggleWishlist={toggleWishlist}
+                        cartQuantity={cartItem ? cartItem.quantity : 0}
+                        onAddToCart={handleAddToCart}
+                        onUpdateCartQuantity={handleUpdateCartQuantity}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Real Dairy, Bread & Morning Essentials Shelf */}
+              <section className="space-y-3.5 select-none pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🥛</span>
+                    <h2 className="text-xl font-bold tracking-tight text-[#171717]">
+                      Dairy, Bread &amp; Fresh Milk
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory("Dairy, Bread & Eggs")}
+                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
+                  >
+                    <span>Explore Dairy</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {dailyDairyProducts.map((product) => {
+                    const cartItem = cart.find(
+                      (item) => item.inventory_id === product.id
+                    );
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        isWishlisted={wishlist.includes(product.id)}
+                        onToggleWishlist={toggleWishlist}
+                        cartQuantity={cartItem ? cartItem.quantity : 0}
+                        onAddToCart={handleAddToCart}
+                        onUpdateCartQuantity={handleUpdateCartQuantity}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Real Snacks, Munchies & Cold Drinks Shelf */}
+              <section className="space-y-3.5 select-none pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🍟</span>
+                    <h2 className="text-xl font-bold tracking-tight text-[#171717]">
+                      Snacks, Munchies &amp; Cold Drinks
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory("Snacks & Munchies")}
+                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
+                  >
+                    <span>Explore Snacks</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {snacksAndMunchiesProducts.map((product) => {
                     const cartItem = cart.find(
                       (item) => item.inventory_id === product.id
                     );

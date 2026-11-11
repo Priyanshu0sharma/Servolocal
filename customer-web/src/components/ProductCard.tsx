@@ -14,13 +14,6 @@ interface ProductCardProps {
   onClickProduct?: (product: ProductItem) => void;
 }
 
-const SHOWCASE_CARDS: Record<number, string> = {
-  9001: "/assets/prod_pizza_margherita_card_hd.png",
-  9002: "/assets/prod_fresh_vegetables_card_hd.png",
-  9003: "/assets/prod_wireless_headphone_card_hd.png",
-  9004: "/assets/prod_mens_casual_shirt_card_hd.png",
-};
-
 export default function ProductCard({
   product,
   isWishlisted,
@@ -30,85 +23,7 @@ export default function ProductCard({
   onUpdateCartQuantity,
   onClickProduct,
 }: ProductCardProps) {
-  // If this is one of the 4 showcase products matching the approved mockup
-  const showcaseCard = SHOWCASE_CARDS[product.id];
-  if (showcaseCard) {
-    return (
-      <div
-        onClick={() => {
-          if (onClickProduct) onClickProduct(product);
-          else onAddToCart(product);
-        }}
-        className="relative bg-white rounded-[18px] overflow-hidden shadow-2xs hover:shadow-md transition-all select-none cursor-pointer group"
-      >
-        {/* Exact HD Card Artwork */}
-        <img
-          src={showcaseCard}
-          alt={product.name}
-          className="w-full h-auto object-contain block group-hover:scale-[1.01] transition-transform duration-200"
-        />
-
-        {/* Floating Wishlist Heart Overlay matching exact top-right location */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleWishlist(product.id);
-          }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full flex items-center justify-center text-[#171717] hover:text-rose-500 hover:scale-110 transition-all cursor-pointer"
-        >
-          <Heart
-            className={`w-4 h-4 transition-colors ${
-              isWishlisted
-                ? "text-rose-500 fill-rose-500 stroke-rose-500"
-                : "text-[#171717]/80 hover:text-rose-500 stroke-[1.8]"
-            }`}
-          />
-        </button>
-
-        {/* Quick-Commerce Interactive Add/Stepper on Hover or when Cart > 0 */}
-        {cartQuantity > 0 ? (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute bottom-2.5 left-3 right-3 z-10 bg-[#078B35] text-white rounded-xl py-1.5 px-3 flex items-center justify-between text-xs font-bold shadow-md animate-in fade-in"
-          >
-            <button
-              type="button"
-              onClick={() => onUpdateCartQuantity(product.id, cartQuantity - 1)}
-              className="p-1 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform cursor-pointer"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <span>{cartQuantity} in Cart</span>
-            <button
-              type="button"
-              onClick={() => onAddToCart(product)}
-              className="p-1 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="absolute inset-x-3 bottom-2.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToCart(product);
-              }}
-              className="w-full py-1.5 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>ADD TO CART</span>
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Standard Catalog Product Layout (Clean & Matching System)
+  // Standard Catalog Product Layout (Clean & Responsive Real UI)
   const displayPrice = product.selling_price;
   const ratingValue = product.rating || 4.6;
 

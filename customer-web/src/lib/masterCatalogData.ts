@@ -1484,7 +1484,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
     is_pan_india_eligible: false,
   },
 
-  // ── Popular Near You Showcase Items (Matching Desktop Reference) ───────────
+  // ── Popular Near You Showcase Items (Matching Desktop Reference with Real Images) ──
   {
     id: 9001,
     name: "Pizza Margherita",
@@ -1495,7 +1495,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
     selling_price: 249,
     mrp: 299,
     discount_percent: 17,
-    image_url: "/assets/prod_pizza_margherita_img_hd.png",
+    image_url: "https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=600&auto=format&fit=crop&q=80",
     is_veg: true,
     in_stock: true,
     available_stock: 30,
@@ -1515,7 +1515,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
     selling_price: 99,
     mrp: 120,
     discount_percent: 18,
-    image_url: "/assets/prod_fresh_vegetables_img_hd.png",
+    image_url: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80",
     is_veg: true,
     in_stock: true,
     available_stock: 45,
@@ -1535,7 +1535,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
     selling_price: 1299,
     mrp: 1999,
     discount_percent: 35,
-    image_url: "/assets/prod_wireless_headphone_img_hd.png",
+    image_url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80",
     is_veg: true,
     in_stock: true,
     available_stock: 15,
@@ -1555,7 +1555,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
     selling_price: 599,
     mrp: 999,
     discount_percent: 40,
-    image_url: "/assets/prod_mens_casual_shirt_img_hd.png",
+    image_url: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&auto=format&fit=crop&q=80",
     is_veg: true,
     in_stock: true,
     available_stock: 20,
