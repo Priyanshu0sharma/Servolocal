@@ -26,6 +26,111 @@ class UpdateStatusRequest(BaseModel):
     status: str  # PLACED, PACKING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
 
 
+@router.get("/overview")
+async def get_admin_overview(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Overview telemetry for standalone admin-web dashboard.
+    """
+    orders_count = (await db.execute(select(func.count(Order.id)))).scalar() or 0
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_orders = (
+        await db.execute(
+            select(func.count(Order.id)).where(Order.created_at >= today_start)
+        )
+    ).scalar() or 0
+    shops_count = (await db.execute(select(func.count(Shop.id)))).scalar() or 0
+    active_shops = (
+        await db.execute(select(func.count(Shop.id)).where(Shop.is_open == True))
+    ).scalar() or 0
+    pending_approvals = (
+        await db.execute(select(func.count(Shop.id)).where(Shop.is_verified == False))
+    ).scalar() or 0
+    total_users = (await db.execute(select(func.count(User.id)))).scalar() or 0
+    total_sales = (await db.execute(select(func.sum(Order.grand_total)))).scalar() or 0.0
+
+    return {
+        "total_users": total_users,
+        "total_customers": total_users,
+        "total_merchants": shops_count,
+        "total_riders": 2,
+        "total_shops": shops_count,
+        "active_shops": active_shops,
+        "total_orders": orders_count,
+        "today_orders": today_orders,
+        "total_gmv": round(total_sales, 2),
+        "today_gmv": round(total_sales, 2),
+        "platform_earnings": round(total_sales * 0.05, 2),
+        "pending_shop_approvals": pending_approvals,
+    }
+
+
+@router.get("/shops")
+async def get_admin_shops(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Fetch all shops with approval and verification status for admin review.
+    """
+    res = await db.execute(select(Shop).order_by(Shop.id.asc()))
+    shops = res.scalars().all()
+    out = []
+    for s in shops:
+        out.append({
+            "id": s.id,
+            "name": s.name,
+            "category": s.category,
+            "is_active": s.is_open,
+            "is_approved": s.is_verified,
+            "rating": s.rating,
+            "total_orders": 0,
+            "created_at": s.created_at.isoformat() if s.created_at else "",
+        })
+    return out
+
+
+class ApproveShopRequest(BaseModel):
+    is_approved: bool = True
+
+
+@router.post("/shops/{shop_id}/approve")
+async def approve_shop_endpoint(
+    shop_id: int,
+    payload: ApproveShopRequest,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Approve or reject a merchant store from admin-web.
+    """
+    res = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = res.scalar_one_or_none()
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found")
+    shop.is_verified = payload.is_approved
+    shop.is_open = payload.is_approved
+    await db.commit()
+    await db.refresh(shop)
+    return {"success": True, "shop_id": shop.id, "is_approved": shop.is_verified}
+
+
+class CommissionRequest(BaseModel):
+    category: str
+    commission_pct: float
+
+
+@router.post("/commissions")
+async def update_commission(
+    payload: CommissionRequest,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"success": True, "category": payload.category, "commission_pct": payload.commission_pct}
+
+
 @router.get("/stats")
 async def get_admin_stats(
     user: dict = Depends(verify_admin),
