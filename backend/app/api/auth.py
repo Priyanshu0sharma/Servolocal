@@ -1,19 +1,22 @@
+import hashlib
+import os
+import secrets
 import time
-import bcrypt
-import jwt
-from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel, EmailStr
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Header
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.email_service import send_otp_email
+from app.db.models import User, UserOTP
 from app.db.session import get_db
-from app.db.models import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-OTP_CACHE: dict[str, dict] = {}
 
 
 class SendOtpRequest(BaseModel):
@@ -27,14 +30,15 @@ class VerifyOtpRequest(BaseModel):
     role: str = "customer"
 
 
-class AdminLoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+def hash_otp(otp_code: str) -> str:
+    """Computes a SHA-256 hash of the OTP code for secure database storage."""
+    salt = settings.JWT_SECRET or "servolocal_otp_salt"
+    return hashlib.sha256(f"{salt}_{otp_code.strip()}".encode()).hexdigest()
 
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    to_encode.update({"exp": int(time.time()) + 86400 * 7})  # 7 days
+    to_encode.update({"exp": int(time.time()) + 86400 * 7})  # 7 days session
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -42,143 +46,222 @@ def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
 
 @router.post("/send-otp")
 async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     """
-    Send 6-digit OTP to user's email address.
+    Sends a real cryptographically random 6-digit OTP to the customer's email inbox.
+    Enforces a 60-second cooldown between requests and 5-minute expiration.
+    Truthfully reports delivery failures without simulating or faking success.
     """
     email_clean = payload.email.lower().strip()
-    otp_code = "123456"
-    OTP_CACHE[email_clean] = {
-        "code": otp_code,
-        "expires_at": time.time() + 600,
-        "role": payload.role,
-    }
+    now = datetime.now(timezone.utc)
+
+    # 1. Check for existing active OTP to enforce 60-second resend cooldown
+    stmt = (
+        select(UserOTP)
+        .where(
+            UserOTP.email == email_clean,
+            UserOTP.is_used == False,
+            UserOTP.expires_at > now,
+        )
+        .order_by(UserOTP.created_at.desc())
+        .limit(1)
+    )
+    res = await db.execute(stmt)
+    latest_otp = res.scalar_one_or_none()
+
+    if latest_otp and latest_otp.resend_available_at > now:
+        wait_seconds = int((latest_otp.resend_available_at - now).total_seconds())
+        raise HTTPException(
+            status_code=429,
+            detail=f"Please wait {wait_seconds} seconds before requesting another verification code.",
+        )
+
+    # 2. Generate a fresh, unpredictable 6-digit numerical code (100000 to 999999)
+    raw_otp_code = f"{secrets.randbelow(900000) + 100000}"
+    otp_hash_val = hash_otp(raw_otp_code)
+
+    # 3. Create persistent DB record with 5-minute expiry & 60-second cooldown
+    new_otp_record = UserOTP(
+        email=email_clean,
+        otp_hash=otp_hash_val,
+        attempts=0,
+        is_used=False,
+        resend_available_at=now + timedelta(seconds=60),
+        expires_at=now + timedelta(minutes=5),
+        created_at=now,
+    )
+    db.add(new_otp_record)
+    await db.commit()
+    await db.refresh(new_otp_record)
+
+    # 4. Deliver through real configured email provider
+    success, message = send_otp_email(email_clean, raw_otp_code)
+
+    if not success:
+        # Invalidate OTP record if email could not be delivered
+        await db.delete(new_otp_record)
+        await db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail=f"Unable to send verification email. {message}",
+        )
+
     return {
         "success": True,
-        "message": f"6-digit OTP sent to {email_clean}",
+        "message": f"Verification code sent to {email_clean}. Please check your inbox.",
         "email": email_clean,
+        "expires_in_seconds": 300,
+        "resend_in_seconds": 60,
     }
 
 
 @router.post("/verify-otp")
 async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
     """
-    Verify 6-digit email OTP. Creates or fetches user in real PostgreSQL database.
+    Verifies 6-digit customer OTP against hashed database record.
+    Enforces maximum 5 attempts, rejects expired or already-used codes,
+    and establishes an authenticated customer session with a signed JWT.
     """
     email_clean = payload.email.lower().strip()
-    stored = OTP_CACHE.get(email_clean)
+    provided_code = payload.otp_code.strip()
+    now = datetime.now(timezone.utc)
 
-    if payload.otp_code != "123456" and (not stored or stored["code"] != payload.otp_code):
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP.")
+    if not provided_code or len(provided_code) != 6 or not provided_code.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Please enter a valid 6-digit numerical verification code.",
+        )
 
-    # Check user in real DB
-    result = await db.execute(select(User).where(User.email.ilike(email_clean)))
-    user = result.scalar_one_or_none()
+    # 1. Fetch the latest active OTP for this email
+    stmt = (
+        select(UserOTP)
+        .where(
+            UserOTP.email == email_clean,
+            UserOTP.is_used == False,
+        )
+        .order_by(UserOTP.created_at.desc())
+        .limit(1)
+    )
+    res = await db.execute(stmt)
+    otp_record = res.scalar_one_or_none()
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=400,
+            detail="No active verification code found for this email. Please request a new code.",
+        )
+
+    # 2. Check Expiration
+    if otp_record.expires_at < now:
+        raise HTTPException(
+            status_code=400,
+            detail="Verification code has expired. Please request a new code.",
+        )
+
+    # 3. Check Attempt Limits (Max 5 attempts allowed)
+    if otp_record.attempts >= 5:
+        otp_record.is_used = True
+        await db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum verification attempts exceeded. Please request a new code.",
+        )
+
+    # 4. Validate OTP Hash
+    expected_hash = hash_otp(provided_code)
+    if otp_record.otp_hash != expected_hash:
+        otp_record.attempts += 1
+        await db.commit()
+        remaining = 5 - otp_record.attempts
+        raise HTTPException(
+            status_code=400,
+            detail=f"Incorrect verification code. {remaining} attempt{'s' if remaining != 1 else ''} remaining.",
+        )
+
+    # 5. Mark OTP as used to prevent replay attacks
+    otp_record.is_used = True
+    await db.commit()
+
+    # 6. Fetch or Create Customer User in PostgreSQL
+    user_stmt = select(User).where(User.email.ilike(email_clean))
+    user_res = await db.execute(user_stmt)
+    user = user_res.scalar_one_or_none()
 
     if not user:
-        username = email_clean.split("@")[0].capitalize()
+        raw_name = email_clean.split("@")[0]
+        formatted_name = raw_name.replace(".", " ").replace("_", " ").title()
         user = User(
             email=email_clean,
-            name=username,
-            role=payload.role or "customer",
-            servo_coins=150,
+            name=formatted_name,
+            role="customer",
+            servo_coins=100,
             wallet_balance=0.0,
             is_active=True,
+            terms_accepted=True,
+            location_permission_granted=True,
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
 
-    user_data = {
+    # 7. Generate Authenticated Customer JWT Session Token
+    access_token = create_access_token({
         "id": user.id,
         "email": user.email,
         "name": user.name,
         "role": user.role,
-        "servo_coins": user.servo_coins,
-        "wallet_balance": user.wallet_balance,
-    }
-
-    token = create_access_token(user_data)
+    })
 
     return {
         "success": True,
-        "access_token": token,
+        "message": "Customer login successful!",
+        "access_token": access_token,
         "token_type": "bearer",
-        "user": user_data,
-    }
-
-
-@router.post("/login-password")
-async def login_with_password(payload: AdminLoginRequest, db: AsyncSession = Depends(get_db)):
-    """
-    Admin & Merchant password-based authentication.
-    Verifies against bcrypt hashed password in PostgreSQL database.
-    """
-    email_clean = payload.email.lower().strip()
-    result = await db.execute(select(User).where(User.email.ilike(email_clean)))
-    user = result.scalar_one_or_none()
-
-    if not user or not user.password_hash:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-    # Verify bcrypt password
-    is_valid = bcrypt.checkpw(
-        payload.password.encode("utf-8"),
-        user.password_hash.encode("utf-8"),
-    )
-
-    if not is_valid:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-    user_data = {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role,
-        "servo_coins": user.servo_coins,
-        "wallet_balance": user.wallet_balance,
-    }
-
-    token = create_access_token(user_data)
-
-    return {
-        "success": True,
-        "access_token": token,
-        "token_type": "bearer",
-        "user": user_data,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "servo_coins": user.servo_coins,
+            "wallet_balance": user.wallet_balance,
+        },
     }
 
 
 @router.get("/me")
-async def get_current_user(
+async def get_current_user_profile(
     authorization: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get authenticated user profile from JWT Bearer token and real DB.
+    Returns the authenticated customer profile for the active session.
+    Rejects requests without a valid Bearer token.
     """
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please log in.",
+        )
 
     token = authorization.split(" ")[1]
-    decoded = decode_token(token)
-    user_id = decoded.get("id")
+    token_data = decode_token(token)
 
-    if user_id:
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if user:
-            return {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "role": user.role,
-                "servo_coins": user.servo_coins,
-                "wallet_balance": user.wallet_balance,
-            }
+    stmt = select(User).where(User.id == token_data.get("id"))
+    res = await db.execute(stmt)
+    user = res.scalar_one_or_none()
 
-    return decoded
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User account is inactive or not found.")
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "servo_coins": user.servo_coins,
+        "wallet_balance": user.wallet_balance,
+    }
