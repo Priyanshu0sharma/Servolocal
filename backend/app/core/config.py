@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     JWT_SECRET: Union[str, None] = None
     JWT_ALGORITHM: str = "HS256"
 
+    # Email Service Providers (Resend / Brevo / SMTP)
+    RESEND_API_KEY: Union[str, None] = None
+    BREVO_API_KEY: Union[str, None] = None
+    EMAIL_FROM: str = "ServoLocal <onboarding@resend.dev>"
+
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
