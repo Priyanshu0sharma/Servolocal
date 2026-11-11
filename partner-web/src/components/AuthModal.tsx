@@ -1202,25 +1202,6 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               <span>Terms of Service</span>
             </button>
-
-            {!isAdminMode ? (
-              <button
-                type="button"
-                onClick={switchToAdminMode}
-                className="text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1 font-medium"
-              >
-                <Lock className="w-3 h-3 text-slate-400" />
-                <span>Staff Sign-In</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => switchToPublicMode("seller")}
-                className="text-emerald-700 font-semibold hover:underline"
-              >
-                Exit Staff Mode
-              </button>
-            )}
           </div>
         </motion.div>
       </main>
