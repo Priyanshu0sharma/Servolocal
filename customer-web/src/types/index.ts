@@ -38,6 +38,7 @@ export interface CartItem {
   price: number;
   mrp: number;
   quantity: number;
+  unit?: string;
   shop_id?: number;
   shop_name?: string;
 }

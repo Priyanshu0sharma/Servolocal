@@ -6,18 +6,21 @@ import {
   ShoppingBag,
   Plus,
   Minus,
-  ArrowRight,
+  ChevronRight,
+  ArrowLeft,
   CreditCard,
   Banknote,
   QrCode,
-  Store,
   Clock,
   PhoneOff,
   DoorClosed,
   BellOff,
+  CheckCircle2,
   ShieldCheck,
+  Timer,
+  Share2,
 } from "lucide-react";
-import { CartItem } from "@/types";
+import { CartItem, UserProfile } from "@/types";
 import { ActiveOrderData } from "./LiveOrderTrackerAndReview";
 import { checkoutOrder } from "@/lib/api";
 
@@ -29,6 +32,8 @@ interface SmartCartDrawerProps {
   onClearCart: () => void;
   onOrderPlaced: (order: ActiveOrderData) => void;
   currentLocality: string;
+  user?: UserProfile | null;
+  onOpenSignIn?: () => void;
 }
 
 export default function SmartCartDrawer({
@@ -39,6 +44,8 @@ export default function SmartCartDrawer({
   onClearCart,
   onOrderPlaced,
   currentLocality,
+  user = null,
+  onOpenSignIn,
 }: SmartCartDrawerProps) {
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CARD" | "COD">("UPI");
   const [deliveryInstruction, setDeliveryInstruction] = useState<string>("Leave at door");
@@ -52,10 +59,19 @@ export default function SmartCartDrawer({
   const deliveryFee = itemsTotal === 0 ? 0 : isFreeDelivery ? 0 : 25;
   const handlingFee = itemsTotal === 0 ? 0 : 5;
   const grandTotal = itemsTotal + deliveryFee + handlingFee;
+  const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const deliveringShop = cart[0]?.shop_name || "Sharma Kirana & Supermart";
 
   const handleCheckout = async () => {
+    // If not logged in, trigger login popup instead of placing order
+    if (!user) {
+      if (onOpenSignIn) {
+        onOpenSignIn();
+      }
+      return;
+    }
+
     setIsPlacing(true);
     let orderCode = "SL-" + Math.floor(100000 + Math.random() * 900000);
     let deliveryPin = String(Math.floor(1000 + Math.random() * 9000));
@@ -99,26 +115,21 @@ export default function SmartCartDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/45 backdrop-blur-2xs select-none">
-      <div className="w-full max-w-md h-full bg-white shadow-2xl flex flex-col justify-between border-l border-[#E8ECE9] animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-2xs select-none">
+      <div className="w-full max-w-md h-full bg-[#F5F7F8] shadow-2xl flex flex-col justify-between border-l border-[#E8ECE9] animate-in slide-in-from-right duration-200">
         
-        {/* Drawer Header */}
-        <div className="p-4 border-b border-[#E8ECE9] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#EAF7EE] text-[#078B35] flex items-center justify-center">
-              <ShoppingBag className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[#171717]">My Cart</h3>
-                <span className="px-2 py-0.5 rounded-full bg-[#EAF7EE] text-[#078B35] text-[10px] font-bold">
-                  ⚡ 10-15m
-                </span>
-              </div>
-              <p className="text-[11px] text-[#666666]">
-                From {deliveringShop}
-              </p>
-            </div>
+        {/* Drawer Header (Exact Blinkit Style) */}
+        <div className="p-4 bg-white border-b border-[#E8ECE9] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-full text-[#171717] hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h3 className="text-base font-bold text-[#171717]">My Cart</h3>
           </div>
           <button
             type="button"
@@ -130,9 +141,9 @@ export default function SmartCartDrawer({
         </div>
 
         {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {cart.length === 0 ? (
-            <div className="py-24 text-center space-y-2">
+            <div className="py-24 text-center space-y-2 bg-white rounded-2xl p-6 m-2">
               <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto stroke-1" />
               <p className="text-sm font-bold text-[#171717]">Your Cart is Empty</p>
               <p className="text-xs text-[#666666]">
@@ -141,8 +152,75 @@ export default function SmartCartDrawer({
             </div>
           ) : (
             <>
+              {/* Delivery ETA Card (Blinkit Signature) */}
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center">
+                    <Timer className="w-4 h-4 text-[#078B35]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#171717]">Delivery in 10-15 minutes</h4>
+                    <p className="text-[11px] text-[#666666]">
+                      Shipment of {totalItemsCount} item{totalItemsCount > 1 ? "s" : ""} from {deliveringShop}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Items in this shipment */}
+                <div className="mt-3 pt-3 border-t border-[#F2F4F5] space-y-3">
+                  {cart.map((item) => (
+                    <div key={item.inventory_id} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-[#F8F9FA] border border-[#E8ECE9] p-1 shrink-0 flex items-center justify-center">
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-semibold text-[#171717] truncate leading-tight">
+                            {item.name}
+                          </h4>
+                          <p className="text-[10px] text-[#888888] mt-0.5">
+                            {item.unit || "1 Unit"}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs font-bold text-[#171717]">₹{item.price}</span>
+                            {item.mrp && item.mrp > item.price && (
+                              <span className="text-[10px] text-[#999999] line-through">
+                                ₹{item.mrp}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quantity Pill */}
+                      <div className="flex items-center bg-[#0C831F] text-white rounded-lg overflow-hidden shadow-2xs shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateCartQuantity(item.inventory_id, item.quantity - 1)}
+                          className="px-2 py-1 hover:bg-[#075C2A] transition-colors cursor-pointer"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="px-2 font-bold text-xs font-mono">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateCartQuantity(item.inventory_id, item.quantity + 1)}
+                          className="px-2 py-1 hover:bg-[#075C2A] transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Free Delivery Meter */}
-              <div className="p-3 rounded-2xl bg-[#EAF7EE] border border-[#078B35]/25 text-xs">
+              <div className="p-3 rounded-2xl bg-white border border-[#E8ECE9] text-xs shadow-2xs">
                 {isFreeDelivery ? (
                   <div className="flex items-center gap-1.5 text-[#075C2A] font-bold">
                     <span>🎉</span>
@@ -164,47 +242,8 @@ export default function SmartCartDrawer({
                 )}
               </div>
 
-              {/* Items List */}
-              <div className="space-y-2 divide-y divide-[#E8ECE9]">
-                {cart.map((item) => (
-                  <div key={item.inventory_id} className="pt-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-11 h-11 rounded-xl bg-[#F8F9FA] border border-[#E8ECE9] p-1 shrink-0 flex items-center justify-center">
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-semibold text-[#171717] truncate">{item.name}</h4>
-                        <p className="text-[11px] text-[#666666]">₹{item.price}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center bg-[#078B35] text-white rounded-lg overflow-hidden shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => onUpdateCartQuantity(item.inventory_id, item.quantity - 1)}
-                        className="px-2 py-1 hover:bg-[#075C2A] transition-colors cursor-pointer"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="px-2 font-bold text-xs font-mono">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateCartQuantity(item.inventory_id, item.quantity + 1)}
-                        className="px-2 py-1 hover:bg-[#075C2A] transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Delivery Instructions (Blinkit Signature) */}
-              <div className="space-y-1.5 pt-1">
+              {/* Delivery Instructions */}
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
                 <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
                   Delivery Instructions
                 </span>
@@ -223,11 +262,11 @@ export default function SmartCartDrawer({
                         onClick={() => setDeliveryInstruction(inst.id)}
                         className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                           isSelected
-                            ? "border-[#078B35] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                            ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                             : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5 mx-auto mb-0.5 text-[#078B35]" />
+                        <Icon className="w-3.5 h-3.5 mx-auto mb-0.5 text-[#0C831F]" />
                         <span className="text-[10px] block leading-tight">{inst.label}</span>
                       </button>
                     );
@@ -236,7 +275,7 @@ export default function SmartCartDrawer({
               </div>
 
               {/* Delivery Address */}
-              <div className="space-y-1">
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-1.5 shadow-2xs">
                 <label className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
                   Delivery Address
                 </label>
@@ -244,12 +283,12 @@ export default function SmartCartDrawer({
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-[#F8F9FA] border border-[#E8ECE9] rounded-xl px-3 py-2 text-xs text-[#171717] focus:outline-none focus:border-[#078B35]"
+                  className="w-full bg-[#F8F9FA] border border-[#E8ECE9] rounded-xl px-3 py-2 text-xs text-[#171717] focus:outline-none focus:border-[#0C831F]"
                 />
               </div>
 
               {/* Payment Methods */}
-              <div className="space-y-1.5">
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
                 <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
                   Payment Method
                 </span>
@@ -259,11 +298,11 @@ export default function SmartCartDrawer({
                     onClick={() => setPaymentMethod("UPI")}
                     className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                       paymentMethod === "UPI"
-                        ? "border-[#078B35] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <QrCode className="w-3.5 h-3.5 mx-auto mb-1 text-[#078B35]" />
+                    <QrCode className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
                     <span className="text-[10px] block">UPI</span>
                   </button>
                   <button
@@ -271,11 +310,11 @@ export default function SmartCartDrawer({
                     onClick={() => setPaymentMethod("CARD")}
                     className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                       paymentMethod === "CARD"
-                        ? "border-[#078B35] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <CreditCard className="w-3.5 h-3.5 mx-auto mb-1 text-[#078B35]" />
+                    <CreditCard className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
                     <span className="text-[10px] block">Card / Net</span>
                   </button>
                   <button
@@ -283,63 +322,85 @@ export default function SmartCartDrawer({
                     onClick={() => setPaymentMethod("COD")}
                     className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                       paymentMethod === "COD"
-                        ? "border-[#078B35] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <Banknote className="w-3.5 h-3.5 mx-auto mb-1 text-[#078B35]" />
+                    <Banknote className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
                     <span className="text-[10px] block">COD</span>
                   </button>
                 </div>
               </div>
 
-              {/* Bill Details Breakdown */}
-              <div className="p-3.5 rounded-2xl bg-[#F8F9FA] border border-[#E8ECE9] space-y-1.5 text-xs">
-                <div className="flex justify-between text-[#666666]">
-                  <span>Items Total</span>
-                  <span>₹{itemsTotal}</span>
+              {/* Bill Details Breakdown (Exact Blinkit Style) */}
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 text-xs shadow-2xs">
+                <h4 className="font-bold text-[#171717] text-xs">Bill details</h4>
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-[#666666]">
+                    <span>Items total</span>
+                    <span className="font-semibold text-[#171717]">₹{itemsTotal}</span>
+                  </div>
+                  <div className="flex justify-between text-[#666666]">
+                    <span>Delivery charge</span>
+                    <span>
+                      {isFreeDelivery ? (
+                        <strong className="text-[#0C831F]">FREE</strong>
+                      ) : (
+                        <strong className="text-[#171717]">₹{deliveryFee}</strong>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[#666666]">
+                    <span>Handling charge</span>
+                    <span className="font-semibold text-[#171717]">₹{handlingFee}</span>
+                  </div>
+                  <div className="pt-2 border-t border-[#F2F4F5] flex justify-between font-bold text-sm text-[#171717]">
+                    <span>Grand total</span>
+                    <span>₹{grandTotal}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-[#666666]">
-                  <span>Delivery Partner Fee</span>
-                  <span>
-                    {isFreeDelivery ? (
-                      <strong className="text-[#078B35]">FREE</strong>
-                    ) : (
-                      `₹${deliveryFee}`
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[#666666]">
-                  <span>Handling Fee</span>
-                  <span>₹{handlingFee}</span>
-                </div>
-                <div className="pt-2 border-t border-[#E8ECE9] flex justify-between font-bold text-sm text-[#171717]">
-                  <span>Grand Total</span>
-                  <span>₹{grandTotal}</span>
-                </div>
+              </div>
+
+              {/* Cancellation Policy (Exact Blinkit Style) */}
+              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-1 text-xs shadow-2xs">
+                <h4 className="font-bold text-[#171717] text-xs">Cancellation Policy</h4>
+                <p className="text-[11px] text-[#777777] leading-relaxed">
+                  Orders cannot be cancelled once packed for delivery. In case of unexpected delays, a refund will be provided, if applicable.
+                </p>
               </div>
             </>
           )}
         </div>
 
-        {/* Drawer Footer Checkout Button */}
+        {/* Drawer Footer Checkout Button (Exact Blinkit Behavior) */}
         {cart.length > 0 && (
-          <div className="p-4 border-t border-[#E8ECE9] bg-white">
+          <div className="p-3 bg-white border-t border-[#E8ECE9]">
             <button
               type="button"
               disabled={isPlacing}
               onClick={handleCheckout}
-              className="w-full py-3.5 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-md flex items-center justify-between px-4 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-md flex items-center justify-between px-4 cursor-pointer disabled:opacity-50"
             >
               <div className="text-left">
-                <span className="text-[10px] opacity-90 block">
-                  Pay via {paymentMethod === "UPI" ? "UPI QR" : paymentMethod}
-                </span>
                 <span className="text-sm font-black">₹{grandTotal}</span>
+                <span className="text-[10px] opacity-90 uppercase tracking-wider block font-bold">
+                  TOTAL
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span>{isPlacing ? "Placing Order with Store..." : "Place 10-Min Order"}</span>
-                <ArrowRight className="w-4 h-4" />
+              <div className="flex items-center gap-1.5 font-bold text-sm">
+                {!user ? (
+                  <>
+                    <span>Login to Proceed</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                ) : isPlacing ? (
+                  <span>Placing Order with Store...</span>
+                ) : (
+                  <>
+                    <span>Place 10-Min Order</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
               </div>
             </button>
           </div>

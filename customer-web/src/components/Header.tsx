@@ -32,6 +32,9 @@ interface HeaderProps {
   user: UserProfile | null;
   onLoginSuccess: (user: UserProfile) => void;
   onLogout: () => void;
+  isSignInOpen?: boolean;
+  onOpenSignIn?: () => void;
+  onCloseSignIn?: () => void;
 }
 
 export default function Header({
@@ -47,12 +50,19 @@ export default function Header({
   user,
   onLoginSuccess,
   onLogout,
+  isSignInOpen: propSignInOpen,
+  onOpenSignIn,
+  onCloseSignIn,
 }: HeaderProps) {
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  const isSignInOpen = propSignInOpen !== undefined ? propSignInOpen : internalSignInOpen;
+  const handleOpenSignIn = onOpenSignIn || (() => setInternalSignInOpen(true));
+  const handleCloseSignIn = onCloseSignIn || (() => setInternalSignInOpen(false));
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -188,7 +198,7 @@ export default function Header({
             ) : (
               <button
                 type="button"
-                onClick={() => setIsSignInOpen(true)}
+                onClick={handleOpenSignIn}
                 className="flex items-center gap-1.5 text-xs font-medium text-[#171717] hover:text-[#078B35] px-2.5 py-1.5 rounded-full hover:bg-[#F9FAFB] transition-colors cursor-pointer"
               >
                 <User className="w-5 h-5" />
@@ -217,7 +227,7 @@ export default function Header({
 
       <SignInModal
         isOpen={isSignInOpen}
-        onClose={() => setIsSignInOpen(false)}
+        onClose={handleCloseSignIn}
         onLoginSuccess={onLoginSuccess}
       />
 

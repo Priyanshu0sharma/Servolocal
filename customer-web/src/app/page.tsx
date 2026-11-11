@@ -32,6 +32,7 @@ export default function CustomerHomePage() {
 
   // ── 3. User Session State ─────────────────────────────────────────────────
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
 
   // ── 4. Cart & Drawer State ────────────────────────────────────────────────
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -241,6 +242,9 @@ export default function CustomerHomePage() {
         user={user}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+        isSignInOpen={isSignInOpen}
+        onOpenSignIn={() => setIsSignInOpen(true)}
+        onCloseSignIn={() => setIsSignInOpen(false)}
       />
 
       {/* ── Body: Sidebar + Main Content ──────────────────────────── */}
@@ -683,6 +687,8 @@ export default function CustomerHomePage() {
         onClearCart={handleClearCart}
         onOrderPlaced={handleOrderPlaced}
         currentLocality={currentLocality}
+        user={user}
+        onOpenSignIn={() => setIsSignInOpen(true)}
       />
 
       {/* ── Live 10-15 Min Order Tracker Modal ────────────────────── */}
