@@ -242,95 +242,100 @@ export default function SmartCartDrawer({
                 )}
               </div>
 
-              {/* Delivery Instructions */}
-              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
-                <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
-                  Delivery Instructions
-                </span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: "Leave at door", label: "Leave at Door", icon: DoorClosed },
-                    { id: "Avoid calling", label: "Avoid Calling", icon: PhoneOff },
-                    { id: "Don't ring bell", label: "Don't Ring Bell", icon: BellOff },
-                  ].map((inst) => {
-                    const Icon = inst.icon;
-                    const isSelected = deliveryInstruction === inst.id;
-                    return (
+              {/* Address, Instructions & Payment Methods: ONLY visible AFTER login */}
+              {user && (
+                <>
+                  {/* Delivery Instructions */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
+                    <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
+                      Delivery Instructions
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: "Leave at door", label: "Leave at Door", icon: DoorClosed },
+                        { id: "Avoid calling", label: "Avoid Calling", icon: PhoneOff },
+                        { id: "Don't ring bell", label: "Don't Ring Bell", icon: BellOff },
+                      ].map((inst) => {
+                        const Icon = inst.icon;
+                        const isSelected = deliveryInstruction === inst.id;
+                        return (
+                          <button
+                            key={inst.id}
+                            type="button"
+                            onClick={() => setDeliveryInstruction(inst.id)}
+                            className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                              isSelected
+                                ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                                : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5 mx-auto mb-0.5 text-[#0C831F]" />
+                            <span className="text-[10px] block leading-tight">{inst.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Delivery Address */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-1.5 shadow-2xs">
+                    <label className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
+                      Delivery Address
+                    </label>
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full bg-[#F8F9FA] border border-[#E8ECE9] rounded-xl px-3 py-2 text-xs text-[#171717] focus:outline-none focus:border-[#0C831F]"
+                    />
+                  </div>
+
+                  {/* Payment Methods */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
+                    <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
+                      Payment Method
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
                       <button
-                        key={inst.id}
                         type="button"
-                        onClick={() => setDeliveryInstruction(inst.id)}
+                        onClick={() => setPaymentMethod("UPI")}
                         className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                          isSelected
+                          paymentMethod === "UPI"
                             ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                             : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5 mx-auto mb-0.5 text-[#0C831F]" />
-                        <span className="text-[10px] block leading-tight">{inst.label}</span>
+                        <QrCode className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
+                        <span className="text-[10px] block">UPI</span>
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Delivery Address */}
-              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-1.5 shadow-2xs">
-                <label className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
-                  Delivery Address
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-[#F8F9FA] border border-[#E8ECE9] rounded-xl px-3 py-2 text-xs text-[#171717] focus:outline-none focus:border-[#0C831F]"
-                />
-              </div>
-
-              {/* Payment Methods */}
-              <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
-                <span className="text-[11px] font-bold text-[#171717] uppercase tracking-wider block">
-                  Payment Method
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("UPI")}
-                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                      paymentMethod === "UPI"
-                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
-                        : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
-                    }`}
-                  >
-                    <QrCode className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[10px] block">UPI</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("CARD")}
-                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                      paymentMethod === "CARD"
-                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
-                        : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
-                    }`}
-                  >
-                    <CreditCard className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[10px] block">Card / Net</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("COD")}
-                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                      paymentMethod === "COD"
-                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
-                        : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
-                    }`}
-                  >
-                    <Banknote className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[10px] block">COD</span>
-                  </button>
-                </div>
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("CARD")}
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          paymentMethod === "CARD"
+                            ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                            : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
+                        }`}
+                      >
+                        <CreditCard className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
+                        <span className="text-[10px] block">Card / Net</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("COD")}
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          paymentMethod === "COD"
+                            ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                            : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
+                        }`}
+                      >
+                        <Banknote className="w-3.5 h-3.5 mx-auto mb-1 text-[#0C831F]" />
+                        <span className="text-[10px] block">COD</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Bill Details Breakdown (Exact Blinkit Style) */}
               <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 text-xs shadow-2xs">
