@@ -57,7 +57,19 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     Truthfully reports delivery failures without simulating or faking success.
     """
     email_clean = payload.email.lower().strip()
+    clean_role = payload.role.lower().strip() if payload.role else "customer"
     now = datetime.now(timezone.utc)
+
+    # Security check for Admin access: Only authorized pre-configured admin emails allowed
+    if clean_role == "admin":
+        admin_check = await db.execute(
+            select(User).where(User.email.ilike(email_clean), User.role == "admin")
+        )
+        if not admin_check.scalar_one_or_none() and email_clean != "priyanshusharma1131@gmail.com":
+            raise HTTPException(
+                status_code=403,
+                detail="Access Denied: This email address does not have administrator privileges.",
+            )
 
     # 1. Check for existing active OTP to enforce 60-second resend cooldown
     stmt = (
@@ -98,8 +110,8 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(new_otp_record)
 
-    # 4. Deliver through real configured email provider
-    success, message = send_otp_email(email_clean, raw_otp_code)
+    # 4. Deliver through real configured email provider with role-tailored template
+    success, message = send_otp_email(email_clean, raw_otp_code, role=clean_role)
 
     if not success:
         # Invalidate OTP record if email could not be delivered
@@ -186,19 +198,27 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
     otp_record.is_used = True
     await db.commit()
 
-    # 6. Fetch or Create Customer User in PostgreSQL
+    # 6. Fetch or Create User in PostgreSQL
     user_stmt = select(User).where(User.email.ilike(email_clean))
     user_res = await db.execute(user_stmt)
     user = user_res.scalar_one_or_none()
 
+    clean_role = payload.role.lower().strip() if payload.role else "customer"
+
     if not user:
+        if clean_role == "admin":
+            raise HTTPException(
+                status_code=403,
+                detail="Admin user does not exist. Admin accounts must be pre-configured.",
+            )
         raw_name = email_clean.split("@")[0]
         formatted_name = raw_name.replace(".", " ").replace("_", " ").title()
+        assigned_role = clean_role if clean_role in ("customer", "seller", "partner", "rider", "delivery") else "customer"
         user = User(
             email=email_clean,
             name=formatted_name,
-            role="customer",
-            servo_coins=100,
+            role=assigned_role,
+            servo_coins=100 if assigned_role == "customer" else 0,
             wallet_balance=0.0,
             is_active=True,
             terms_accepted=True,
