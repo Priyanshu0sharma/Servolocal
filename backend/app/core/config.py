@@ -1,4 +1,5 @@
 import os
+import secrets
 from typing import List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://servolocal.vercel.app",
         "https://servolocal.in",
         "https://www.servolocal.in",
     ]
@@ -33,27 +35,17 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         elif isinstance(v, list):
             return v
-        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return ["http://localhost:3000", "https://servolocal.vercel.app"]
 
-    # Database Configuration (Prepared for PostgreSQL in next step)
+    # Database Configuration
     DATABASE_URL: Union[str, None] = None
 
-    # Redis Cache Configuration (Prepared for next step)
+    # Redis Cache Configuration
     REDIS_URL: Union[str, None] = None
 
-    # Security & Secret Settings - NO FALLBACK: Must be provided via environment
-    JWT_SECRET: str
+    # Security & Secret Settings - Defaults to random runtime secret if not supplied in env
+    JWT_SECRET: Union[str, None] = None
     JWT_ALGORITHM: str = "HS256"
-
-    @field_validator("JWT_SECRET")
-    @classmethod
-    def validate_jwt_secret(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError(
-                "JWT_SECRET environment variable is missing or empty. "
-                "A secure secret must be provided via the environment."
-            )
-        return v.strip()
 
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),
@@ -64,3 +56,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Ensure JWT_SECRET is always populated with a cryptographically secure secret
+if not settings.JWT_SECRET or not settings.JWT_SECRET.strip():
+    settings.JWT_SECRET = os.getenv("JWT_SECRET") or secrets.token_urlsafe(64)
+

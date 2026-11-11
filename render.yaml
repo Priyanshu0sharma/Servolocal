@@ -10,3 +10,4 @@ services:
         value: "3.11.3"
     plan: free
     healthCheckPath: /api/health
+
