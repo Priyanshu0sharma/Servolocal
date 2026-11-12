@@ -63,7 +63,7 @@ export default function DeliveryModesStrip({
         <span className="text-sm text-[#8C7663]">⤷</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
         {modes.map((m) => {
           const isSelected = activeMode === m.id;
           const Icon = m.icon;

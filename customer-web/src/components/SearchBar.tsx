@@ -59,7 +59,7 @@ export default function SearchBar({
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative w-full max-w-[540px]">
+    <div ref={wrapperRef} className="relative w-full">
       <div className="relative flex items-center">
         <Search className="w-4 h-4 text-[#666666] absolute left-4 pointer-events-none" />
         <input

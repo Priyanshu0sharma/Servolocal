@@ -109,7 +109,7 @@ export default function Header({
   return (
     <>
       <header className="sticky top-0 z-40 bg-[#FDFBF7] border-b border-[#EFECE6] h-[78px] flex items-center select-none shadow-2xs transition-colors">
-        <div className="w-full max-w-[1440px] mx-auto px-3 sm:px-6 flex items-center justify-between gap-3 sm:gap-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between gap-3 sm:gap-6">
           
           {/* ── Left: Logo & Location Selector ──────────────────────── */}
           <div className="flex items-center gap-4 sm:gap-5 shrink-0">
@@ -155,7 +155,7 @@ export default function Header({
           </div>
 
           {/* ── Center: Search Bar ──────────────────────────────────── */}
-          <div className="flex-1 max-w-[560px] mx-1 sm:mx-2">
+          <div className="flex-1 max-w-[640px] xl:max-w-[760px] mx-2 sm:mx-4">
             <SearchBar
               products={products}
               onAddToCart={onAddToCart}

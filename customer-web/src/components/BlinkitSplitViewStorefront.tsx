@@ -213,7 +213,7 @@ export default function BlinkitSplitViewStorefront({
 
         {/* Right Column: Blinkit Product Grid */}
         <div className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[750px] bg-white">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
             {displayProducts.map((product) => {
               const qty = getCartQuantity(product.id);
               const displayPrice = product.selling_price;

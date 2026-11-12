@@ -51,7 +51,7 @@ export default function CategoriesSection({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5 sm:gap-3 lg:gap-3.5 xl:gap-4">
         {CATEGORIES_3D.map((cat) => (
           <div
             key={cat.id}

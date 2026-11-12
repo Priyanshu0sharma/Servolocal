@@ -64,7 +64,7 @@ export default function Sidebar({
   ];
 
   return (
-    <aside className="w-[220px] lg:w-[240px] shrink-0 bg-[#FAF7F2] border-r border-[#EFECE6] py-5 px-3 space-y-4 sticky top-[78px] h-[calc(100vh-78px)] select-none hidden md:flex flex-col justify-between overflow-y-auto">
+    <aside className="w-[230px] lg:w-[250px] xl:w-[260px] shrink-0 bg-[#FAF7F2] border-r border-[#EFECE6] py-5 px-3 sm:px-3.5 lg:px-4 space-y-4 sticky top-[78px] h-[calc(100vh-78px)] select-none hidden md:flex flex-col justify-between overflow-y-auto">
       {/* Category Nav Links matching Mockup */}
       <div className="space-y-1">
         {categoryItems.map((item, idx) => {

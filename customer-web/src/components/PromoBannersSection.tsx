@@ -44,7 +44,7 @@ export default function PromoBannersSection({
   ];
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-3.5 select-none">
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-3.5 lg:gap-4 xl:gap-5 select-none">
       {banners.map((b) => (
         <div
           key={b.id}

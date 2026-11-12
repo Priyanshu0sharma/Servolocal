@@ -13,7 +13,7 @@ export default function AnnouncementBar({
   onOpenLocation,
 }: AnnouncementBarProps) {
   return (
-    <div className="bg-[#4E160E] text-[#FFF6EE] text-[11px] sm:text-xs py-2 px-3 sm:px-6 flex items-center justify-between select-none border-b border-[#3D1009] transition-colors">
+    <div className="bg-[#4E160E] text-[#FFF6EE] text-[11px] sm:text-xs py-2 px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between select-none border-b border-[#3D1009] transition-colors">
       {/* Left: Offer text with Megaphone */}
       <div className="flex items-center gap-2 overflow-hidden truncate">
         <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-400/20 text-amber-300 shrink-0">

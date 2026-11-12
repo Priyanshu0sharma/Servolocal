@@ -15,8 +15,8 @@ export default function Footer({
   onOpenLocation,
 }: FooterProps) {
   return (
-    <footer className="w-full bg-[#FAF7F2] border-t border-[#EFECE6] text-[#2D2319] select-none pt-10 pb-6 px-4 md:px-8 mt-12 transition-colors">
-      <div className="w-full max-w-[1440px] mx-auto space-y-8">
+    <footer className="w-full bg-[#FAF7F2] border-t border-[#EFECE6] text-[#2D2319] select-none pt-10 pb-6 px-4 sm:px-6 md:px-8 lg:px-10 mt-12 transition-colors">
+      <div className="w-full space-y-8">
         {/* Main 5-Column Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 sm:gap-8">
           {/* Col 1: Logo & Brand Description */}
