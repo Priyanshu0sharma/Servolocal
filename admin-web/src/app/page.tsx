@@ -67,3 +67,4 @@ export default function AdminPage() {
 
   return <AdminDashboard user={user} onLogout={handleLogout} />;
 }
+

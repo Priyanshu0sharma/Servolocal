@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   MapPin,
   ChevronDown,
@@ -10,6 +10,9 @@ import {
   ShoppingBag,
   LogOut,
   ShieldCheck,
+  Package,
+  HelpCircle,
+  QrCode,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import LocationSelectorModal from "./LocationSelectorModal";
@@ -35,6 +38,7 @@ interface HeaderProps {
   isSignInOpen?: boolean;
   onOpenSignIn?: () => void;
   onCloseSignIn?: () => void;
+  onNavigateOrders?: () => void;
 }
 
 export default function Header({
@@ -53,12 +57,32 @@ export default function Header({
   isSignInOpen: propSignInOpen,
   onOpenSignIn,
   onCloseSignIn,
+  onNavigateOrders,
 }: HeaderProps) {
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountOpen(false);
+      }
+    };
+    if (isAccountOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isAccountOpen]);
 
   const isSignInOpen = propSignInOpen !== undefined ? propSignInOpen : internalSignInOpen;
   const handleOpenSignIn = onOpenSignIn || (() => setInternalSignInOpen(true));
@@ -163,37 +187,120 @@ export default function Header({
               </button>
             )}
 
-            {/* Sign In / Account Button */}
+            {/* Sign In / Account Dropdown (Exact Authentic Blinkit Style) */}
             {user ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-[#E8ECE9]">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-7 h-7 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs font-semibold text-[#171717] hidden sm:inline truncate max-w-[80px]">
-                    {user.name}
-                  </span>
-                </div>
-
-                {user.role === "admin" && (
-                  <button
-                    type="button"
-                    onClick={() => setIsAdminOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#075C2A] text-[#FFD52A] text-xs font-bold hover:bg-[#078B35] transition-colors cursor-pointer shadow-xs ml-1"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#FFD52A]" />
-                    <span>Admin Panel</span>
-                  </button>
-                )}
-
+              <div className="relative pl-1 border-l border-[#E8ECE9]" ref={accountMenuRef}>
                 <button
                   type="button"
-                  onClick={onLogout}
-                  title="Logout"
-                  className="p-1 text-[#666666] hover:text-rose-500 transition-colors cursor-pointer"
+                  onClick={() => setIsAccountOpen((prev) => !prev)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#F4F6F5] text-[#171717] transition-colors cursor-pointer select-none font-semibold text-sm"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <div className="w-6 h-6 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
+                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <span>Account</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-[#171717] transition-transform duration-200 stroke-[2.5] ${
+                      isAccountOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
+
+                {/* Dropdown Menu (Exact Blinkit Style) */}
+                {isAccountOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {/* User Info Header */}
+                    <div className="px-4 pb-3 border-b border-gray-100">
+                      <h4 className="text-sm font-bold text-[#171717] truncate">
+                        {user.email || user.name}
+                      </h4>
+                      <p className="text-[11px] text-[#666666] mt-0.5">
+                        My Account • Customer #{user.id}
+                      </p>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onNavigateOrders) onNavigateOrders();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                      >
+                        <Package className="w-4 h-4 text-[#078B35]" />
+                        <span>My Orders</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          setIsLocationOpen(true);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                      >
+                        <MapPin className="w-4 h-4 text-[#078B35]" />
+                        <span>Saved Addresses</span>
+                      </button>
+
+                      {user.role === "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAccountOpen(false);
+                            setIsAdminOpen(true);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-[#075C2A] bg-[#EAF7EE]/60 hover:bg-[#EAF7EE] flex items-center gap-3 transition-colors cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-[#078B35]" />
+                          <span>Admin Console</span>
+                        </button>
+                      )}
+
+                      <a
+                        href="https://servolocal.vercel.app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setIsAccountOpen(false)}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                      >
+                        <HelpCircle className="w-4 h-4 text-gray-500" />
+                        <span>FAQ&apos;s</span>
+                      </a>
+
+                      <div className="my-1 border-t border-gray-100" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          onLogout();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>Log Out</span>
+                      </button>
+                    </div>
+
+                    {/* QR App Download Promo (Exact Blinkit Style) */}
+                    <div className="mx-3 mt-2 p-2.5 bg-[#F9FAFB] rounded-xl border border-gray-100 flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-lg bg-white border border-gray-200 p-1 flex items-center justify-center shrink-0">
+                        <QrCode className="w-full h-full text-[#078B35]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-[#171717] leading-tight">
+                          Simple way to get local groceries
+                        </p>
+                        <p className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
+                          Scan QR to download app
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <button

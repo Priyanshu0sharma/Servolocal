@@ -245,6 +245,7 @@ export default function CustomerHomePage() {
         isSignInOpen={isSignInOpen}
         onOpenSignIn={() => setIsSignInOpen(true)}
         onCloseSignIn={() => setIsSignInOpen(false)}
+        onNavigateOrders={() => setActiveTab("orders")}
       />
 
       {/* ── Body: Sidebar + Main Content ──────────────────────────── */}

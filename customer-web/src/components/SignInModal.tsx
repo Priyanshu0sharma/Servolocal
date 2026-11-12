@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { X, AlertCircle, Loader2, ArrowLeft, Mail, RefreshCw } from "lucide-react";
+import { X, AlertCircle, Loader2, ArrowLeft, Mail, RefreshCw, Check } from "lucide-react";
 import { UserProfile } from "@/types";
 import { sendOtp, verifyOtp } from "@/lib/api";
 
@@ -17,15 +17,20 @@ export default function SignInModal({
   onClose,
   onLoginSuccess,
 }: SignInModalProps) {
-  const [step, setStep] = useState<"EMAIL" | "OTP">("EMAIL");
+  const [step, setStep] = useState<"EMAIL" | "OTP" | "SUCCESS">("EMAIL");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [isResendActive, setIsResendActive] = useState(false);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleClose = useCallback(() => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
     setEmail("");
     setOtpCode("");
     setError("");
@@ -33,6 +38,14 @@ export default function SignInModal({
     setStep("EMAIL");
     onClose();
   }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Close on Escape key
   useEffect(() => {
@@ -109,14 +122,17 @@ export default function SignInModal({
     try {
       const data = await verifyOtp(email.trim(), cleanOtp, "customer");
       if (data && data.user) {
-        onLoginSuccess(data.user);
-        handleClose();
+        setStep("SUCCESS");
+        setLoading(false);
+        successTimeoutRef.current = setTimeout(() => {
+          onLoginSuccess(data.user);
+          handleClose();
+        }, 1300);
       } else {
         throw new Error("Invalid response received from authentication server.");
       }
     } catch (err: any) {
       setError(err.message || "Invalid or expired verification code.");
-    } finally {
       setLoading(false);
     }
   };
@@ -147,46 +163,59 @@ export default function SignInModal({
       aria-modal="true"
       aria-labelledby="modal-heading"
     >
-      <div
-        className="relative w-full max-w-sm sm:max-w-[400px] bg-white rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Actions: Back Button (on OTP step) & Close Button */}
-        {step === "OTP" && (
+      {step === "SUCCESS" ? (
+        <div
+          className="relative w-full max-w-[340px] sm:max-w-[360px] bg-white rounded-2xl shadow-2xl py-10 px-6 flex flex-col items-center justify-center text-center overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-12 h-12 rounded-full bg-[#0C831F] text-white flex items-center justify-center mb-3 shadow-md shadow-[#0C831F]/20 animate-in zoom-in-50 duration-300">
+            <Check className="w-7 h-7 stroke-[3]" />
+          </div>
+          <p className="text-sm sm:text-base font-semibold text-[#171717] tracking-tight">
+            Successfully logged in!
+          </p>
+        </div>
+      ) : (
+        <div
+          className="relative w-full max-w-sm sm:max-w-[400px] bg-white rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top Actions: Back Button (on OTP step) & Close Button */}
+          {step === "OTP" && (
+            <button
+              type="button"
+              onClick={() => {
+                setStep("EMAIL");
+                setError("");
+                setOtpCode("");
+              }}
+              aria-label="Back to email input"
+              className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={() => {
-              setStep("EMAIL");
-              setError("");
-              setOtpCode("");
-            }}
-            aria-label="Back to email input"
-            className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            onClick={handleClose}
+            aria-label="Close modal"
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close modal"
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* 1. ServoLocal Customer Logo */}
-        <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center mb-4 bg-white">
-          <Image
-            src="/servolocallogo.jpeg"
-            alt="ServoLocal"
-            width={80}
-            height={80}
-            className="w-full h-full object-cover"
-            priority
-          />
-        </div>
+          {/* 1. ServoLocal Customer Logo */}
+          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center mb-4 bg-white">
+            <Image
+              src="/servolocallogo.jpeg"
+              alt="ServoLocal"
+              width={80}
+              height={80}
+              className="w-full h-full object-cover"
+              priority
+            />
+          </div>
 
         {/* STEP 1: Enter Email */}
         {step === "EMAIL" && (
@@ -342,7 +371,8 @@ export default function SignInModal({
             </div>
           </>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

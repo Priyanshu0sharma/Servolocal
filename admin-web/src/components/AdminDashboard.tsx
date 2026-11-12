@@ -424,3 +424,4 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     </div>
   );
 }
+

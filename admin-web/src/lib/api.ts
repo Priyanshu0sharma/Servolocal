@@ -118,3 +118,4 @@ export async function checkBackendHealth() {
   const res = await api.get("/api/health");
   return res.data;
 }
+
