@@ -13,7 +13,6 @@ import {
   HelpCircle,
   QrCode,
   Edit2,
-  Tag,
   Store,
   ChevronRight,
   Wallet,
@@ -203,32 +202,6 @@ export default function Header({
             >
               <Store className="w-4 h-4 text-[#078B35] group-hover:scale-110 transition-transform" />
               <span>Stores</span>
-            </button>
-
-            {/* Offers Button (Mockup Reference) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onNavigateOffers) onNavigateOffers();
-              }}
-              title="Offers & Discounts"
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
-            >
-              <Tag className="w-4 h-4 text-amber-600" />
-              <span>Offers</span>
-            </button>
-
-            {/* Orders Button (Mockup Reference) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onNavigateOrders) onNavigateOrders();
-              }}
-              title="My Orders"
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
-            >
-              <Package className="w-4 h-4 text-emerald-600" />
-              <span>Orders</span>
             </button>
 
             {/* Signature Blinkit Green Cart Pill */}

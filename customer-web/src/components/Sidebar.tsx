@@ -12,7 +12,6 @@ import {
   Sparkles,
   HeartPulse,
   Wrench,
-  ArrowRight,
   Store,
 } from "lucide-react";
 
@@ -107,26 +106,6 @@ export default function Sidebar({
             </button>
           );
         })}
-      </div>
-
-      {/* Bottom Promo Card matching Mockup */}
-      <div
-        onClick={onExploreStores || (() => onTabChange("stores"))}
-        className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 hover:border-amber-300 transition-all cursor-pointer group shadow-2xs space-y-1.5"
-      >
-        <div className="flex items-center gap-2 text-[#78350F]">
-          <div className="w-6 h-6 rounded-lg bg-amber-200/60 flex items-center justify-center shrink-0">
-            <Store className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-xs font-bold leading-tight">Explore Local Shops</span>
-        </div>
-        <p className="text-[11px] text-[#92400E] leading-relaxed">
-          Find verified stores in your area with fast delivery &amp; best prices.
-        </p>
-        <div className="flex items-center gap-1 text-[11px] font-extrabold text-[#78350F] group-hover:translate-x-0.5 transition-transform">
-          <span>In Your Area</span>
-          <ArrowRight className="w-3 h-3" />
-        </div>
       </div>
     </aside>
   );
