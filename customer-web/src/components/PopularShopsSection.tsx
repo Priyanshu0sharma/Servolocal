@@ -163,3 +163,4 @@ export default function PopularShopsSection({
     </section>
   );
 }
+

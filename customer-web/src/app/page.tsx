@@ -172,13 +172,30 @@ export default function CustomerHomePage() {
     });
   };
 
-  const handleAddToCart = (product: ProductItem) => {
+  const handleAddToCart = (
+    product: ProductItem,
+    sellerOffer?: {
+      shop_id: number;
+      shop_name: string;
+      selling_price: number;
+      inventory_id?: number;
+    }
+  ) => {
+    const invId = sellerOffer?.inventory_id || product.id;
+    const price =
+      sellerOffer?.selling_price !== undefined
+        ? sellerOffer.selling_price
+        : product.selling_price;
+    const shopId = sellerOffer?.shop_id || product.shop_id || 1;
+    const shopName =
+      sellerOffer?.shop_name || product.shop_name || "Verified Local Store";
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.inventory_id === product.id);
+      const existing = prev.find((item) => item.inventory_id === invId);
       let updated: CartItem[];
       if (existing) {
         updated = prev.map((item) =>
-          item.inventory_id === product.id
+          item.inventory_id === invId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -186,14 +203,14 @@ export default function CustomerHomePage() {
         updated = [
           ...prev,
           {
-            inventory_id: product.id,
+            inventory_id: invId,
             name: product.name,
             image_url: product.image_url,
-            price: product.selling_price,
+            price: price,
             mrp: product.mrp,
             quantity: 1,
-            shop_id: product.shop_id || 1,
-            shop_name: product.shop_name,
+            shop_id: shopId,
+            shop_name: shopName,
           },
         ];
       }
@@ -880,11 +897,8 @@ export default function CustomerHomePage() {
         product={selectedProductForModal}
         isOpen={Boolean(selectedProductForModal)}
         onClose={() => setSelectedProductForModal(null)}
-        cartQuantity={
-          selectedProductForModal
-            ? cart.find((i) => i.inventory_id === selectedProductForModal.id)?.quantity || 0
-            : 0
-        }
+        currentLocality={currentLocality}
+        cart={cart}
         onAddToCart={handleAddToCart}
         onUpdateCartQuantity={handleUpdateCartQuantity}
         isWishlisted={selectedProductForModal ? wishlist.includes(selectedProductForModal.id) : false}

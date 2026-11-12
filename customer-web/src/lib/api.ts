@@ -140,6 +140,22 @@ export async function searchSuggest(query: string) {
   return res.json();
 }
 
+export async function getProductDetails(productId: number) {
+  const res = await fetch(`${API_BASE_URL}/api/products/${productId}`);
+  if (!res.ok) throw new Error("Product fetch error");
+  return res.json();
+}
+
+export async function getProductOffers(productId: number, lat?: number, lng?: number, mode?: string) {
+  const params = new URLSearchParams();
+  if (lat) params.set("lat", lat.toString());
+  if (lng) params.set("lng", lng.toString());
+  if (mode) params.set("mode", mode);
+  const res = await fetch(`${API_BASE_URL}/api/products/${productId}/offers?${params.toString()}`);
+  if (!res.ok) throw new Error("Offers fetch error");
+  return res.json();
+}
+
 /**
  * Orders & Checkout
  */

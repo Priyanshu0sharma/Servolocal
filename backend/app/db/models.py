@@ -72,23 +72,42 @@ class MasterCatalogItem(Base):
     __tablename__ = "master_catalog_items"
 
     id = Column(Integer, primary_key=True, index=True)
+    barcode = Column(String(100), unique=True, index=True, nullable=True)
     name = Column(String(255), nullable=False)
     brand = Column(String(255), nullable=False, default="Local")
     category = Column(String(255), nullable=False)
     sub_category = Column(String(255), nullable=False)
     default_weight_or_size = Column(String(100), nullable=False)
+    unit = Column(String(50), nullable=True)
+    pack_size = Column(String(50), nullable=True)
     mrp = Column(Float, nullable=False)
     selling_price = Column(Float, nullable=True)
     discount_percent = Column(Float, nullable=True, default=0.0)
-    image_url = Column(String(500), nullable=False)
+    image_url = Column(String(1000), nullable=False)
     is_veg = Column(Boolean, default=True, nullable=True)
     gallery_images = Column(JSON, default=list, nullable=False)
     paired_sub_categories = Column(JSON, default=list, nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(50), default="ACTIVE", nullable=False)
+    source_id = Column(String(100), nullable=True)
+    license = Column(String(100), default="Brand Open Catalogue", nullable=True)
+    attribution = Column(String(255), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    master_item_id = Column(Integer, ForeignKey("master_catalog_items.id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String(1000), nullable=False)
+    image_type = Column(String(50), default="FRONT", nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    caption = Column(String(255), nullable=True)
 
 
 class ShopInventory(Base):
@@ -101,7 +120,7 @@ class ShopInventory(Base):
     name = Column(String(255), nullable=False)
     category = Column(String(255), nullable=False)
     sub_category = Column(String(255), nullable=True)
-    image_url = Column(String(500), nullable=False)
+    image_url = Column(String(1000), nullable=False)
     gallery_images = Column(JSON, default=list, nullable=False)
     weight_or_size = Column(String(100), nullable=False)
     selling_price = Column(Float, nullable=False)
@@ -113,6 +132,8 @@ class ShopInventory(Base):
     in_stock = Column(Boolean, default=True, nullable=False)
     is_pan_india_eligible = Column(Boolean, default=False, nullable=False)
     is_veg = Column(Boolean, default=True, nullable=True)
+    delivery_mode = Column(String(50), default="IN_MINUTES", nullable=False)
+    fulfillment_time_slot = Column(String(50), default="10-15 Mins", nullable=False)
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
