@@ -43,3 +43,4 @@ for pid, src in FIX_MAP.items():
 cur.execute("SELECT count(*) FROM master_catalog_items WHERE image_url LIKE %s;", ("%r2.dev%",))
 print(f"Total products now on R2: {cur.fetchone()[0]} / 65")
 conn.close()
+

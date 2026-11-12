@@ -26,6 +26,25 @@ async def get_discovery_feed(
         shops_res = await db.execute(select(Shop).order_by(Shop.rating.desc()))
         db_shops = shops_res.scalars().all()
 
+        shops_data = [
+            {
+                "id": s.id,
+                "name": s.name,
+                "category": s.category,
+                "image_url": s.image_url,
+                "is_open": s.is_open,
+                "rating": s.rating,
+                "locality_name": s.locality_name,
+                "distance_km": s.delivery_radius_km,
+                "local_eta_mins": s.local_eta_mins,
+                "free_delivery_enabled": s.free_delivery_enabled,
+                "min_order_for_free_delivery": s.min_order_for_free_delivery,
+                "base_delivery_fee": s.base_delivery_fee,
+                "is_verified": s.is_verified,
+            }
+            for s in db_shops
+        ]
+
         # Fetch real inventory products prioritizing verified master catalog products
         inv_res = await db.execute(
             select(ShopInventory)
@@ -77,6 +96,8 @@ async def get_discovery_feed(
             },
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         # Graceful fallback to guarantee uptime
         return {
             "mode": mode,

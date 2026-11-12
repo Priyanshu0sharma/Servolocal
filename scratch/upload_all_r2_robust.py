@@ -161,3 +161,4 @@ for pid, name, current_url in products:
     time.sleep(0.1)
 
 print(f"\nFinal tally: {success_count} / {len(products)} products hosted on Cloudflare R2 bucket '{bucket}'!")
+

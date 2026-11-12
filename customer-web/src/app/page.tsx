@@ -282,6 +282,8 @@ export default function CustomerHomePage() {
         brand: p.brand || "Local Store",
         category: p.category,
         sub_category: p.sub_category,
+        unit: p.unit || p.default_weight_or_size || "1 Unit",
+        default_weight_or_size: p.default_weight_or_size || p.unit || "1 Unit",
         selling_price: p.selling_price,
         mrp: p.mrp || p.selling_price,
         rating: p.rating || 4.7,
@@ -347,16 +349,71 @@ export default function CustomerHomePage() {
 
   // Real Dairy & Morning Staples Shelf
   const dailyDairyProducts: ProductItem[] = useMemo(() => {
-    const dairyIds = [102, 101, 104, 103];
-    const items = allProducts.filter((p) => dairyIds.includes(p.id));
-    return items.sort((a, b) => dairyIds.indexOf(a.id) - dairyIds.indexOf(b.id));
+    return allProducts.filter(
+      (p) =>
+        p.category === "Dairy, Bread & Eggs" ||
+        p.sub_category === "Milk & Cream" ||
+        p.sub_category === "Butter & Cheese" ||
+        p.sub_category === "Bread & Buns" ||
+        p.sub_category === "Farm Eggs" ||
+        ["Amul", "Saras", "Britannia", "Harvest Gold", "Eggs", "Milk", "Curd", "Dahi", "Paneer", "Butter"].some((n) =>
+          p.name.toLowerCase().includes(n.toLowerCase())
+        )
+    );
   }, [allProducts]);
 
-  // Real Snacks, Drinks & Quick Munchies Shelf
+  // Real Soft Drinks & Cold Beverages Shelf
+  const softDrinksShelf: ProductItem[] = useMemo(() => {
+    return allProducts.filter(
+      (p) =>
+        p.category === "Cold Drinks & Juices" ||
+        p.sub_category === "Soft Drinks" ||
+        p.sub_category === "Juices & Shakes" ||
+        p.sub_category === "Energy Drinks" ||
+        ["Thums Up", "Coca-Cola", "Sprite", "Pepsi", "Appy Fizz", "Red Bull", "Real Fruit", "Bisleri"].some((n) =>
+          p.name.toLowerCase().includes(n.toLowerCase())
+        )
+    );
+  }, [allProducts]);
+
+  // Real Snacks, Chips & Munchies Shelf
   const snacksAndMunchiesProducts: ProductItem[] = useMemo(() => {
-    const snackIds = [201, 501, 401, 301];
-    const items = allProducts.filter((p) => snackIds.includes(p.id));
-    return items.sort((a, b) => snackIds.indexOf(a.id) - snackIds.indexOf(b.id));
+    return allProducts.filter(
+      (p) =>
+        p.category === "Snacks & Munchies" ||
+        p.sub_category === "Chips & Crisps" ||
+        p.sub_category === "Namkeen & Snacks" ||
+        ["Lay's", "Kurkure", "Bhujia", "Chips", "Orbit", "Aloo Bhujia"].some((n) =>
+          p.name.toLowerCase().includes(n.toLowerCase())
+        )
+    );
+  }, [allProducts]);
+
+  // Real Instant Food, Staples & Atta Shelf
+  const staplesShelf: ProductItem[] = useMemo(() => {
+    return allProducts.filter(
+      (p) =>
+        p.category === "Atta, Rice & Staples" ||
+        p.category === "Breakfast & Instant Food" ||
+        p.sub_category === "Maggi & Noodles" ||
+        p.sub_category === "Atta & Flours" ||
+        ["Maggi", "Atta", "Rice", "Mustard Oil", "Tata Salt", "Tea", "Coffee", "Bournvita", "Basmati", "Dal"].some((n) =>
+          p.name.toLowerCase().includes(n.toLowerCase())
+        )
+    );
+  }, [allProducts]);
+
+  // Real Pharmacy, Hygiene & Cleaning Shelf
+  const careShelf: ProductItem[] = useMemo(() => {
+    return allProducts.filter(
+      (p) =>
+        p.category === "Pharmacy" ||
+        p.category === "Home & Kitchen" ||
+        p.category === "Beauty & Care" ||
+        ["Dettol", "Colgate", "Dolo", "Vicks", "Surf Excel", "Vim", "Lizol", "Handwash", "Soap", "Cleaner"].some((n) =>
+          p.name.toLowerCase().includes(n.toLowerCase())
+        )
+    );
   }, [allProducts]);
 
   // Wishlisted full product objects
@@ -542,6 +599,8 @@ export default function CustomerHomePage() {
 
               {/* 6. Trending Near You Products (Direct from Live Database) */}
               <TrendingProductsSection
+                title="Trending Near You"
+                subtitle="Fast-selling essentials delivered in minutes from verified stores"
                 products={allProducts}
                 wishlist={wishlist}
                 onToggleWishlist={toggleWishlist}
@@ -550,7 +609,93 @@ export default function CustomerHomePage() {
                 onUpdateCartQuantity={handleUpdateCartQuantity}
                 onClickProduct={(product) => setSelectedProductForModal(product)}
                 onViewAll={() => setActiveTab("grocery")}
+                limit={12}
               />
+
+              {/* 6B. Cold Drinks & Refreshing Beverages Shelf */}
+              {softDrinksShelf.length > 0 && (
+                <TrendingProductsSection
+                  title="Cold Drinks & Refreshments"
+                  subtitle="Chilled colas, soda, natural juices & energy cans"
+                  products={softDrinksShelf}
+                  wishlist={wishlist}
+                  onToggleWishlist={toggleWishlist}
+                  cart={cart}
+                  onAddToCart={handleAddToCart}
+                  onUpdateCartQuantity={handleUpdateCartQuantity}
+                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onViewAll={() => setSelectedCategory("Cold Drinks & Juices")}
+                  limit={12}
+                />
+              )}
+
+              {/* 6C. Dairy, Milk & Morning Staples Shelf */}
+              {dailyDairyProducts.length > 0 && (
+                <TrendingProductsSection
+                  title="Daily Dairy, Bread & Eggs"
+                  subtitle="Farm-fresh milk pouches, curd, butter & whole wheat bread"
+                  products={dailyDairyProducts}
+                  wishlist={wishlist}
+                  onToggleWishlist={toggleWishlist}
+                  cart={cart}
+                  onAddToCart={handleAddToCart}
+                  onUpdateCartQuantity={handleUpdateCartQuantity}
+                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onViewAll={() => setSelectedCategory("Dairy, Bread & Eggs")}
+                  limit={12}
+                />
+              )}
+
+              {/* 6D. Chips, Crisps & Namkeen Shelf */}
+              {snacksAndMunchiesProducts.length > 0 && (
+                <TrendingProductsSection
+                  title="Chips, Crisps & Munchies"
+                  subtitle="Crispy salted chips, masala munchies & classic namkeen"
+                  products={snacksAndMunchiesProducts}
+                  wishlist={wishlist}
+                  onToggleWishlist={toggleWishlist}
+                  cart={cart}
+                  onAddToCart={handleAddToCart}
+                  onUpdateCartQuantity={handleUpdateCartQuantity}
+                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onViewAll={() => setSelectedCategory("Snacks & Munchies")}
+                  limit={12}
+                />
+              )}
+
+              {/* 6E. Instant Food & Kitchen Staples Shelf */}
+              {staplesShelf.length > 0 && (
+                <TrendingProductsSection
+                  title="Instant Food, Noodles & Staples"
+                  subtitle="2-Minute noodles, pure chakki atta, basmati rice & iodized salt"
+                  products={staplesShelf}
+                  wishlist={wishlist}
+                  onToggleWishlist={toggleWishlist}
+                  cart={cart}
+                  onAddToCart={handleAddToCart}
+                  onUpdateCartQuantity={handleUpdateCartQuantity}
+                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onViewAll={() => setSelectedCategory("Atta, Rice & Staples")}
+                  limit={12}
+                />
+              )}
+
+              {/* 6F. Pharmacy & Daily Care Shelf */}
+              {careShelf.length > 0 && (
+                <TrendingProductsSection
+                  title="Pharmacy & Daily Hygiene"
+                  subtitle="Antiseptic soaps, handwash refills, paracetamol & detergents"
+                  products={careShelf}
+                  wishlist={wishlist}
+                  onToggleWishlist={toggleWishlist}
+                  cart={cart}
+                  onAddToCart={handleAddToCart}
+                  onUpdateCartQuantity={handleUpdateCartQuantity}
+                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onViewAll={() => setSelectedCategory("Pharmacy")}
+                  limit={12}
+                />
+              )}
 
               {/* 7. Why Shop on ServoLocal? (5 Benefits Strip) */}
               <BenefitsStrip />

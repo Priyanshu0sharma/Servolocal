@@ -143,3 +143,4 @@ for m_id, extras in rich_additions:
 
 print("\nAll images synced and uploaded to Cloudflare R2 successfully!")
 conn.close()
+

@@ -6,6 +6,9 @@ import ProductCard from "./ProductCard";
 import { ProductItem } from "@/types";
 
 interface TrendingProductsSectionProps {
+  title?: string;
+  icon?: React.ReactNode;
+  subtitle?: string;
   products: ProductItem[];
   wishlist: number[];
   onToggleWishlist: (productId: number) => void;
@@ -14,9 +17,13 @@ interface TrendingProductsSectionProps {
   onUpdateCartQuantity: (productId: number, qty: number) => void;
   onClickProduct: (product: ProductItem) => void;
   onViewAll?: () => void;
+  limit?: number;
 }
 
 export default function TrendingProductsSection({
+  title = "Trending Near You",
+  icon,
+  subtitle,
   products,
   wishlist,
   onToggleWishlist,
@@ -25,16 +32,25 @@ export default function TrendingProductsSection({
   onUpdateCartQuantity,
   onClickProduct,
   onViewAll,
+  limit = 12,
 }: TrendingProductsSectionProps) {
+  const displayItems = products.slice(0, limit);
+  if (displayItems.length === 0) return null;
+
   return (
-    <section className="space-y-3.5 select-none">
+    <section className="space-y-3.5 select-none pt-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
-          <h3 className="text-base sm:text-lg font-extrabold text-[#2D2319]">
-            Trending Near You
-          </h3>
+          {icon || <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />}
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-[#2D2319] leading-tight">
+              {title}
+            </h3>
+            {subtitle && (
+              <p className="text-[11.5px] text-[#8C7663]">{subtitle}</p>
+            )}
+          </div>
         </div>
 
         <button
@@ -42,14 +58,14 @@ export default function TrendingProductsSection({
           onClick={onViewAll}
           className="text-xs font-bold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
         >
-          <span>View All Products</span>
+          <span>See all</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
 
-      {/* Grid of 6 Products Matching Mockup */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        {products.slice(0, 6).map((product) => {
+      {/* Grid of Products Matching Blinkit/ServoLocal Layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+        {displayItems.map((product) => {
           const cartItem = cart.find((i) => i.inventory_id === product.id);
           return (
             <ProductCard

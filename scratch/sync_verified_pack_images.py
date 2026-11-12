@@ -177,3 +177,4 @@ for sort_idx, (key, g_type, caption) in enumerate(thums_up_gallery):
         """, (g_url, g_type, sort_idx + 1, caption))
 
 conn.close()
+

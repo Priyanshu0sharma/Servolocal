@@ -16,12 +16,14 @@ export interface ProductItem {
   mrp: number;
   rating?: number;
   unit?: string;
+  default_weight_or_size?: string;
   image_url: string;
   in_stock: boolean;
   available_stock?: number;
   shop_id?: number;
   shop_name?: string;
   local_eta_mins?: string;
+  delivery_mode?: string;
 }
 
 export interface CategoryItem {
