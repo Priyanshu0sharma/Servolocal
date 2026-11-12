@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowRight, Store, Tag, ShoppingBag } from "lucide-react";
+import { ArrowRight, Store, Tag, ShoppingBag, Zap, Utensils, Package, Coins, HelpCircle, Truck, Clock } from "lucide-react";
 
 import Header from "@/components/Header";
 import Sidebar, { SidebarTab } from "@/components/Sidebar";
@@ -12,6 +12,9 @@ import SmartCartDrawer from "@/components/SmartCartDrawer";
 import BlinkitSplitViewStorefront from "@/components/BlinkitSplitViewStorefront";
 import LiveOrderTrackerAndReview, { ActiveOrderData } from "@/components/LiveOrderTrackerAndReview";
 import FloatingCartBar from "@/components/FloatingCartBar";
+import ProductDetailsModal from "@/components/ProductDetailsModal";
+import WalletModal from "@/components/WalletModal";
+import SupportModal from "@/components/SupportModal";
 
 import { ProductItem, CartItem, UserProfile, CategoryItem } from "@/types";
 import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
@@ -31,7 +34,12 @@ export default function CustomerHomePage() {
     id?: number;
   } | null>(null);
 
-  // ── 3. User Session State ─────────────────────────────────────────────────
+  // ── 3. Modals & Detail Views ──────────────────────────────────────────────
+  const [selectedProductForModal, setSelectedProductForModal] = useState<ProductItem | null>(null);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+
+  // ── 4. User Session State ─────────────────────────────────────────────────
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
 
@@ -253,6 +261,30 @@ export default function CustomerHomePage() {
     return allProducts.filter((p) => wishlist.includes(p.id));
   }, [allProducts, wishlist]);
 
+  // ⚡ Grocery Module (10-15 Min Daily Essentials)
+  const groceryProducts = useMemo(() => {
+    const items = allProducts.filter((p) =>
+      ["Grocery", "Dairy, Bread & Eggs", "Farm Fresh", "Snacks & Munchies", "Instant Food", "Beverages"].includes(p.category)
+    );
+    return items.length > 0 ? items : allProducts.slice(0, 12);
+  }, [allProducts]);
+
+  // 🍽️ Food Module (30-45 Min Fresh Food, Street Food & Cafes)
+  const foodProducts = useMemo(() => {
+    const items = allProducts.filter((p) =>
+      ["Food & Drinks", "Street Food", "Bakery"].includes(p.category)
+    );
+    return items.length > 0 ? items : allProducts.filter((p) => p.name.includes("Pizza") || p.name.includes("Samosa"));
+  }, [allProducts]);
+
+  // 📦 Marketplace Module (Pan-India / Scheduled Delivery: Fashion, Electronics, Art)
+  const marketplaceProducts = useMemo(() => {
+    const items = allProducts.filter((p) =>
+      ["Fashion", "Electronics", "Art & Craft", "Home & Kitchen", "Accessories"].includes(p.category)
+    );
+    return items.length > 0 ? items : allProducts.filter((p) => p.category === "Fashion" || p.category === "Electronics");
+  }, [allProducts]);
+
   const isPanIndiaMode = (currentLocality || "").toLowerCase().includes("pan-india");
 
   return (
@@ -286,13 +318,20 @@ export default function CustomerHomePage() {
         <Sidebar
           activeTab={activeTab}
           onTabChange={(tab) => {
-            setActiveTab(tab);
-            if (tab === "home") {
-              setSelectedCategory(null);
-              setActiveStorefrontShop(null);
+            if (tab === "wallet") {
+              setIsWalletOpen(true);
+              return;
             }
+            if (tab === "support") {
+              setIsSupportOpen(true);
+              return;
+            }
+            setActiveTab(tab);
+            setSelectedCategory(null);
+            setActiveStorefrontShop(null);
           }}
           ordersCount={activeOrder ? 1 : 0}
+          walletBalance={user?.wallet_balance || user?.servo_coins || 150}
         />
 
         {/* Main Content Area */}
@@ -365,7 +404,7 @@ export default function CustomerHomePage() {
                   </h2>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("categories")}
+                    onClick={() => setActiveTab("grocery")}
                     className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
                   >
                     <span>See All Categories</span>
@@ -393,7 +432,7 @@ export default function CustomerHomePage() {
                   </h2>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("categories")}
+                    onClick={() => setActiveTab("grocery")}
                     className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
                   >
                     <span>See All</span>
@@ -415,6 +454,7 @@ export default function CustomerHomePage() {
                         cartQuantity={cartItem ? cartItem.quantity : 0}
                         onAddToCart={handleAddToCart}
                         onUpdateCartQuantity={handleUpdateCartQuantity}
+                        onClickProduct={(p) => setSelectedProductForModal(p)}
                       />
                     );
                   })}
@@ -454,6 +494,7 @@ export default function CustomerHomePage() {
                         cartQuantity={cartItem ? cartItem.quantity : 0}
                         onAddToCart={handleAddToCart}
                         onUpdateCartQuantity={handleUpdateCartQuantity}
+                        onClickProduct={(p) => setSelectedProductForModal(p)}
                       />
                     );
                   })}
@@ -493,6 +534,7 @@ export default function CustomerHomePage() {
                         cartQuantity={cartItem ? cartItem.quantity : 0}
                         onAddToCart={handleAddToCart}
                         onUpdateCartQuantity={handleUpdateCartQuantity}
+                        onClickProduct={(p) => setSelectedProductForModal(p)}
                       />
                     );
                   })}
@@ -501,51 +543,122 @@ export default function CustomerHomePage() {
             </>
           )}
 
-          {/* 3. Categories Tab */}
-          {activeTab === "categories" && !selectedCategory && !activeStorefrontShop && (
+          {/* 3. Grocery Tab (⚡ 10-15 Min Quick Delivery) */}
+          {activeTab === "grocery" && !selectedCategory && !activeStorefrontShop && (
             <section className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-[#171717]">
-                  All Shop Categories
-                </h2>
-                <p className="text-xs text-[#666666]">
-                  Browse items from verified neighbourhood stores in {currentLocality}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3">
-                {CATEGORIES_DATA.map((cat) => (
-                  <CategoryCard
-                    key={cat.id}
-                    category={cat}
-                    isSelected={selectedCategory === cat.name}
-                    onClick={(c: CategoryItem) => setSelectedCategory(c.name)}
-                  />
-                ))}
-              </div>
-
-              <div className="pt-4 border-t border-[#E8ECE9]">
-                <h3 className="text-base font-bold text-[#171717] mb-3">
-                  All Local Catalog Products
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {allProducts.map((product) => {
-                    const cartItem = cart.find(
-                      (item) => item.inventory_id === product.id
-                    );
-                    return (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isWishlisted={wishlist.includes(product.id)}
-                        onToggleWishlist={toggleWishlist}
-                        cartQuantity={cartItem ? cartItem.quantity : 0}
-                        onAddToCart={handleAddToCart}
-                        onUpdateCartQuantity={handleUpdateCartQuantity}
-                      />
-                    );
-                  })}
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-[#EAF7EE] to-emerald-50 border border-[#078B35]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">⚡</span>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#171717]">
+                      Grocery &amp; Daily Essentials
+                    </h2>
+                  </div>
+                  <p className="text-xs text-[#666666] max-w-xl">
+                    Delivered in 10-15 minutes from neighbourhood dark stores and local kirana partners in {currentLocality}.
+                  </p>
                 </div>
+                <span className="px-3 py-1.5 rounded-full bg-[#078B35] text-white text-xs font-bold shrink-0 self-start sm:self-auto shadow-xs">
+                  ⚡ 10-15 Min Instant Delivery
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {groceryProducts.map((product) => {
+                  const cartItem = cart.find((item) => item.inventory_id === product.id);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isWishlisted={wishlist.includes(product.id)}
+                      onToggleWishlist={toggleWishlist}
+                      cartQuantity={cartItem ? cartItem.quantity : 0}
+                      onAddToCart={handleAddToCart}
+                      onUpdateCartQuantity={handleUpdateCartQuantity}
+                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* 4. Food & Street Stalls Tab (🍽️ 30-45 Min Scheduled) */}
+          {activeTab === "food" && !selectedCategory && !activeStorefrontShop && (
+            <section className="space-y-6">
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🍽️</span>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#171717]">
+                      Food, Cafes &amp; Street Stalls
+                    </h2>
+                  </div>
+                  <p className="text-xs text-[#666666] max-w-xl">
+                    Freshly made pizzas, snacks, sweets, samosas, and chai from local kitchens, street vendors &amp; eateries.
+                  </p>
+                </div>
+                <span className="px-3 py-1.5 rounded-full bg-amber-600 text-white text-xs font-bold shrink-0 self-start sm:self-auto shadow-xs">
+                  🍽️ Freshly Prepared (30-45 Mins)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {foodProducts.map((product) => {
+                  const cartItem = cart.find((item) => item.inventory_id === product.id);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isWishlisted={wishlist.includes(product.id)}
+                      onToggleWishlist={toggleWishlist}
+                      cartQuantity={cartItem ? cartItem.quantity : 0}
+                      onAddToCart={handleAddToCart}
+                      onUpdateCartQuantity={handleUpdateCartQuantity}
+                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* 5. Marketplace Tab (📦 Pan-India Courier & Scheduled Delivery) */}
+          {activeTab === "marketplace" && !selectedCategory && !activeStorefrontShop && (
+            <section className="space-y-6">
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📦</span>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#171717]">
+                      Marketplace &amp; Pan-India
+                    </h2>
+                  </div>
+                  <p className="text-xs text-[#666666] max-w-xl">
+                    Fashion, electronics, local boutique collections, artworks &amp; home essentials delivered via express courier across all India.
+                  </p>
+                </div>
+                <span className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0 self-start sm:self-auto shadow-xs">
+                  📦 Express Courier Delivery (2-4 Days)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {marketplaceProducts.map((product) => {
+                  const cartItem = cart.find((item) => item.inventory_id === product.id);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isWishlisted={wishlist.includes(product.id)}
+                      onToggleWishlist={toggleWishlist}
+                      cartQuantity={cartItem ? cartItem.quantity : 0}
+                      onAddToCart={handleAddToCart}
+                      onUpdateCartQuantity={handleUpdateCartQuantity}
+                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                    />
+                  );
+                })}
               </div>
             </section>
           )}
@@ -759,6 +872,71 @@ export default function CustomerHomePage() {
           onClose={handleCloseActiveOrder}
         />
       )}
+
+      {/* ── Product Details Modal ──────────────────────────────────── */}
+      <ProductDetailsModal
+        product={selectedProductForModal}
+        isOpen={Boolean(selectedProductForModal)}
+        onClose={() => setSelectedProductForModal(null)}
+        cartQuantity={
+          selectedProductForModal
+            ? cart.find((i) => i.inventory_id === selectedProductForModal.id)?.quantity || 0
+            : 0
+        }
+        onAddToCart={handleAddToCart}
+        onUpdateCartQuantity={handleUpdateCartQuantity}
+        isWishlisted={selectedProductForModal ? wishlist.includes(selectedProductForModal.id) : false}
+        onToggleWishlist={toggleWishlist}
+      />
+
+      {/* ── ServoCoins Wallet Modal ────────────────────────────────── */}
+      <WalletModal
+        isOpen={isWalletOpen}
+        onClose={() => setIsWalletOpen(false)}
+        user={user}
+      />
+
+      {/* ── Help & Support Modal ──────────────────────────────────── */}
+      <SupportModal
+        isOpen={isSupportOpen}
+        onClose={() => setIsSupportOpen(false)}
+      />
+
+      {/* ── Mobile Responsive Bottom Navigation Bar ────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E8ECE9] flex items-center justify-around py-2 px-1 shadow-lg select-none">
+        {[
+          { id: "home" as SidebarTab, label: "Home", icon: Store },
+          { id: "grocery" as SidebarTab, label: "Grocery", icon: Zap },
+          { id: "food" as SidebarTab, label: "Food", icon: Utensils },
+          { id: "marketplace" as SidebarTab, label: "Mall", icon: Package },
+          { id: "orders" as SidebarTab, label: "Orders", icon: ShoppingBag, badge: activeOrder ? 1 : 0 },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(item.id);
+                setSelectedCategory(null);
+                setActiveStorefrontShop(null);
+              }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
+                isActive ? "text-[#078B35] font-bold" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              <div className="relative">
+                <Icon className={`w-5 h-5 ${isActive ? "text-[#078B35]" : "text-gray-500"}`} />
+                {item.badge ? (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
+                ) : null}
+              </div>
+              <span className="text-[10px] mt-0.5 leading-none">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

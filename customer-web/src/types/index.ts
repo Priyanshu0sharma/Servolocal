@@ -50,4 +50,6 @@ export interface UserProfile {
   role: string;
   gender?: string;
   phone?: string;
+  wallet_balance?: number;
+  servo_coins?: number;
 }
