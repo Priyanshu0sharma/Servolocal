@@ -1,7 +1,25 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowRight, Store, Tag, ShoppingBag, Zap, Utensils, Package, Coins, HelpCircle, Truck, Clock } from "lucide-react";
+import {
+  Home,
+  ArrowRight,
+  Store,
+  Tag,
+  ShoppingBag,
+  Zap,
+  Utensils,
+  Package,
+  Coins,
+  HelpCircle,
+  Truck,
+  Clock,
+  Search,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  Star,
+} from "lucide-react";
 
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Header from "@/components/Header";
@@ -44,6 +62,10 @@ export default function CustomerHomePage() {
     name: string;
     id?: number;
   } | null>(null);
+
+  // ── 2B. Stores Filtering State (Open / Closed) ───────────────────────────
+  const [storeStatusFilter, setStoreStatusFilter] = useState<"ALL" | "OPEN" | "CLOSED">("ALL");
+  const [storeSearchQuery, setStoreSearchQuery] = useState<string>("");
 
   // ── 3. Modals & Detail Views ──────────────────────────────────────────────
   const [selectedProductForModal, setSelectedProductForModal] = useState<ProductItem | null>(null);
@@ -324,21 +346,47 @@ export default function CustomerHomePage() {
 
   // Real Database Shops (Primary from live Neon PostgreSQL)
   const currentShops: ShopItem[] = useMemo(() => {
-    if (dbShops.length > 0) return dbShops;
+    if (dbShops.length > 0) {
+      return dbShops.map((s) => ({
+        ...s,
+        is_open: s.is_open !== undefined ? s.is_open : true,
+        timing_info: s.timing_info || (s.is_open ? "Open Now • Closes 10:30 PM" : "Closed Now • Opens 7:00 AM"),
+      }));
+    }
     return MASTER_SHOPS.map((s) => ({
       id: s.id,
       name: s.name,
       category: s.category,
       image_url: s.image_url,
-      is_open: true,
+      is_open: s.is_open,
       rating: s.rating,
       locality_name: s.locality_name,
       distance_km: s.distance_km,
       local_eta_mins: s.local_eta_mins,
       free_delivery_enabled: s.free_delivery_enabled,
-      is_verified: true,
+      is_verified: s.is_verified,
+      timing_info: s.timing_info || (s.is_open ? "Open Now • Closes 10:30 PM" : "Closed Now • Opens 7:00 AM"),
     }));
   }, [dbShops]);
+
+  // Filtered Stores (Open, Closed, Search)
+  const filteredStoresList: ShopItem[] = useMemo(() => {
+    return currentShops.filter((shop) => {
+      if (storeStatusFilter === "OPEN" && shop.is_open === false) return false;
+      if (storeStatusFilter === "CLOSED" && shop.is_open !== false) return false;
+      if (storeSearchQuery.trim()) {
+        const q = storeSearchQuery.toLowerCase();
+        const matchName = shop.name.toLowerCase().includes(q);
+        const matchCat = shop.category.toLowerCase().includes(q);
+        const matchLoc = (shop.locality_name || "").toLowerCase().includes(q);
+        if (!matchName && !matchCat && !matchLoc) return false;
+      }
+      return true;
+    });
+  }, [currentShops, storeStatusFilter, storeSearchQuery]);
+
+  const openStoresCount = useMemo(() => currentShops.filter((s) => s.is_open !== false).length, [currentShops]);
+  const closedStoresCount = useMemo(() => currentShops.filter((s) => s.is_open === false).length, [currentShops]);
 
   // 4 Showcase Products with Real High-Definition Images
   const popularNearYouProducts: ProductItem[] = useMemo(() => {
@@ -476,8 +524,21 @@ export default function CustomerHomePage() {
         isSignInOpen={isSignInOpen}
         onOpenSignIn={() => setIsSignInOpen(true)}
         onCloseSignIn={() => setIsSignInOpen(false)}
-        onNavigateOrders={() => setActiveTab("orders")}
-        onNavigateOffers={() => setActiveTab("offers")}
+        onNavigateOrders={() => {
+          setActiveTab("orders");
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        onNavigateOffers={() => {
+          setActiveTab("offers");
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        onNavigateStores={() => {
+          setActiveTab("stores");
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
       />
 
       {/* ── Body: Sidebar + Main Content ──────────────────────────── */}
@@ -829,68 +890,201 @@ export default function CustomerHomePage() {
             </section>
           )}
 
-          {/* 4. Nearby Stores Tab */}
+          {/* 4. Nearby Stores Tab (With Live Open / Closed Badges & Filters) */}
           {activeTab === "stores" && !selectedCategory && !activeStorefrontShop && (
             <section className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-[#171717]">
-                  Nearby Local Stores in {currentLocality}
-                </h2>
-                <p className="text-xs text-[#666666]">
-                  Real neighbourhood kirana, bakeries, street stalls and specialty shops
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {MASTER_SHOPS.map((shop) => (
-                  <div
-                    key={shop.id}
-                    className="p-4 rounded-2xl border border-[#E8ECE9] bg-white hover:border-[#078B35]/40 hover:shadow-md transition-all flex flex-col justify-between group space-y-3"
-                  >
-                    <div className="h-36 rounded-xl overflow-hidden bg-slate-100 relative">
-                      <img
-                        src={shop.image_url}
-                        alt={shop.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-[#078B35] text-white text-[10px] font-bold">
-                        {shop.local_eta_mins}
-                      </span>
-                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-[#FFF4CE] text-[#171717] text-[10px] font-bold">
-                        ★ {shop.rating}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <Store className="w-4 h-4 text-[#078B35]" />
-                        <h4 className="text-sm font-bold text-[#171717] truncate">
-                          {shop.name}
-                        </h4>
-                      </div>
-                      <p className="text-xs text-[#666666]">{shop.category}</p>
-                      <p className="text-[11px] text-[#666666]">
-                        {shop.locality_name} • {shop.distance_km} km away
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-[#E8ECE9] flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-[#078B35]">
-                        {shop.free_delivery_enabled ? "Free Delivery eligible" : "Flat delivery fee"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveStorefrontShop({ name: shop.name, id: shop.id });
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#EAF7EE] text-[#078B35] hover:bg-[#078B35] hover:text-white text-xs font-bold transition-colors cursor-pointer"
-                      >
-                        Enter Shop Aisles →
-                      </button>
-                    </div>
+              {/* Header Banner & Title */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#EAF7EE] via-emerald-50 to-[#FDFBF7] border border-[#078B35]/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🏪</span>
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-[#171717]">
+                      Verified Local Stores in {currentLocality || "Kukas, Jaipur"}
+                    </h2>
                   </div>
-                ))}
+                  <p className="text-xs text-[#666666] max-w-xl">
+                    Discover neighbourhood kirana stores, fresh dairies, eateries, and specialty sellers. Check live open/closed status and order with 10-15 minute delivery.
+                  </p>
+                </div>
+
+                {/* In-tab Store Search */}
+                <div className="relative w-full md:w-80 shrink-0">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={storeSearchQuery}
+                    onChange={(e) => setStoreSearchQuery(e.target.value)}
+                    placeholder="Search stores, kirana, dairy..."
+                    className="w-full bg-white border border-[#E8ECE9] rounded-xl pl-9 pr-7 py-2 text-xs text-[#171717] placeholder:text-gray-400 focus:outline-none focus:border-[#078B35] shadow-2xs"
+                  />
+                  {storeSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setStoreSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs font-bold"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Status Filter Pills: All / Open / Closed */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setStoreStatusFilter("ALL")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                    storeStatusFilter === "ALL"
+                      ? "bg-[#2D2319] text-white shadow-xs"
+                      : "bg-white text-[#4A3B32] border border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  All Stores ({currentShops.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStoreStatusFilter("OPEN")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    storeStatusFilter === "OPEN"
+                      ? "bg-[#078B35] text-white shadow-xs"
+                      : "bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Open Now ({openStoresCount})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStoreStatusFilter("CLOSED")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    storeStatusFilter === "CLOSED"
+                      ? "bg-rose-700 text-white shadow-xs"
+                      : "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  <span>Closed Now ({closedStoresCount})</span>
+                </button>
+              </div>
+
+              {/* Stores Grid */}
+              {filteredStoresList.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-3xl border border-[#E8ECE9] space-y-3">
+                  <Store className="w-12 h-12 mx-auto text-gray-300 stroke-1" />
+                  <h4 className="text-sm font-bold text-gray-700">No stores match your filter</h4>
+                  <p className="text-xs text-gray-500">Try changing your search term or clear the filter.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStoreStatusFilter("ALL");
+                      setStoreSearchQuery("");
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-gray-100 text-xs font-bold text-gray-700 hover:bg-gray-200 cursor-pointer"
+                  >
+                    Clear Filter
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-5 sm:gap-6">
+                  {filteredStoresList.map((shop) => {
+                    const isOpen = shop.is_open !== false;
+                    return (
+                      <div
+                        key={shop.id}
+                        className={`p-4 rounded-3xl border bg-white transition-all flex flex-col justify-between group space-y-3.5 shadow-2xs hover:shadow-lg ${
+                          isOpen
+                            ? "border-[#E8ECE9] hover:border-[#078B35]/50"
+                            : "border-gray-200/80 bg-gray-50/50 opacity-90"
+                        }`}
+                      >
+                        {/* Store Image with Badges */}
+                        <div className="h-40 rounded-2xl overflow-hidden bg-slate-100 relative">
+                          <img
+                            src={shop.image_url || "https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=600&auto=format&fit=crop&q=80"}
+                            alt={shop.name}
+                            className={`w-full h-full object-cover transition-transform duration-300 ${
+                              isOpen ? "group-hover:scale-105" : "grayscale-[30%]"
+                            }`}
+                          />
+
+                          {/* Live Open / Closed Badge */}
+                          <div className="absolute top-2.5 left-2.5 z-10">
+                            {isOpen ? (
+                              <span className="px-2.5 py-1 rounded-full bg-white/95 text-emerald-800 text-[11px] font-extrabold flex items-center gap-1.5 shadow-sm border border-emerald-300/80">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Open Now</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full bg-gray-900/90 text-white text-[11px] font-extrabold flex items-center gap-1.5 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-rose-400" />
+                                <span>Closed</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Top-Right Rating Badge */}
+                          <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-white/95 text-[#171717] text-[11px] font-bold shadow-xs flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            <span>{shop.rating || 4.8}</span>
+                          </span>
+
+                          {/* Bottom-Left ETA Badge */}
+                          <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-[#078B35] text-white text-[10px] font-bold shadow-xs">
+                            {shop.local_eta_mins || "⚡ 10-15m"}
+                          </span>
+                        </div>
+
+                        {/* Store Info */}
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <h4 className="text-sm sm:text-base font-extrabold text-[#171717] group-hover:text-[#078B35] transition-colors truncate">
+                              {shop.name}
+                            </h4>
+                          </div>
+
+                          <p className="text-xs text-gray-600 font-medium">{shop.category}</p>
+                          <p className="text-[11px] text-gray-500">
+                            {shop.locality_name || currentLocality} • {shop.distance_km || 1} km away
+                          </p>
+
+                          {/* Timing / Status Banner */}
+                          <div className={`mt-2 p-2 rounded-xl text-[11px] font-medium flex items-center gap-1.5 ${
+                            isOpen
+                              ? "bg-emerald-50/70 text-emerald-900 border border-emerald-100"
+                              : "bg-rose-50 text-rose-800 border border-rose-100"
+                          }`}>
+                            <Clock className={`w-3.5 h-3.5 shrink-0 ${isOpen ? "text-emerald-700" : "text-rose-600"}`} />
+                            <span className="truncate">{shop.timing_info || (isOpen ? "Open for 10-15 min delivery" : "Opens soon")}</span>
+                          </div>
+                        </div>
+
+                        {/* Bottom Row */}
+                        <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold text-[#078B35] truncate">
+                            {shop.free_delivery_enabled ? "Free Delivery" : "Fast delivery"}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveStorefrontShop({ name: shop.name, id: shop.id });
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
+                              isOpen
+                                ? "bg-[#078B35] hover:bg-[#075C2A] text-white hover:scale-102"
+                                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                            }`}
+                          >
+                            <span>{isOpen ? "Enter Store Aisles" : "View Catalog"}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           )}
 
@@ -931,19 +1125,101 @@ export default function CustomerHomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="py-16 text-center space-y-3 bg-[#F8F9FA] rounded-3xl border border-[#E8ECE9]">
-                  <ShoppingBag className="w-12 h-12 mx-auto text-slate-300 stroke-1" />
-                  <h3 className="text-sm font-bold text-[#171717]">No active orders right now</h3>
-                  <p className="text-xs text-[#666666] max-w-sm mx-auto">
-                    When you place an order with your local store, live 10-15 min tracking will appear right here.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("home")}
-                    className="px-5 py-2 rounded-xl bg-[#078B35] text-white text-xs font-bold hover:bg-[#075C2A] transition-colors cursor-pointer"
-                  >
-                    Start Shopping
-                  </button>
+                <div className="space-y-8">
+                  <div className="py-12 text-center space-y-3 bg-[#F8F9FA] rounded-3xl border border-[#E8ECE9]">
+                    <ShoppingBag className="w-12 h-12 mx-auto text-slate-300 stroke-1" />
+                    <h3 className="text-sm font-bold text-[#171717]">No active orders right now</h3>
+                    <p className="text-xs text-[#666666] max-w-sm mx-auto">
+                      When you place an order with your local store, live 10-15 min tracking will appear right here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("home")}
+                      className="px-5 py-2 rounded-xl bg-[#078B35] text-white text-xs font-bold hover:bg-[#075C2A] transition-colors cursor-pointer"
+                    >
+                      Start Shopping
+                    </button>
+                  </div>
+
+                  {/* Discover Local Stores to Order From */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-[#171717]">
+                          Order from Verified Local Stores
+                        </h3>
+                        <p className="text-xs text-[#666666]">
+                          Check open stores near {currentLocality || "Kukas, Jaipur"} for superfast 10-15 min delivery
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("stores")}
+                        className="text-xs font-bold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
+                      >
+                        <span>View All Stores ({currentShops.length})</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                      {currentShops.slice(0, 4).map((shop) => {
+                        const isOpen = shop.is_open !== false;
+                        return (
+                          <div
+                            key={shop.id}
+                            className="p-4 rounded-3xl border border-[#E8ECE9] bg-white hover:border-[#078B35]/40 hover:shadow-md transition-all flex flex-col justify-between group space-y-3"
+                          >
+                            <div className="h-36 rounded-2xl overflow-hidden bg-slate-100 relative">
+                              <img
+                                src={shop.image_url}
+                                alt={shop.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute top-2 left-2 z-10">
+                                {isOpen ? (
+                                  <span className="px-2.5 py-0.5 rounded-full bg-white/95 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1 shadow-xs border border-emerald-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span>Open Now</span>
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-0.5 rounded-full bg-gray-900/90 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-xs">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                                    <span>Closed</span>
+                                  </span>
+                                )}
+                              </div>
+                              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-white/95 text-[#171717] text-[10px] font-bold flex items-center gap-1 shadow-xs">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span>{shop.rating}</span>
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-bold text-[#171717] truncate">{shop.name}</h4>
+                              <p className="text-xs text-[#666666]">{shop.category}</p>
+                              <p className="text-[11px] text-[#666666]">{shop.locality_name} • {shop.distance_km} km away</p>
+                            </div>
+
+                            <div className="pt-2 border-t border-[#E8ECE9] flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-[#078B35]">
+                                {shop.free_delivery_enabled ? "Free Delivery" : "Fast delivery"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveStorefrontShop({ name: shop.name, id: shop.id });
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-[#EAF7EE] text-[#078B35] hover:bg-[#078B35] hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                Browse Store →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
@@ -1068,10 +1344,10 @@ export default function CustomerHomePage() {
       {/* ── Mobile Responsive Bottom Navigation Bar ────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E8ECE9] flex items-center justify-around py-2 px-1 shadow-lg select-none">
         {[
-          { id: "home" as SidebarTab, label: "Home", icon: Store },
+          { id: "home" as SidebarTab, label: "Home", icon: Home },
+          { id: "stores" as SidebarTab, label: "Stores", icon: Store },
           { id: "grocery" as SidebarTab, label: "Grocery", icon: Zap },
           { id: "food" as SidebarTab, label: "Food", icon: Utensils },
-          { id: "marketplace" as SidebarTab, label: "Mall", icon: Package },
           { id: "orders" as SidebarTab, label: "Orders", icon: ShoppingBag, badge: activeOrder ? 1 : 0 },
         ].map((item) => {
           const Icon = item.icon;

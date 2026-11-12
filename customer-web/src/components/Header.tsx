@@ -14,6 +14,7 @@ import {
   QrCode,
   Edit2,
   Tag,
+  Store,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import LocationSelectorModal from "./LocationSelectorModal";
@@ -42,6 +43,7 @@ interface HeaderProps {
   onCloseSignIn?: () => void;
   onNavigateOrders?: () => void;
   onNavigateOffers?: () => void;
+  onNavigateStores?: () => void;
   isLocationOpen?: boolean;
   onOpenLocation?: () => void;
   onCloseLocation?: () => void;
@@ -66,6 +68,7 @@ export default function Header({
   onCloseSignIn,
   onNavigateOrders,
   onNavigateOffers,
+  onNavigateStores,
   isLocationOpen: propLocationOpen,
   onOpenLocation,
   onCloseLocation,
@@ -163,8 +166,21 @@ export default function Header({
             />
           </div>
 
-          {/* ── Right: Offers, Orders, Cart, Profile ────────────────── */}
+          {/* ── Right: Stores, Offers, Orders, Cart, Profile ───────── */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Stores Button (Check Open / Closed) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigateStores) onNavigateStores();
+              }}
+              title="Nearby Stores (Check Open / Closed)"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer group"
+            >
+              <Store className="w-4 h-4 text-[#078B35] group-hover:scale-110 transition-transform" />
+              <span>Stores</span>
+            </button>
+
             {/* Offers Button (Mockup Reference) */}
             <button
               type="button"
@@ -272,6 +288,23 @@ export default function Header({
 
                     {/* Menu Items */}
                     <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onNavigateStores) onNavigateStores();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                      >
+                        <Store className="w-4 h-4 text-[#078B35]" />
+                        <div className="flex items-center justify-between flex-1">
+                          <span>Nearby Stores</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                            Open / Closed
+                          </span>
+                        </div>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {

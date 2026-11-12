@@ -52,6 +52,7 @@ export default function Sidebar({
     categoryName?: string;
   }> = [
     { id: "home", label: "Home", icon: Home },
+    { id: "stores", label: "Nearby Stores", icon: Store },
     { id: "categories", label: "All Categories", icon: LayoutGrid },
     { id: "grocery", label: "Grocery", icon: ShoppingBag, categoryName: "Grocery" },
     { id: "food", label: "Food & Drinks", icon: Utensils, categoryName: "Food & Drinks" },

@@ -49,6 +49,7 @@ export interface MasterShop {
   min_order_for_free_delivery: number;
   base_delivery_fee: number;
   featured_items: string[];
+  timing_info?: string;
 }
 
 export interface CategoryHierarchy {
@@ -64,7 +65,7 @@ export interface CategoryHierarchy {
   }>;
 }
 
-// ── 6 Verified Local Shops (Kukas & Jaipur Hubs) ──────────────────────────
+// ── Verified Local Shops (Kukas & Jaipur Hubs) ──────────────────────────
 export const MASTER_SHOPS: MasterShop[] = [
   {
     id: 1,
@@ -80,6 +81,7 @@ export const MASTER_SHOPS: MasterShop[] = [
     delivery_scope: "BOTH",
     is_verified: true,
     is_open: true,
+    timing_info: "Open Now • Closes 11:00 PM",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 150,
     base_delivery_fee: 15,
@@ -99,6 +101,7 @@ export const MASTER_SHOPS: MasterShop[] = [
     delivery_scope: "LOCAL_ONLY",
     is_verified: true,
     is_open: true,
+    timing_info: "Open Now • Closes 10:00 PM",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 120,
     base_delivery_fee: 10,
@@ -118,6 +121,7 @@ export const MASTER_SHOPS: MasterShop[] = [
     delivery_scope: "BOTH",
     is_verified: true,
     is_open: true,
+    timing_info: "Open Now • Closes 10:30 PM",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 200,
     base_delivery_fee: 15,
@@ -136,7 +140,8 @@ export const MASTER_SHOPS: MasterShop[] = [
     management_mode: "DIRECT_MERCHANT",
     delivery_scope: "LOCAL_ONLY",
     is_verified: true,
-    is_open: true,
+    is_open: false,
+    timing_info: "Closed Now • Opens 7:00 PM Tonight",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 150,
     base_delivery_fee: 20,
@@ -156,6 +161,7 @@ export const MASTER_SHOPS: MasterShop[] = [
     delivery_scope: "LOCAL_ONLY",
     is_verified: true,
     is_open: true,
+    timing_info: "Open Now • Fresh Batches Frying",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 100,
     base_delivery_fee: 10,
@@ -175,10 +181,51 @@ export const MASTER_SHOPS: MasterShop[] = [
     delivery_scope: "PAN_INDIA",
     is_verified: true,
     is_open: true,
+    timing_info: "Open • Pan-India Courier Active",
     free_delivery_enabled: true,
     min_order_for_free_delivery: 499,
     base_delivery_fee: 40,
     featured_items: ["Anime T-Shirt", "Streetwear Hoodie", "3D Photo Lamp"],
+  },
+  {
+    id: 7,
+    name: "Jaipur Organic Harvest & Fruits",
+    category: "Organic Fruits & Vegetables",
+    image_url: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=600&auto=format&fit=crop&q=80",
+    rating: 4.7,
+    rating_count: 198,
+    local_eta_mins: "⚡ 15 mins",
+    distance_km: 1.8,
+    locality_name: "Amer Road, Jaipur",
+    management_mode: "DIRECT_MERCHANT",
+    delivery_scope: "LOCAL_ONLY",
+    is_verified: true,
+    is_open: false,
+    timing_info: "Closed Now • Opens Tomorrow 8:00 AM",
+    free_delivery_enabled: true,
+    min_order_for_free_delivery: 150,
+    base_delivery_fee: 15,
+    featured_items: ["Organic Apples", "Farm Spinach", "Alphonso Mango", "Fresh Mint"],
+  },
+  {
+    id: 8,
+    name: "City 24x7 Apollo Chemist & Care",
+    category: "Pharmacy & Wellness",
+    image_url: "https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=600&auto=format&fit=crop&q=80",
+    rating: 4.9,
+    rating_count: 640,
+    local_eta_mins: "⚡ 9 mins",
+    distance_km: 0.7,
+    locality_name: "College Road, Kukas",
+    management_mode: "DIRECT_MERCHANT",
+    delivery_scope: "LOCAL_ONLY",
+    is_verified: true,
+    is_open: true,
+    timing_info: "Open 24/7 • Night Emergency Ready",
+    free_delivery_enabled: true,
+    min_order_for_free_delivery: 99,
+    base_delivery_fee: 10,
+    featured_items: ["Paracetamol", "Dettol Liquid", "Band-Aid", "Vitamin C"],
   },
 ];
 

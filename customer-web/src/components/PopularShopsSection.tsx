@@ -15,6 +15,7 @@ export interface ShopItem {
   local_eta_mins?: string;
   free_delivery_enabled?: boolean;
   is_verified?: boolean;
+  timing_info?: string;
 }
 
 interface PopularShopsSectionProps {
@@ -112,6 +113,21 @@ export default function PopularShopsSection({
                   alt={shop.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+
+                {/* Live Open / Closed Status Badge */}
+                <div className="absolute top-2 left-2 z-10">
+                  {shop.is_open !== false ? (
+                    <span className="px-2 py-0.5 rounded-full bg-white/95 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1 shadow-xs border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                      <span>Open</span>
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-gray-900/90 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                      <span>Closed</span>
+                    </span>
+                  )}
+                </div>
 
                 {/* Floating Category Badge */}
                 <span
