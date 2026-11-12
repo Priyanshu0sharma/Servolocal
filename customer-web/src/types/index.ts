@@ -55,4 +55,8 @@ export interface UserProfile {
   phone?: string;
   wallet_balance?: number;
   servo_coins?: number;
+  upi_id?: string;
+  created_at?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
 }

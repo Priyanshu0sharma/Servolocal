@@ -15,6 +15,11 @@ import {
   Edit2,
   Tag,
   Store,
+  ChevronRight,
+  Wallet,
+  Headphones,
+  Settings,
+  CheckCircle2,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import LocationSelectorModal from "./LocationSelectorModal";
@@ -47,6 +52,12 @@ interface HeaderProps {
   isLocationOpen?: boolean;
   onOpenLocation?: () => void;
   onCloseLocation?: () => void;
+  onNavigateProfile?: () => void;
+  onOpenWishlist?: () => void;
+  onOpenWallet?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenSupport?: () => void;
+  onNavigateSettings?: () => void;
 }
 
 export default function Header({
@@ -72,6 +83,12 @@ export default function Header({
   isLocationOpen: propLocationOpen,
   onOpenLocation,
   onCloseLocation,
+  onNavigateProfile,
+  onOpenWishlist,
+  onOpenWallet,
+  onOpenNotifications,
+  onOpenSupport,
+  onNavigateSettings,
 }: HeaderProps) {
   const [internalLocationOpen, setInternalLocationOpen] = useState(false);
   const isLocationOpen = propLocationOpen !== undefined ? propLocationOpen : internalLocationOpen;
@@ -94,11 +111,18 @@ export default function Header({
         setIsAccountOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountOpen(false);
+      }
+    };
     if (isAccountOpen) {
       document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("keydown", handleKeyDown);
     }
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isAccountOpen]);
 
@@ -240,108 +264,177 @@ export default function Header({
                 <button
                   type="button"
                   onClick={() => setIsAccountOpen((prev) => !prev)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-gray-200 text-[#2D2319] hover:border-[#078B35] transition-all cursor-pointer select-none font-bold text-xs shadow-2xs"
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-emerald-600 bg-white hover:bg-emerald-50/40 text-[#171717] font-bold text-xs shadow-2xs transition-all cursor-pointer select-none"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
-                    {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                  <span className="hidden sm:inline max-w-[80px] truncate">{user.name ? user.name.split(" ")[0] : "Account"}</span>
+                  <User className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="font-extrabold text-xs text-[#171717]">Account</span>
                   <ChevronDown
-                    className={`w-3 h-3 text-[#2D2319] transition-transform duration-200 stroke-[2.5] ${
+                    className={`w-3.5 h-3.5 text-gray-700 transition-transform duration-200 stroke-[2.5] ${
                       isAccountOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
-                {/* Dropdown Menu (Exact Blinkit Style) */}
+                {/* Dropdown Menu (Exact Mockup Reference) */}
                 {isAccountOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    {/* User Info Header */}
-                    <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between">
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-sm font-bold text-[#171717] truncate">
-                            {user.name || "Customer"}
-                          </h4>
-                          {user.gender && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#EAF7EE] text-[#078B35] font-semibold shrink-0">
-                              {user.gender === "Female" ? "👧 Female" : user.gender === "Other" ? "✨ Other" : "👦 Male"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-[#666666] truncate mt-0.5">
-                          {user.email}
-                        </p>
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {/* User Profile Summary Header */}
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-black text-xl shrink-0 border border-[#078B35]/20">
+                        {(user.name?.trim()?.charAt(0) || "P").toUpperCase()}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAccountOpen(false);
-                          setIsProfileEditOpen(true);
-                        }}
-                        title="Edit Name & Gender"
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#078B35] hover:bg-[#EAF7EE] transition-colors cursor-pointer shrink-0"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-bold text-[#171717] truncate leading-tight">
+                          {user.name || "Priyanshu Sharma"}
+                        </h4>
+                        <p className="text-xs text-gray-500 truncate leading-tight mt-0.5">
+                          {user.email || "priyanshusharma1131@gmail.com"}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-[#078B35]">
+                          <CheckCircle2 className="w-3.5 h-3.5 fill-[#078B35] text-white shrink-0" />
+                          <span>Verified Account</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Menu Items */}
+                    {/* Menu Items (9 Clickable Items matching exact mockup) */}
                     <div className="py-1">
+                      {/* 1. My Profile */}
                       <button
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
-                          if (onNavigateStores) onNavigateStores();
+                          if (onNavigateProfile) onNavigateProfile();
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df] flex items-center justify-between transition-colors cursor-pointer group"
                       >
-                        <Store className="w-4 h-4 text-[#078B35]" />
-                        <div className="flex items-center justify-between flex-1">
-                          <span>Nearby Stores</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                            Open / Closed
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <User className="w-4 h-4 text-[#078B35]" />
+                          <span>My Profile</span>
                         </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-[#078B35] group-hover:translate-x-0.5 transition-transform" />
                       </button>
 
+                      {/* 2. My Orders */}
                       <button
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onNavigateOrders) onNavigateOrders();
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
-                        <Package className="w-4 h-4 text-[#078B35]" />
-                        <span>My Orders</span>
+                        <div className="flex items-center gap-3">
+                          <Package className="w-4 h-4 text-gray-700" />
+                          <span>My Orders</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
                       </button>
 
+                      {/* 3. Saved Addresses */}
                       <button
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
                           handleOpenLocation();
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
-                        <MapPin className="w-4 h-4 text-[#078B35]" />
-                        <span>Saved Addresses</span>
+                        <div className="flex items-center gap-3">
+                          <MapPin className="w-4 h-4 text-gray-700" />
+                          <span>Saved Addresses</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
                       </button>
 
-                      <a
-                        href="https://servolocal.vercel.app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setIsAccountOpen(false)}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
+                      {/* 4. My Wishlist */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onOpenWishlist) onOpenWishlist();
+                          else setIsWishlistOpen(true);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
-                        <HelpCircle className="w-4 h-4 text-gray-500" />
-                        <span>FAQ&apos;s</span>
-                      </a>
+                        <div className="flex items-center gap-3">
+                          <Heart className="w-4 h-4 text-gray-700" />
+                          <span>My Wishlist</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* 5. Wallet & Rewards */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onOpenWallet) onOpenWallet();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Wallet className="w-4 h-4 text-gray-700" />
+                          <span>Wallet &amp; Rewards</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* 6. Notifications */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onOpenNotifications) onOpenNotifications();
+                          else setIsNotificationsOpen(true);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Bell className="w-4 h-4 text-gray-700" />
+                          <span>Notifications</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </button>
+
+                      {/* 7. Help & Support */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onOpenSupport) onOpenSupport();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Headphones className="w-4 h-4 text-gray-700" />
+                          <span>Help &amp; Support</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {/* 8. Account Settings */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          if (onNavigateSettings) onNavigateSettings();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Settings className="w-4 h-4 text-gray-700" />
+                          <span>Account Settings</span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
 
                       <div className="my-1 border-t border-gray-100" />
 
+                      {/* 9. Log Out */}
                       <button
                         type="button"
                         onClick={() => {
@@ -350,24 +443,9 @@ export default function Header({
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 transition-colors cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <LogOut className="w-4 h-4 text-rose-600" />
                         <span>Log Out</span>
                       </button>
-                    </div>
-
-                    {/* QR App Download Promo (Exact Blinkit Style) */}
-                    <div className="mx-3 mt-2 p-2.5 bg-[#F9FAFB] rounded-xl border border-gray-100 flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-white border border-gray-200 p-1 flex items-center justify-center shrink-0">
-                        <QrCode className="w-full h-full text-[#078B35]" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-[#171717] leading-tight">
-                          Simple way to get local groceries
-                        </p>
-                        <p className="text-[9.5px] text-[#666666] leading-tight mt-0.5">
-                          Scan QR to download app
-                        </p>
-                      </div>
                     </div>
                   </div>
                 )}

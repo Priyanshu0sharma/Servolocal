@@ -26,7 +26,9 @@ export type SidebarTab =
   | "wallet"
   | "offers"
   | "support"
-  | "categories";
+  | "categories"
+  | "profile"
+  | "settings";
 
 interface SidebarProps {
   activeTab: SidebarTab;

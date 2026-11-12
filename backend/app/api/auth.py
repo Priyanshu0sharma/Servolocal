@@ -253,6 +253,10 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
             "role": user.role,
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
+            "upi_id": user.upi_id,
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "is_verified": True,
         },
     }
 
@@ -289,6 +293,10 @@ async def get_current_user_profile(
         "role": user.role,
         "servo_coins": user.servo_coins,
         "wallet_balance": user.wallet_balance,
+        "upi_id": user.upi_id,
+        "is_active": user.is_active,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "is_verified": True,
     }
 
 
@@ -333,5 +341,9 @@ async def update_user_profile(
             "role": user.role,
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
+            "upi_id": user.upi_id,
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "is_verified": True,
         },
     }

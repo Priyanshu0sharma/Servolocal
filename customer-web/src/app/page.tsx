@@ -43,6 +43,8 @@ import FloatingCartBar from "@/components/FloatingCartBar";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
 import WalletModal from "@/components/WalletModal";
 import SupportModal from "@/components/SupportModal";
+import CustomerProfileView from "@/components/CustomerProfileView";
+import AccountSettingsView from "@/components/AccountSettingsView";
 
 import { ProductItem, CartItem, UserProfile, CategoryItem } from "@/types";
 import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
@@ -536,6 +538,18 @@ export default function CustomerHomePage() {
         }}
         onNavigateStores={() => {
           setActiveTab("stores");
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        onNavigateProfile={() => {
+          setActiveTab("profile");
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        onOpenWallet={() => setIsWalletOpen(true)}
+        onOpenSupport={() => setIsSupportOpen(true)}
+        onNavigateSettings={() => {
+          setActiveTab("settings");
           setSelectedCategory(null);
           setActiveStorefrontShop(null);
         }}
@@ -1283,6 +1297,36 @@ export default function CustomerHomePage() {
                 </div>
               </div>
             </section>
+          )}
+
+          {/* 7. Full My Profile View (Neon PostgreSQL & Render API Connected) */}
+          {activeTab === "profile" && !selectedCategory && !activeStorefrontShop && (
+            <CustomerProfileView
+              user={user}
+              onUpdateUser={(updated) => setUser(updated)}
+              onNavigateHome={() => setActiveTab("home")}
+              onNavigateOrders={() => {
+                setActiveTab("orders");
+                setSelectedCategory(null);
+                setActiveStorefrontShop(null);
+              }}
+              onOpenAddresses={() => setIsLocationOpen(true)}
+              onOpenWishlist={() => {}}
+              onOpenWallet={() => setIsWalletOpen(true)}
+              onOpenNotifications={() => {}}
+              onOpenSupport={() => setIsSupportOpen(true)}
+              onOpenEditModal={() => {}}
+              wishlistCount={wishlist.length}
+            />
+          )}
+
+          {/* 8. Full Account Settings View */}
+          {activeTab === "settings" && !selectedCategory && !activeStorefrontShop && (
+            <AccountSettingsView
+              user={user}
+              onNavigateHome={() => setActiveTab("home")}
+              onLogout={handleLogout}
+            />
           )}
         </main>
       </div>
