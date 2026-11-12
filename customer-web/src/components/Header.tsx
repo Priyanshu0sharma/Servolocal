@@ -9,7 +9,6 @@ import {
   User,
   ShoppingBag,
   LogOut,
-  ShieldCheck,
   Package,
   HelpCircle,
   QrCode,
@@ -19,7 +18,6 @@ import LocationSelectorModal from "./LocationSelectorModal";
 import WishlistModal from "./WishlistModal";
 import SignInModal from "./SignInModal";
 import NotificationsModal from "./NotificationsModal";
-import AdminDashboardModal from "./AdminDashboardModal";
 import { ProductItem, CartItem, UserProfile } from "@/types";
 
 interface HeaderProps {
@@ -73,7 +71,6 @@ export default function Header({
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
@@ -255,20 +252,6 @@ export default function Header({
                         <span>Saved Addresses</span>
                       </button>
 
-                      {user.role === "admin" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAccountOpen(false);
-                            setIsAdminOpen(true);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-[#075C2A] bg-[#EAF7EE]/60 hover:bg-[#EAF7EE] flex items-center gap-3 transition-colors cursor-pointer"
-                        >
-                          <ShieldCheck className="w-4 h-4 text-[#078B35]" />
-                          <span>Admin Console</span>
-                        </button>
-                      )}
-
                       <a
                         href="https://servolocal.vercel.app"
                         target="_blank"
@@ -351,12 +334,6 @@ export default function Header({
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
-      />
-
-      <AdminDashboardModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-        adminEmail={user?.email || "Priyanshusharma1131@gmail.com"}
       />
     </>
   );
