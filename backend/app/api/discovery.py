@@ -118,20 +118,23 @@ async def search_suggest(
             .limit(15)
         )
         items = res.scalars().all()
-        products_out = [
-            {
-                "id": p.id,
-                "name": p.name,
-                "category": p.category,
-                "sub_category": p.sub_category,
-                "selling_price": p.selling_price,
-                "mrp": p.mrp,
-                "image_url": p.image_url,
-                "weight_or_size": p.weight_or_size,
-                "shop_id": p.shop_id,
-            }
-            for p in items
-        ]
+        seen_names = set()
+        products_out = []
+        for p in items:
+            normalized_name = p.name.strip().lower()
+            if normalized_name not in seen_names:
+                seen_names.add(normalized_name)
+                products_out.append({
+                    "id": p.master_item_id or p.id,
+                    "name": p.name,
+                    "category": p.category,
+                    "sub_category": p.sub_category,
+                    "selling_price": p.selling_price,
+                    "mrp": p.mrp,
+                    "image_url": p.image_url,
+                    "weight_or_size": p.weight_or_size,
+                    "shop_id": p.shop_id,
+                })
         return {
             "query": q,
             "count": len(products_out),
