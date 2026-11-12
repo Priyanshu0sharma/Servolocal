@@ -260,3 +260,4 @@ async def get_product_offers(
         "total_offers": len(offers),
         "offers": offers,
     }
+

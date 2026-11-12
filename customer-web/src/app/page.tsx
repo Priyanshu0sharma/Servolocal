@@ -471,6 +471,7 @@ export default function CustomerHomePage() {
                 setActiveStorefrontShop({ name, id });
                 setSelectedCategory(null);
               }}
+              onSelectProduct={(prod) => setSelectedProductForModal(prod as ProductItem)}
             />
           )}
 

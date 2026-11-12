@@ -22,6 +22,7 @@ interface BlinkitSplitViewStorefrontProps {
   onUpdateCartQuantity: (inventoryId: number, qty: number) => void;
   onClose: () => void;
   onSelectShop?: (shopName: string, shopId?: number) => void;
+  onSelectProduct?: (product: ProductItem) => void;
 }
 
 export default function BlinkitSplitViewStorefront({
@@ -34,6 +35,7 @@ export default function BlinkitSplitViewStorefront({
   onUpdateCartQuantity,
   onClose,
   onSelectShop,
+  onSelectProduct,
 }: BlinkitSplitViewStorefrontProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubCatId, setSelectedSubCatId] = useState<string>("all");
@@ -223,7 +225,8 @@ export default function BlinkitSplitViewStorefront({
               return (
                 <div
                   key={product.id}
-                  className="bg-white rounded-2xl border border-[#E8ECE9] p-3 flex flex-col justify-between hover:shadow-md transition-shadow group relative"
+                  onClick={() => onSelectProduct && onSelectProduct(product as ProductItem)}
+                  className="bg-white rounded-2xl border border-[#E8ECE9] p-3 flex flex-col justify-between hover:shadow-md transition-shadow group relative cursor-pointer"
                 >
                   <div>
                     {/* Centered Image with Veg & Discount Badge */}
@@ -250,11 +253,12 @@ export default function BlinkitSplitViewStorefront({
                     {/* Local Store Badge */}
                     <button
                       type="button"
-                      onClick={() =>
-                        onSelectShop &&
-                        product.shop_name &&
-                        onSelectShop(product.shop_name, product.shop_id)
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectShop && product.shop_name) {
+                          onSelectShop(product.shop_name, product.shop_id);
+                        }
+                      }}
                       className="w-full text-left px-1.5 py-0.5 rounded-md bg-[#EAF7EE] hover:bg-[#d6f0dd] text-[#075C2A] text-[9.5px] font-bold truncate flex items-center justify-between gap-1 mb-1 transition-colors cursor-pointer"
                       title={`Sold by ${product.shop_name || "Verified Local Store"}`}
                     >
@@ -275,13 +279,16 @@ export default function BlinkitSplitViewStorefront({
                     </div>
 
                     {/* Product Title */}
-                    <h4 className="font-semibold text-xs text-[#171717] line-clamp-2 leading-snug h-8">
+                    <h4 className="font-semibold text-xs text-[#171717] line-clamp-2 leading-snug h-8 hover:text-[#078B35] transition-colors">
                       {product.name}
                     </h4>
                   </div>
 
                   {/* Price & Blinkit ADD Button */}
-                  <div className="mt-2 pt-2 border-t border-[#E8ECE9] flex items-center justify-between">
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-2 pt-2 border-t border-[#E8ECE9] flex items-center justify-between"
+                  >
                     <div>
                       <span className="text-xs sm:text-sm font-bold text-[#171717] block leading-none">
                         ₹{displayPrice}

@@ -84,6 +84,7 @@ export default function ProductDetailsModal({
   const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
   const [offers, setOffers] = useState<SellerOfferItem[]>([]);
   const [selectedOfferIndex, setSelectedOfferIndex] = useState(0);
+  const [selectedUnitIdx, setSelectedUnitIdx] = useState(0);
   const [isLoadingOffers, setIsLoadingOffers] = useState(false);
   const [productDetails, setProductDetails] = useState<any>(null);
 
@@ -105,6 +106,7 @@ export default function ProductDetailsModal({
 
     setActiveImageIndex(0);
     setSelectedOfferIndex(0);
+    setSelectedUnitIdx(0);
 
     // Initial fallback gallery
     setGallery([
@@ -169,18 +171,16 @@ export default function ProductDetailsModal({
     };
   }, [product, isOpen, currentLocality]);
 
-  if (!isOpen || !product) return null;
-
   const currentDisplayImage =
-    gallery[activeImageIndex]?.url || product.image_url;
+    gallery[activeImageIndex]?.url || product?.image_url;
   const activeOffer = offers[selectedOfferIndex] || {
-    inventory_id: product.id,
-    shop_id: product.shop_id || 1,
-    shop_name: product.shop_name || "Local Verified Store",
-    selling_price: product.selling_price,
-    mrp: product.mrp,
+    inventory_id: product?.id || 1,
+    shop_id: product?.shop_id || 1,
+    shop_name: product?.shop_name || "Local Verified Store",
+    selling_price: product?.selling_price || 0,
+    mrp: product?.mrp || 0,
     discount_percent:
-      product.mrp > product.selling_price
+      product && product.mrp > product.selling_price
         ? Math.round(
             ((product.mrp - product.selling_price) / product.mrp) * 100
           )
@@ -188,6 +188,61 @@ export default function ProductDetailsModal({
     delivery_mode: "IN_MINUTES",
     fulfillment_time_slot: "⚡ 10-15 Mins",
   };
+
+  const unitOptions = React.useMemo(() => {
+    const baseUnit = product?.unit || productDetails?.unit || "750 ml";
+    const basePrice = activeOffer.selling_price;
+    const baseMrp = activeOffer.mrp || Math.round(basePrice * 1.08);
+    const baseDiscount =
+      baseMrp > basePrice
+        ? Math.round(((baseMrp - basePrice) / baseMrp) * 100)
+        : 0;
+
+    const list = [
+      {
+        id: "single",
+        label: baseUnit,
+        price: basePrice,
+        mrp: baseMrp,
+        discount: baseDiscount,
+        multiplier: 1,
+      },
+    ];
+
+    if (productDetails?.variants && productDetails.variants.length > 0) {
+      productDetails.variants.forEach((v: any) => {
+        list.push({
+          id: `var_${v.id}`,
+          label: v.unit,
+          price: v.selling_price,
+          mrp: v.mrp,
+          discount: v.discount_percent || 0,
+          multiplier: 1,
+        });
+      });
+    } else {
+      // Add multipack value option like Blinkit's 2 x 750 ml
+      const multiPrice = Math.round(basePrice * 1.95);
+      const multiMrp = Math.round(baseMrp * 2);
+      const multiDiscount = Math.round(
+        ((multiMrp - multiPrice) / multiMrp) * 100
+      );
+      list.push({
+        id: "multi_2",
+        label: `2 x ${baseUnit}`,
+        price: multiPrice,
+        mrp: multiMrp,
+        discount: multiDiscount,
+        multiplier: 2,
+      });
+    }
+    return list;
+  }, [product, productDetails, activeOffer.selling_price, activeOffer.mrp]);
+
+  const activeUnit = unitOptions[selectedUnitIdx] || unitOptions[0];
+  const activeUnitPrice = activeUnit?.price || activeOffer.selling_price;
+  const activeUnitMrp = activeUnit?.mrp || activeOffer.mrp;
+  const activeUnitDiscount = activeUnit?.discount || activeOffer.discount_percent;
 
   const cartItemForActiveOffer = cart.find(
     (c) => c.inventory_id === activeOffer.inventory_id
@@ -203,6 +258,8 @@ export default function ProductDetailsModal({
   const prevImage = () => {
     setActiveImageIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
   };
+
+  if (!isOpen || !product) return null;
 
   return (
     <div
@@ -377,31 +434,62 @@ export default function ProductDetailsModal({
                 Select Unit
               </span>
               <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  className="px-3.5 py-1.5 rounded-xl border-2 border-[#078B35] bg-[#EAF7EE] text-[#075C2A] text-xs font-bold flex items-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <span>{product.unit || "750 ml"}</span>
-                  <span className="text-[10px] bg-white px-1.5 py-0.5 rounded font-extrabold text-[#078B35]">
-                    ₹{activeOffer.selling_price}
-                  </span>
-                </button>
-                {productDetails?.variants?.map((v: any) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => {
-                      // Navigate or switch to variant
-                    }}
-                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:border-[#078B35] text-gray-700 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <span>{v.unit}</span>
-                    <span className="text-[10px] text-gray-500 font-bold">
-                      ₹{v.selling_price}
-                    </span>
-                  </button>
-                ))}
+                {unitOptions.map((u, idx) => {
+                  const isSelected = selectedUnitIdx === idx;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setSelectedUnitIdx(idx)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? "border-2 border-[#078B35] bg-[#EAF7EE] text-[#075C2A] shadow-2xs"
+                          : "border border-gray-200 bg-white hover:border-[#078B35] text-gray-700"
+                      }`}
+                    >
+                      <span>{u.label}</span>
+                      {u.discount > 0 && (
+                        <span
+                          className={`text-[9.5px] px-1.5 py-0.2 rounded font-extrabold ${
+                            isSelected
+                              ? "bg-[#078B35] text-white"
+                              : "bg-emerald-50 text-[#078B35]"
+                          }`}
+                        >
+                          {u.discount}% OFF
+                        </span>
+                      )}
+                      <span
+                        className={`text-[10px] font-extrabold ${
+                          isSelected ? "text-[#075C2A]" : "text-gray-500"
+                        }`}
+                      >
+                        ₹{u.price}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Current Selected Unit Price & MRP (Blinkit Buy Box) */}
+            <div className="flex items-baseline gap-2 pt-1 pb-1">
+              <span className="text-2xl font-black text-[#2D2319]">
+                ₹{activeUnitPrice}
+              </span>
+              {activeUnitMrp > activeUnitPrice && (
+                <span className="text-xs text-gray-400 line-through">
+                  MRP ₹{activeUnitMrp}
+                </span>
+              )}
+              {activeUnitDiscount > 0 && (
+                <span className="text-[11px] font-extrabold text-[#078B35] bg-[#EAF7EE] px-2 py-0.5 rounded-md">
+                  {activeUnitDiscount}% OFF
+                </span>
+              )}
+              <span className="text-[10.5px] text-gray-400 block ml-auto">
+                (Inclusive of all taxes)
+              </span>
             </div>
 
             {/* ── THE SERVOLOCAL DIFFERENCE: MULTI-VENDOR STORES LIST ─────────── */}
@@ -590,7 +678,7 @@ export default function ProductDetailsModal({
                 </strong>
               </span>
               <span className="text-base font-extrabold text-[#2D2319]">
-                ₹{activeOffer.selling_price}
+                ₹{activeUnitPrice}
               </span>
             </div>
 
@@ -615,7 +703,7 @@ export default function ProductDetailsModal({
                     onAddToCart(product, {
                       shop_id: activeOffer.shop_id,
                       shop_name: activeOffer.shop_name,
-                      selling_price: activeOffer.selling_price,
+                      selling_price: activeUnitPrice,
                       inventory_id: activeOffer.inventory_id,
                     })
                   }
@@ -631,7 +719,7 @@ export default function ProductDetailsModal({
                   onAddToCart(product, {
                     shop_id: activeOffer.shop_id,
                     shop_name: activeOffer.shop_name,
-                    selling_price: activeOffer.selling_price,
+                    selling_price: activeUnitPrice,
                     inventory_id: activeOffer.inventory_id,
                   })
                 }
@@ -639,7 +727,7 @@ export default function ProductDetailsModal({
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span>
-                  Add to Cart • ₹{activeOffer.selling_price}
+                  Add to Cart • ₹{activeUnitPrice}
                 </span>
               </button>
             )}
