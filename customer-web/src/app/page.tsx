@@ -243,6 +243,8 @@ export default function CustomerHomePage() {
     return allProducts.filter((p) => wishlist.includes(p.id));
   }, [allProducts, wishlist]);
 
+  const isPanIndiaMode = (currentLocality || "").toLowerCase().includes("pan-india");
+
   return (
     <div className="min-h-screen bg-[#FFFFFF] flex flex-col font-sans text-[#171717] selection:bg-[#EAF7EE] selection:text-[#078B35]">
       {/* ── Top Header ────────────────────────────────────────────── */}
@@ -310,6 +312,34 @@ export default function CustomerHomePage() {
           {/* 2. Default Home View */}
           {activeTab === "home" && !selectedCategory && !activeStorefrontShop && (
             <>
+              {/* Pan-India Delivery Notification Banner */}
+              {isPanIndiaMode && (
+                <div className="p-4 rounded-2xl bg-[#EAF7EE] border border-[#0C831F]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0C831F] text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <span className="text-xl">📦</span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#075C2A]">
+                        Pan-India Delivery Active for {currentLocality.replace("(Pan-India)", "").trim()}
+                      </h4>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Instant 10-Min grocery is coming soon to your pin code! Verified Pan-India stores deliver via express courier across all India.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleLocalityChange("Kukas, Jaipur", 27.0544, 75.8942);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-[#0C831F] text-[#0C831F] text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Switch to Kukas / Jaipur (10-Min)
+                  </button>
+                </div>
+              )}
+
               {/* Hero Banner */}
               <HeroBanner
                 onExploreStores={() => {
