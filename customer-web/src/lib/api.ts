@@ -55,6 +55,31 @@ export async function verifyOtp(email: string, otp_code: string, role: string = 
   return data;
 }
 
+export async function updateUserProfile(name: string, gender?: string) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ name, gender }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update profile");
+  }
+  const data = await res.json();
+  if (typeof window !== "undefined" && data.user) {
+    const saved = localStorage.getItem("servo_user");
+    const existing = saved ? JSON.parse(saved) : {};
+    const updated = { ...existing, ...data.user, gender: gender || existing.gender };
+    localStorage.setItem("servo_user", JSON.stringify(updated));
+    return updated;
+  }
+  return data;
+}
+
 export async function loginWithPassword(email: string, password: string) {
   const res = await fetch(`${API_BASE_URL}/api/auth/login-password`, {
     method: "POST",

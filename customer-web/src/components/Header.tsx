@@ -12,12 +12,14 @@ import {
   Package,
   HelpCircle,
   QrCode,
+  Edit2,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import LocationSelectorModal from "./LocationSelectorModal";
 import WishlistModal from "./WishlistModal";
 import SignInModal from "./SignInModal";
 import NotificationsModal from "./NotificationsModal";
+import ProfileEditModal from "./ProfileEditModal";
 import { ProductItem, CartItem, UserProfile } from "@/types";
 
 interface HeaderProps {
@@ -72,6 +74,7 @@ export default function Header({
   const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -205,7 +208,7 @@ export default function Header({
                   <div className="w-6 h-6 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
                     {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                   </div>
-                  <span>Account</span>
+                  <span>{user.name ? user.name.split(" ")[0] : "Account"}</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 text-[#171717] transition-transform duration-200 stroke-[2.5] ${
                       isAccountOpen ? "rotate-180" : ""
@@ -217,13 +220,33 @@ export default function Header({
                 {isAccountOpen && (
                   <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in zoom-in-95 duration-150">
                     {/* User Info Header */}
-                    <div className="px-4 pb-3 border-b border-gray-100">
-                      <h4 className="text-sm font-bold text-[#171717] truncate">
-                        {user.email || user.name}
-                      </h4>
-                      <p className="text-[11px] text-[#666666] mt-0.5">
-                        My Account • Customer #{user.id}
-                      </p>
+                    <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-[#171717] truncate">
+                            {user.name || "Customer"}
+                          </h4>
+                          {user.gender && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#EAF7EE] text-[#078B35] font-semibold shrink-0">
+                              {user.gender === "Female" ? "👧 Female" : user.gender === "Other" ? "✨ Other" : "👦 Male"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#666666] truncate mt-0.5">
+                          {user.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAccountOpen(false);
+                          setIsProfileEditOpen(true);
+                        }}
+                        title="Edit Name & Gender"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#078B35] hover:bg-[#EAF7EE] transition-colors cursor-pointer shrink-0"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Menu Items */}
@@ -335,6 +358,18 @@ export default function Header({
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
+
+      {/* Profile Edit Modal */}
+      {user && (
+        <ProfileEditModal
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
+          user={user}
+          onUpdateSuccess={(updatedUser) => {
+            onLoginSuccess(updatedUser);
+          }}
+        />
+      )}
     </>
   );
 }

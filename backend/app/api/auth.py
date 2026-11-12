@@ -30,6 +30,11 @@ class VerifyOtpRequest(BaseModel):
     role: str = "customer"
 
 
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    gender: Optional[str] = None
+
+
 def hash_otp(otp_code: str) -> str:
     """Computes a SHA-256 hash of the OTP code for secure database storage."""
     salt = settings.JWT_SECRET or "servolocal_otp_salt"
@@ -284,4 +289,49 @@ async def get_current_user_profile(
         "role": user.role,
         "servo_coins": user.servo_coins,
         "wallet_balance": user.wallet_balance,
+    }
+
+
+@router.put("/profile")
+async def update_user_profile(
+    payload: UpdateProfileRequest,
+    authorization: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Updates the authenticated customer's Name and personal profile details.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please log in.",
+        )
+
+    token = authorization.split(" ")[1]
+    token_data = decode_token(token)
+
+    stmt = select(User).where(User.id == token_data.get("id"))
+    res = await db.execute(stmt)
+    user = res.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    if payload.name and payload.name.strip():
+        user.name = payload.name.strip()
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "success": True,
+        "message": "Profile updated successfully!",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "servo_coins": user.servo_coins,
+            "wallet_balance": user.wallet_balance,
+        },
     }

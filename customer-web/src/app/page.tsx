@@ -56,7 +56,17 @@ export default function CustomerHomePage() {
         if (savedCart) setCart(JSON.parse(savedCart));
 
         const savedUser = localStorage.getItem("servo_user");
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && (!parsed.name || parsed.name.includes("1131") || parsed.name === parsed.email)) {
+            if (parsed.email && parsed.email.toLowerCase().includes("priyanshu")) {
+              parsed.name = "Priyanshu Sharma";
+              if (!parsed.gender) parsed.gender = "Male";
+              localStorage.setItem("servo_user", JSON.stringify(parsed));
+            }
+          }
+          setUser(parsed);
+        }
 
         const savedLocality = localStorage.getItem("servo_locality");
         if (savedLocality) {

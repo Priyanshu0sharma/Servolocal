@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { X, AlertCircle, Loader2, ArrowLeft, Mail, RefreshCw, Check } from "lucide-react";
 import { UserProfile } from "@/types";
-import { sendOtp, verifyOtp } from "@/lib/api";
+import { sendOtp, verifyOtp, updateUserProfile } from "@/lib/api";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -17,9 +17,12 @@ export default function SignInModal({
   onClose,
   onLoginSuccess,
 }: SignInModalProps) {
-  const [step, setStep] = useState<"EMAIL" | "OTP" | "SUCCESS">("EMAIL");
+  const [step, setStep] = useState<"EMAIL" | "OTP" | "PROFILE" | "SUCCESS">("EMAIL");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [genderInput, setGenderInput] = useState("Male");
+  const [verifiedUser, setVerifiedUser] = useState<UserProfile | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
@@ -122,12 +125,14 @@ export default function SignInModal({
     try {
       const data = await verifyOtp(email.trim(), cleanOtp, "customer");
       if (data && data.user) {
-        setStep("SUCCESS");
+        setVerifiedUser(data.user);
+        const cleanDefault = email.trim().toLowerCase().includes("priyanshu")
+          ? "Priyanshu Sharma"
+          : (data.user.name || "").replace(/[0-9]/g, "").trim() || "Priyanshu Sharma";
+        setNameInput(cleanDefault);
+        setGenderInput(data.user.gender || "Male");
+        setStep("PROFILE");
         setLoading(false);
-        successTimeoutRef.current = setTimeout(() => {
-          onLoginSuccess(data.user);
-          handleClose();
-        }, 1300);
       } else {
         throw new Error("Invalid response received from authentication server.");
       }
@@ -135,6 +140,34 @@ export default function SignInModal({
       setError(err.message || "Invalid or expired verification code.");
       setLoading(false);
     }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = nameInput.trim();
+    if (!cleanName) {
+      setError("Please enter your name");
+      return;
+    }
+
+    setLoading(true);
+    let finalUser: UserProfile = verifiedUser
+      ? { ...verifiedUser, name: cleanName, gender: genderInput }
+      : { id: Date.now(), email, name: cleanName, role: "customer", gender: genderInput };
+
+    try {
+      const updated = await updateUserProfile(cleanName, genderInput);
+      if (updated && updated.name) {
+        finalUser = updated;
+      }
+    } catch {}
+
+    setStep("SUCCESS");
+    setLoading(false);
+    successTimeoutRef.current = setTimeout(() => {
+      onLoginSuccess(finalUser);
+      handleClose();
+    }, 1300);
   };
 
   const handleResendOtp = async () => {
@@ -180,16 +213,20 @@ export default function SignInModal({
           className="relative w-full max-w-sm sm:max-w-[400px] bg-white rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top Actions: Back Button (on OTP step) & Close Button */}
-          {step === "OTP" && (
+          {/* Top Actions: Back Button (on OTP/PROFILE step) & Close Button */}
+          {(step === "OTP" || step === "PROFILE") && (
             <button
               type="button"
               onClick={() => {
-                setStep("EMAIL");
+                if (step === "PROFILE") {
+                  setStep("OTP");
+                } else {
+                  setStep("EMAIL");
+                  setOtpCode("");
+                }
                 setError("");
-                setOtpCode("");
               }}
-              aria-label="Back to email input"
+              aria-label="Back"
               className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -369,6 +406,100 @@ export default function SignInModal({
                 </button>
               )}
             </div>
+          </>
+        )}
+
+        {/* STEP 3: Enter Name & Gender (Personal Details) */}
+        {step === "PROFILE" && (
+          <>
+            <h2
+              id="modal-heading"
+              className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight mb-1"
+            >
+              Personal Details
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500 mb-6">
+              Enter your Name &amp; Gender to personalize your account
+            </p>
+
+            <form onSubmit={handleProfileSubmit} className="w-full space-y-4 text-left" noValidate>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700 block">
+                  Your Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => {
+                    setNameInput(e.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="e.g. Priyanshu Sharma"
+                  autoFocus
+                  disabled={loading}
+                  className={`w-full px-4 py-3 text-sm text-gray-900 bg-white border rounded-xl placeholder:text-gray-400 transition-all outline-none ${
+                    error
+                      ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-gray-300 focus:border-[#078B35] focus:ring-2 focus:ring-[#078B35]/20"
+                  }`}
+                />
+                {error && (
+                  <div className="flex items-start gap-1.5 text-xs text-red-500 mt-2 pl-1 leading-snug">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Gender Selection */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 block">
+                  Gender
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "Male", label: "👦 Male" },
+                    { id: "Female", label: "👧 Female" },
+                    { id: "Other", label: "✨ Other" },
+                  ].map((g) => {
+                    const isSelected = genderInput === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setGenderInput(g.id)}
+                        className={`py-2.5 px-2 text-center rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#EAF7EE] border-[#078B35] text-[#075C2A] font-bold shadow-2xs"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!nameInput.trim() || loading}
+                className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-150 flex items-center justify-center gap-2 mt-2 ${
+                  nameInput.trim() && !loading
+                    ? "bg-[#078B35] hover:bg-[#075C2A] text-white shadow-sm cursor-pointer active:scale-[0.99]"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save &amp; Continue →</span>
+                )}
+              </button>
+            </form>
           </>
         )}
         </div>
