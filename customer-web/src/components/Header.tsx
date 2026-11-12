@@ -141,7 +141,15 @@ export default function Header({
           <div className="flex items-center gap-4 sm:gap-5 shrink-0">
             {/* Logo matching exact reference */}
             <div
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  if (window.location.pathname === "/") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  } else {
+                    window.location.href = "/";
+                  }
+                }
+              }}
               className="flex items-center gap-2.5 cursor-pointer group"
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden shadow-2xs border border-gray-200 bg-white">
@@ -278,6 +286,7 @@ export default function Header({
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onNavigateProfile) onNavigateProfile();
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=profile";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df] flex items-center justify-between transition-colors cursor-pointer group"
                       >
@@ -294,6 +303,7 @@ export default function Header({
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onNavigateOrders) onNavigateOrders();
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=orders";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
@@ -309,7 +319,7 @@ export default function Header({
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
-                          handleOpenLocation();
+                          if (typeof window !== "undefined") window.location.href = "/account?tab=addresses";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
@@ -326,7 +336,7 @@ export default function Header({
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onOpenWishlist) onOpenWishlist();
-                          else setIsWishlistOpen(true);
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=wishlist";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
@@ -343,6 +353,7 @@ export default function Header({
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onOpenWallet) onOpenWallet();
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=wallet";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >
@@ -395,6 +406,7 @@ export default function Header({
                         onClick={() => {
                           setIsAccountOpen(false);
                           if (onNavigateSettings) onNavigateSettings();
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=privacy";
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
                       >

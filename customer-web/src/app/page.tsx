@@ -527,9 +527,7 @@ export default function CustomerHomePage() {
         onOpenSignIn={() => setIsSignInOpen(true)}
         onCloseSignIn={() => setIsSignInOpen(false)}
         onNavigateOrders={() => {
-          setActiveTab("orders");
-          setSelectedCategory(null);
-          setActiveStorefrontShop(null);
+          if (typeof window !== "undefined") window.location.href = "/account?tab=orders";
         }}
         onNavigateOffers={() => {
           setActiveTab("offers");
@@ -542,16 +540,14 @@ export default function CustomerHomePage() {
           setActiveStorefrontShop(null);
         }}
         onNavigateProfile={() => {
-          setActiveTab("profile");
-          setSelectedCategory(null);
-          setActiveStorefrontShop(null);
+          if (typeof window !== "undefined") window.location.href = "/account?tab=profile";
         }}
-        onOpenWallet={() => setIsWalletOpen(true)}
+        onOpenWallet={() => {
+          if (typeof window !== "undefined") window.location.href = "/account?tab=wallet";
+        }}
         onOpenSupport={() => setIsSupportOpen(true)}
         onNavigateSettings={() => {
-          setActiveTab("settings");
-          setSelectedCategory(null);
-          setActiveStorefrontShop(null);
+          if (typeof window !== "undefined") window.location.href = "/account?tab=privacy";
         }}
       />
 
