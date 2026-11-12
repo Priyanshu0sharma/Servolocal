@@ -15,6 +15,7 @@ export interface ProductItem {
   selling_price: number;
   mrp: number;
   rating?: number;
+  unit?: string;
   image_url: string;
   in_stock: boolean;
   available_stock?: number;

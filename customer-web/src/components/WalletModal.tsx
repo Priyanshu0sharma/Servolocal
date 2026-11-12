@@ -155,3 +155,4 @@ export default function WalletModal({ isOpen, onClose, user }: WalletModalProps)
     </div>
   );
 }
+

@@ -186,3 +186,4 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     </div>
   );
 }
+

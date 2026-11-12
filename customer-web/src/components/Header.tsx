@@ -13,6 +13,7 @@ import {
   HelpCircle,
   QrCode,
   Edit2,
+  Tag,
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import LocationSelectorModal from "./LocationSelectorModal";
@@ -39,6 +40,7 @@ interface HeaderProps {
   onOpenSignIn?: () => void;
   onCloseSignIn?: () => void;
   onNavigateOrders?: () => void;
+  onNavigateOffers?: () => void;
   isLocationOpen?: boolean;
   onOpenLocation?: () => void;
   onCloseLocation?: () => void;
@@ -61,6 +63,7 @@ export default function Header({
   onOpenSignIn,
   onCloseSignIn,
   onNavigateOrders,
+  onNavigateOffers,
   isLocationOpen: propLocationOpen,
   onOpenLocation,
   onCloseLocation,
@@ -102,115 +105,125 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#FFFFFF] border-b border-[#E8ECE9] h-[84px] flex items-center select-none shadow-2xs">
-        <div className="w-full max-w-[1440px] mx-auto px-4 md:px-7 flex items-center justify-between gap-4 md:gap-7">
+      <header className="sticky top-0 z-40 bg-[#FDFBF7] border-b border-[#EFECE6] h-[78px] flex items-center select-none shadow-2xs transition-colors">
+        <div className="w-full max-w-[1440px] mx-auto px-3 sm:px-6 flex items-center justify-between gap-3 sm:gap-6">
           
           {/* ── Left: Logo & Location Selector ──────────────────────── */}
-          <div className="flex items-center gap-6 shrink-0">
-            {/* Logo */}
+          <div className="flex items-center gap-4 sm:gap-5 shrink-0">
+            {/* Logo matching exact reference */}
             <div
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               className="flex items-center gap-2.5 cursor-pointer group"
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden shadow-2xs border border-gray-100 bg-white">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden shadow-2xs border border-gray-200 bg-white">
                 <img
                   src="/servolocallogo.jpeg"
                   alt="ServoLocal"
+                  width={36}
+                  height={36}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-[20px] font-bold tracking-tight text-[#171717] leading-none">
+                <span className="text-[20px] font-extrabold tracking-tight text-[#2D2319] leading-none">
                   ServoLocal
                 </span>
-                <span className="text-[10.5px] text-[#666666] font-medium tracking-wide mt-1 leading-none">
-                  Local Shops • Nearby • Fast
+                <span className="text-[10px] text-[#8C7663] font-medium tracking-wide mt-1 leading-none">
+                  Your Local Shops, Now Online
                 </span>
               </div>
             </div>
 
-            {/* Delivery in 10-15 minutes / Location Selector Matching Blinkit UI */}
+            {/* Deliver to Location Selector Matching Mockup */}
             <div
               onClick={handleOpenLocation}
-              className="hidden sm:flex items-center gap-2 cursor-pointer group pl-2"
+              className="hidden sm:flex items-center gap-2 cursor-pointer group pl-2 border-l border-gray-200"
             >
-              <MapPin className="w-5 h-5 text-[#078B35] fill-[#078B35] shrink-0" />
+              <div className="w-7 h-7 rounded-full bg-emerald-50 text-[#078B35] flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 fill-[#078B35]" />
+              </div>
               <div className="flex flex-col text-left">
-                <span className="text-[10.5px] text-[#666666] font-normal leading-none">
-                  Delivery in 10-15 minutes
+                <span className="text-[10px] text-[#8C7663] font-semibold uppercase tracking-wider leading-none">
+                  Deliver to
                 </span>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[13.5px] font-bold text-[#171717] leading-none group-hover:text-[#078B35] transition-colors">
+                  <span className="text-[13px] font-bold text-[#2D2319] leading-none group-hover:text-[#078B35] transition-colors max-w-[130px] lg:max-w-[170px] truncate">
                     {currentLocality || "Select Location"}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-[#171717] group-hover:text-[#078B35] transition-colors stroke-[2.5]" />
+                  <ChevronDown className="w-3.5 h-3.5 text-[#2D2319] group-hover:text-[#078B35] transition-colors stroke-[2.5]" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* ── Center: Search Bar ──────────────────────────────────── */}
-          <div className="flex-1 max-w-[560px] mx-2">
+          <div className="flex-1 max-w-[560px] mx-1 sm:mx-2">
             <SearchBar
               products={products}
               onAddToCart={onAddToCart}
             />
           </div>
 
-          {/* ── Right: Wishlist, Notifications, Sign In / Profile ───── */}
-          <div className="flex items-center gap-3.5 shrink-0">
-            {/* Wishlist Button */}
+          {/* ── Right: Offers, Orders, Cart, Profile ────────────────── */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Offers Button (Mockup Reference) */}
             <button
               type="button"
-              onClick={() => setIsWishlistOpen(true)}
-              title="Wishlist"
-              className="relative p-2 rounded-full text-[#171717] hover:bg-[#F9FAFB] hover:text-[#078B35] transition-colors cursor-pointer"
+              onClick={() => {
+                if (onNavigateOffers) onNavigateOffers();
+              }}
+              title="Offers & Discounts"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
             >
-              <Heart className="w-5 h-5" />
-              {wishlistCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#078B35] text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
-                  {wishlistCount}
-                </span>
-              )}
+              <Tag className="w-4 h-4 text-amber-600" />
+              <span>Offers</span>
             </button>
 
-            {/* Notifications Button with Red Dot Badge */}
+            {/* Orders Button (Mockup Reference) */}
             <button
               type="button"
-              onClick={() => setIsNotificationsOpen(true)}
-              title="Notifications"
-              className="relative p-2 rounded-full text-[#171717] hover:bg-[#F9FAFB] hover:text-[#078B35] transition-colors cursor-pointer"
+              onClick={() => {
+                if (onNavigateOrders) onNavigateOrders();
+              }}
+              title="My Orders"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
             >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
+              <Package className="w-4 h-4 text-emerald-600" />
+              <span>Orders</span>
             </button>
 
-            {/* Cart Pill (if items in cart) */}
-            {totalCartItems > 0 && (
-              <button
-                type="button"
-                onClick={onOpenCart}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-xs cursor-pointer animate-in fade-in"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>{totalCartItems}</span>
-              </button>
-            )}
+            {/* Cart Button with Count Badge (Mockup Reference) */}
+            <button
+              type="button"
+              onClick={onOpenCart}
+              title="View Cart"
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
+            >
+              <div className="relative">
+                <ShoppingBag className="w-4 h-4 text-gray-700" />
+                {totalCartItems > 0 && (
+                  <span className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                    {totalCartItems}
+                  </span>
+                )}
+              </div>
+              <span className="hidden sm:inline">Cart</span>
+            </button>
 
-            {/* Sign In / Account Dropdown (Exact Authentic Blinkit Style) */}
+            {/* Sign In / Account Dropdown */}
             {user ? (
-              <div className="relative pl-1 border-l border-[#E8ECE9]" ref={accountMenuRef}>
+              <div className="relative pl-1" ref={accountMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsAccountOpen((prev) => !prev)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#F4F6F5] text-[#171717] transition-colors cursor-pointer select-none font-semibold text-sm"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-gray-200 text-[#2D2319] hover:border-[#078B35] transition-all cursor-pointer select-none font-bold text-xs shadow-2xs"
                 >
-                  <div className="w-6 h-6 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
+                  <div className="w-6 h-6 rounded-lg bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold text-xs">
                     {user.name ? user.name.charAt(0).toUpperCase() : "U"}
                   </div>
-                  <span>{user.name ? user.name.split(" ")[0] : "Account"}</span>
+                  <span className="hidden sm:inline max-w-[80px] truncate">{user.name ? user.name.split(" ")[0] : "Account"}</span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-[#171717] transition-transform duration-200 stroke-[2.5] ${
+                    className={`w-3 h-3 text-[#2D2319] transition-transform duration-200 stroke-[2.5] ${
                       isAccountOpen ? "rotate-180" : ""
                     }`}
                   />
@@ -322,9 +335,9 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleOpenSignIn}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#171717] hover:text-[#078B35] px-2.5 py-1.5 rounded-full hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
               >
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4" />
                 <span>Sign In</span>
               </button>
             )}

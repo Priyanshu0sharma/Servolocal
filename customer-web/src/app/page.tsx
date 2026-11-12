@@ -3,9 +3,19 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ArrowRight, Store, Tag, ShoppingBag, Zap, Utensils, Package, Coins, HelpCircle, Truck, Clock } from "lucide-react";
 
+import AnnouncementBar from "@/components/AnnouncementBar";
 import Header from "@/components/Header";
 import Sidebar, { SidebarTab } from "@/components/Sidebar";
 import HeroBanner from "@/components/HeroBanner";
+import DeliveryModesStrip, { DeliveryMode } from "@/components/DeliveryModesStrip";
+import CategoriesSection from "@/components/CategoriesSection";
+import PromoBannersSection from "@/components/PromoBannersSection";
+import PopularShopsSection, { ShopItem } from "@/components/PopularShopsSection";
+import TrendingProductsSection from "@/components/TrendingProductsSection";
+import BenefitsStrip from "@/components/BenefitsStrip";
+import HowItWorksSection from "@/components/HowItWorksSection";
+import AppPromoBanner from "@/components/AppPromoBanner";
+import Footer from "@/components/Footer";
 import CategoryCard, { CATEGORIES_DATA } from "@/components/CategoryCard";
 import ProductCard from "@/components/ProductCard";
 import SmartCartDrawer from "@/components/SmartCartDrawer";
@@ -18,6 +28,7 @@ import SupportModal from "@/components/SupportModal";
 
 import { ProductItem, CartItem, UserProfile, CategoryItem } from "@/types";
 import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
+import { getDiscoveryFeed } from "@/lib/api";
 
 export default function CustomerHomePage() {
   // ── 1. Locality & GPS State ───────────────────────────────────────────────
@@ -39,18 +50,24 @@ export default function CustomerHomePage() {
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
 
-  // ── 4. User Session State ─────────────────────────────────────────────────
+  // ── 4. Real Database Feeds (PostgreSQL via FastAPI Backend) ───────────────
+  const [dbShops, setDbShops] = useState<ShopItem[]>([]);
+  const [dbProducts, setDbProducts] = useState<ProductItem[]>([]);
+  const [activeDeliveryMode, setActiveDeliveryMode] = useState<DeliveryMode>("MINUTES");
+  const [, setIsFeedLoading] = useState(true);
+
+  // ── 5. User Session State ─────────────────────────────────────────────────
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
 
-  // ── 4. Cart & Drawer State ────────────────────────────────────────────────
+  // ── 6. Cart & Drawer State ────────────────────────────────────────────────
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // ── 5. Active Order State (Live 10-15 Min Tracking) ───────────────────────
+  // ── 7. Active Order State (Live 10-15 Min Tracking) ───────────────────────
   const [activeOrder, setActiveOrder] = useState<ActiveOrderData | null>(null);
 
-  // ── 6. Wishlist State (Persisted) ─────────────────────────────────────────
+  // ── 8. Wishlist State (Persisted) ─────────────────────────────────────────
   const [wishlist, setWishlist] = useState<number[]>([]);
 
   // Load persisted state from localStorage on mount
@@ -89,6 +106,39 @@ export default function CustomerHomePage() {
       } catch {}
     }
   }, []);
+
+  // Fetch real database records from Neon PostgreSQL via FastAPI discovery feed
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchLiveFeed() {
+      setIsFeedLoading(true);
+      try {
+        const feedMode = activeDeliveryMode === "PAN_INDIA" ? "PAN_INDIA" : "LOCAL";
+        const data = await getDiscoveryFeed(
+          27.0544,
+          75.8942,
+          feedMode,
+          currentLocality || "Kukas, Jaipur"
+        );
+        if (isMounted && data) {
+          if (data.shops && data.shops.length > 0) {
+            setDbShops(data.shops);
+          }
+          if (data.all_products && data.all_products.length > 0) {
+            setDbProducts(data.all_products);
+          }
+        }
+      } catch (err) {
+        console.error("Live backend feed error:", err);
+      } finally {
+        if (isMounted) setIsFeedLoading(false);
+      }
+    }
+    fetchLiveFeed();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentLocality, activeDeliveryMode]);
 
   const handleLocalityChange = (locality: string, lat: number, lng: number) => {
     setCurrentLocality(locality);
@@ -206,8 +256,26 @@ export default function CustomerHomePage() {
     }
   };
 
-  // Convert Master Products to ProductItem
+  // Real Database Products (Primary from live Neon PostgreSQL, with local backup)
   const allProducts: ProductItem[] = useMemo(() => {
+    if (dbProducts.length > 0) {
+      return dbProducts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        brand: p.brand || "Local Store",
+        category: p.category,
+        sub_category: p.sub_category,
+        selling_price: p.selling_price,
+        mrp: p.mrp || p.selling_price,
+        rating: p.rating || 4.7,
+        image_url: p.image_url,
+        in_stock: p.in_stock !== false,
+        available_stock: p.available_stock || 50,
+        shop_id: p.shop_id || 1,
+        shop_name: p.shop_name || "Verified Local Store",
+        local_eta_mins: p.local_eta_mins || "⚡ 10 mins",
+      }));
+    }
     return MASTER_PRODUCTS.map((p) => ({
       id: p.id,
       name: p.name,
@@ -233,7 +301,25 @@ export default function CustomerHomePage() {
       shop_name: p.shop_name,
       local_eta_mins: p.local_eta_mins,
     }));
-  }, []);
+  }, [dbProducts]);
+
+  // Real Database Shops (Primary from live Neon PostgreSQL)
+  const currentShops: ShopItem[] = useMemo(() => {
+    if (dbShops.length > 0) return dbShops;
+    return MASTER_SHOPS.map((s) => ({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+      image_url: s.image_url,
+      is_open: true,
+      rating: s.rating,
+      locality_name: s.locality_name,
+      distance_km: s.distance_km,
+      local_eta_mins: s.local_eta_mins,
+      free_delivery_enabled: s.free_delivery_enabled,
+      is_verified: true,
+    }));
+  }, [dbShops]);
 
   // 4 Showcase Products with Real High-Definition Images
   const popularNearYouProducts: ProductItem[] = useMemo(() => {
@@ -288,7 +374,13 @@ export default function CustomerHomePage() {
   const isPanIndiaMode = (currentLocality || "").toLowerCase().includes("pan-india");
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] flex flex-col font-sans text-[#171717] selection:bg-[#EAF7EE] selection:text-[#078B35]">
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col font-sans text-[#2D2319] selection:bg-[#EAF7EE] selection:text-[#078B35]">
+      {/* ── Top Announcement Bar ──────────────────────────────────── */}
+      <AnnouncementBar
+        currentLocality={currentLocality}
+        onOpenLocation={() => setIsLocationOpen(true)}
+      />
+
       {/* ── Top Header ────────────────────────────────────────────── */}
       <Header
         currentLocality={currentLocality}
@@ -310,6 +402,7 @@ export default function CustomerHomePage() {
         onOpenSignIn={() => setIsSignInOpen(true)}
         onCloseSignIn={() => setIsSignInOpen(false)}
         onNavigateOrders={() => setActiveTab("orders")}
+        onNavigateOffers={() => setActiveTab("offers")}
       />
 
       {/* ── Body: Sidebar + Main Content ──────────────────────────── */}
@@ -317,6 +410,11 @@ export default function CustomerHomePage() {
         {/* Left Sticky Sidebar */}
         <Sidebar
           activeTab={activeTab}
+          selectedCategory={selectedCategory}
+          onSelectCategory={(cat) => {
+            setSelectedCategory(cat);
+            setActiveStorefrontShop(null);
+          }}
           onTabChange={(tab) => {
             if (tab === "wallet") {
               setIsWalletOpen(true);
@@ -330,6 +428,7 @@ export default function CustomerHomePage() {
             setSelectedCategory(null);
             setActiveStorefrontShop(null);
           }}
+          onExploreStores={() => setActiveTab("stores")}
           ordersCount={activeOrder ? 1 : 0}
           walletBalance={user?.wallet_balance || user?.servo_coins || 150}
         />
@@ -389,157 +488,60 @@ export default function CustomerHomePage() {
                 </div>
               )}
 
-              {/* Hero Banner */}
+              {/* 1. Hero Banner Carousel */}
               <HeroBanner
-                onExploreStores={() => {
-                  setActiveTab("stores");
+                onShopNow={() => {
+                  setActiveTab("grocery");
                 }}
               />
 
-              {/* Shop by Category Section */}
-              <section className="space-y-3.5 select-none">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">
-                    Shop by Category
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("grocery")}
-                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
-                  >
-                    <span>See All Categories</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
+              {/* 2. Choose Delivery Mode That Suits You (In Minutes, In 1 Day, Pan India) */}
+              <DeliveryModesStrip
+                activeMode={activeDeliveryMode}
+                onSelectMode={(mode) => setActiveDeliveryMode(mode)}
+              />
 
-                <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3">
-                  {CATEGORIES_DATA.map((cat) => (
-                    <CategoryCard
-                      key={cat.id}
-                      category={cat}
-                      isSelected={selectedCategory === cat.name}
-                      onClick={(c: CategoryItem) => setSelectedCategory(c.name)}
-                    />
-                  ))}
-                </div>
-              </section>
+              {/* 3. Shop by Category with 3D Icons */}
+              <CategoriesSection
+                onSelectCategory={(categoryName) => setSelectedCategory(categoryName)}
+                onViewAll={() => setActiveTab("grocery")}
+              />
 
-              {/* Popular Near You Section (4 Showcase Cards) */}
-              <section className="space-y-3.5 select-none">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">
-                    Popular Near You
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("grocery")}
-                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
-                  >
-                    <span>See All</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
+              {/* 4. Three Promotional Banners (Daily Essentials, Food Fiesta, Electronics Deals) */}
+              <PromoBannersSection
+                onSelectCategory={(categoryName) => setSelectedCategory(categoryName)}
+              />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {popularNearYouProducts.map((product) => {
-                    const cartItem = cart.find(
-                      (item) => item.inventory_id === product.id
-                    );
-                    return (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isWishlisted={wishlist.includes(product.id)}
-                        onToggleWishlist={toggleWishlist}
-                        cartQuantity={cartItem ? cartItem.quantity : 0}
-                        onAddToCart={handleAddToCart}
-                        onUpdateCartQuantity={handleUpdateCartQuantity}
-                        onClickProduct={(p) => setSelectedProductForModal(p)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
+              {/* 5. Popular Local Shops Near Locality (Direct from Live Database) */}
+              <PopularShopsSection
+                currentLocality={currentLocality}
+                shops={currentShops}
+                onSelectShop={(name, id) => {
+                  setActiveStorefrontShop({ name, id });
+                }}
+                onViewAll={() => setActiveTab("stores")}
+              />
 
-              {/* Real Dairy, Bread & Morning Essentials Shelf */}
-              <section className="space-y-3.5 select-none pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🥛</span>
-                    <h2 className="text-xl font-bold tracking-tight text-[#171717]">
-                      Dairy, Bread &amp; Fresh Milk
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory("Dairy, Bread & Eggs")}
-                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
-                  >
-                    <span>Explore Dairy</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
+              {/* 6. Trending Near You Products (Direct from Live Database) */}
+              <TrendingProductsSection
+                products={allProducts}
+                wishlist={wishlist}
+                onToggleWishlist={toggleWishlist}
+                cart={cart}
+                onAddToCart={handleAddToCart}
+                onUpdateCartQuantity={handleUpdateCartQuantity}
+                onClickProduct={(product) => setSelectedProductForModal(product)}
+                onViewAll={() => setActiveTab("grocery")}
+              />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {dailyDairyProducts.map((product) => {
-                    const cartItem = cart.find(
-                      (item) => item.inventory_id === product.id
-                    );
-                    return (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isWishlisted={wishlist.includes(product.id)}
-                        onToggleWishlist={toggleWishlist}
-                        cartQuantity={cartItem ? cartItem.quantity : 0}
-                        onAddToCart={handleAddToCart}
-                        onUpdateCartQuantity={handleUpdateCartQuantity}
-                        onClickProduct={(p) => setSelectedProductForModal(p)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
+              {/* 7. Why Shop on ServoLocal? (5 Benefits Strip) */}
+              <BenefitsStrip />
 
-              {/* Real Snacks, Munchies & Cold Drinks Shelf */}
-              <section className="space-y-3.5 select-none pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🍟</span>
-                    <h2 className="text-xl font-bold tracking-tight text-[#171717]">
-                      Snacks, Munchies &amp; Cold Drinks
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory("Snacks & Munchies")}
-                    className="text-xs font-semibold text-[#078B35] hover:text-[#075C2A] flex items-center gap-1 transition-colors cursor-pointer group"
-                  >
-                    <span>Explore Snacks</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
+              {/* 8. How ServoLocal Works? (4 Steps) */}
+              <HowItWorksSection />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {snacksAndMunchiesProducts.map((product) => {
-                    const cartItem = cart.find(
-                      (item) => item.inventory_id === product.id
-                    );
-                    return (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isWishlisted={wishlist.includes(product.id)}
-                        onToggleWishlist={toggleWishlist}
-                        cartQuantity={cartItem ? cartItem.quantity : 0}
-                        onAddToCart={handleAddToCart}
-                        onUpdateCartQuantity={handleUpdateCartQuantity}
-                        onClickProduct={(p) => setSelectedProductForModal(p)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
+              {/* 9. ServoLocal App Coming Soon Banner */}
+              <AppPromoBanner />
             </>
           )}
 
@@ -937,6 +939,17 @@ export default function CustomerHomePage() {
           );
         })}
       </nav>
+
+      {/* ── Global Footer ─────────────────────────────────────────── */}
+      <Footer
+        onNavigateTab={(tab) => {
+          setActiveTab(tab as any);
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        onOpenSupport={() => setIsSupportOpen(true)}
+        onOpenLocation={() => setIsLocationOpen(true)}
+      />
     </div>
   );
 }
