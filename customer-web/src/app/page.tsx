@@ -469,6 +469,7 @@ export default function CustomerHomePage() {
         cart={cart}
         onOpenCart={() => setIsCartOpen(true)}
         onAddToCart={handleAddToCart}
+        onSelectProduct={(p) => setSelectedProductForModal(p)}
         user={user}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}

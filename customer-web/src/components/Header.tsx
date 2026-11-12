@@ -33,6 +33,7 @@ interface HeaderProps {
   cart: CartItem[];
   onOpenCart: () => void;
   onAddToCart: (product: ProductItem) => void;
+  onSelectProduct?: (product: ProductItem) => void;
   user: UserProfile | null;
   onLoginSuccess: (user: UserProfile) => void;
   onLogout: () => void;
@@ -56,6 +57,7 @@ export default function Header({
   cart,
   onOpenCart,
   onAddToCart,
+  onSelectProduct,
   user,
   onLoginSuccess,
   onLogout,
@@ -102,6 +104,7 @@ export default function Header({
   const handleCloseSignIn = onCloseSignIn || (() => setInternalSignInOpen(false));
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <>
@@ -134,24 +137,19 @@ export default function Header({
               </div>
             </div>
 
-            {/* Deliver to Location Selector Matching Mockup */}
+            {/* Deliver to Location Selector (Blinkit Exact Style) */}
             <div
               onClick={handleOpenLocation}
-              className="hidden sm:flex items-center gap-2 cursor-pointer group pl-2 border-l border-gray-200"
+              className="hidden sm:flex flex-col text-left cursor-pointer group pl-3 border-l border-gray-200 select-none"
             >
-              <div className="w-7 h-7 rounded-full bg-emerald-50 text-[#078B35] flex items-center justify-center shrink-0">
-                <MapPin className="w-4 h-4 fill-[#078B35]" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] text-[#8C7663] font-semibold uppercase tracking-wider leading-none">
-                  Deliver to
+              <span className="text-[12px] font-black text-[#171717] leading-tight">
+                Delivery in 10 minutes
+              </span>
+              <div className="flex items-center gap-1 text-[11px] text-[#666666] leading-tight mt-0.5">
+                <span className="max-w-[130px] lg:max-w-[170px] truncate font-medium group-hover:text-[#0C831F] transition-colors">
+                  {currentLocality || "Select Location"}
                 </span>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[13px] font-bold text-[#2D2319] leading-none group-hover:text-[#078B35] transition-colors max-w-[130px] lg:max-w-[170px] truncate">
-                    {currentLocality || "Select Location"}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-[#2D2319] group-hover:text-[#078B35] transition-colors stroke-[2.5]" />
-                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-[#171717] group-hover:text-[#0C831F] transition-colors stroke-[2.5]" />
               </div>
             </div>
           </div>
@@ -161,6 +159,7 @@ export default function Header({
             <SearchBar
               products={products}
               onAddToCart={onAddToCart}
+              onSelectProduct={onSelectProduct}
             />
           </div>
 
@@ -192,23 +191,32 @@ export default function Header({
               <span>Orders</span>
             </button>
 
-            {/* Cart Button with Count Badge (Mockup Reference) */}
-            <button
-              type="button"
-              onClick={onOpenCart}
-              title="View Cart"
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer"
-            >
-              <div className="relative">
-                <ShoppingBag className="w-4 h-4 text-gray-700" />
-                {totalCartItems > 0 && (
-                  <span className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                    {totalCartItems}
+            {/* Signature Blinkit Green Cart Pill */}
+            {totalCartItems > 0 ? (
+              <button
+                type="button"
+                onClick={onOpenCart}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-[#0C831F] hover:bg-[#096B19] text-white font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                <ShoppingBag className="w-4 h-4 text-white shrink-0" />
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span>
+                    {totalCartItems} {totalCartItems === 1 ? "item" : "items"}
                   </span>
-                )}
-              </div>
-              <span className="hidden sm:inline">Cart</span>
-            </button>
+                  <span className="opacity-70">|</span>
+                  <span>₹{cartTotal}</span>
+                </div>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenCart}
+                className="flex items-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#171717] font-extrabold text-xs transition-all cursor-pointer"
+              >
+                <ShoppingBag className="w-4 h-4 text-gray-700 shrink-0" />
+                <span className="hidden sm:inline">My Cart</span>
+              </button>
+            )}
 
             {/* Sign In / Account Dropdown */}
             {user ? (

@@ -10,6 +10,18 @@ interface SearchBarProps {
   onSelectProduct?: (product: ProductItem) => void;
 }
 
+const PLACEHOLDERS = [
+  'Search "milk"',
+  'Search "bread"',
+  'Search "thums up"',
+  'Search "chips"',
+  'Search "paneer"',
+  'Search "atta"',
+  'Search "curd"',
+  'Search "dettol"',
+  'Search "maggi"',
+];
+
 export default function SearchBar({
   products,
   onAddToCart,
@@ -17,7 +29,15 @@ export default function SearchBar({
 }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIdx((prev) => (prev + 1) % PLACEHOLDERS.length);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, []);
 
   const searchResults = searchQuery.trim().length >= 2
     ? products.filter(
@@ -50,8 +70,8 @@ export default function SearchBar({
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Search for stores, products & more..."
-          className="w-full bg-[#FFFFFF] border border-[#E8ECE9] hover:border-[#078B35]/40 focus:border-[#078B35] rounded-[14px] pl-10 pr-9 py-2.5 text-xs text-[#171717] placeholder:text-[#666666] focus:outline-none focus:ring-2 focus:ring-[#078B35]/15 transition-all shadow-2xs"
+          placeholder={PLACEHOLDERS[placeholderIdx]}
+          className="w-full bg-[#FFFFFF] border border-[#E8ECE9] hover:border-[#078B35]/40 focus:border-[#078B35] rounded-[14px] pl-10 pr-9 py-2.5 text-xs text-[#171717] placeholder:text-[#888888] placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#078B35]/15 transition-all shadow-2xs"
         />
         {searchQuery && (
           <button
