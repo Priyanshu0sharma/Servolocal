@@ -39,6 +39,9 @@ interface HeaderProps {
   onOpenSignIn?: () => void;
   onCloseSignIn?: () => void;
   onNavigateOrders?: () => void;
+  isLocationOpen?: boolean;
+  onOpenLocation?: () => void;
+  onCloseLocation?: () => void;
 }
 
 export default function Header({
@@ -58,8 +61,15 @@ export default function Header({
   onOpenSignIn,
   onCloseSignIn,
   onNavigateOrders,
+  isLocationOpen: propLocationOpen,
+  onOpenLocation,
+  onCloseLocation,
 }: HeaderProps) {
-  const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [internalLocationOpen, setInternalLocationOpen] = useState(false);
+  const isLocationOpen = propLocationOpen !== undefined ? propLocationOpen : internalLocationOpen;
+  const handleOpenLocation = onOpenLocation || (() => setInternalLocationOpen(true));
+  const handleCloseLocation = onCloseLocation || (() => setInternalLocationOpen(false));
+
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -119,19 +129,19 @@ export default function Header({
               </div>
             </div>
 
-            {/* Deliver to Location Selector Matching Reference UI */}
+            {/* Delivery in 10-15 minutes / Location Selector Matching Blinkit UI */}
             <div
-              onClick={() => setIsLocationOpen(true)}
+              onClick={handleOpenLocation}
               className="hidden sm:flex items-center gap-2 cursor-pointer group pl-2"
             >
               <MapPin className="w-5 h-5 text-[#078B35] fill-[#078B35] shrink-0" />
               <div className="flex flex-col text-left">
                 <span className="text-[10.5px] text-[#666666] font-normal leading-none">
-                  Deliver to
+                  Delivery in 10-15 minutes
                 </span>
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-[13.5px] font-bold text-[#171717] leading-none group-hover:text-[#078B35] transition-colors">
-                    {currentLocality}
+                    {currentLocality || "Select Location"}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-[#171717] group-hover:text-[#078B35] transition-colors stroke-[2.5]" />
                 </div>
@@ -237,7 +247,7 @@ export default function Header({
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
-                          setIsLocationOpen(true);
+                          handleOpenLocation();
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors cursor-pointer"
                       >
@@ -319,7 +329,7 @@ export default function Header({
       {/* Modals */}
       <LocationSelectorModal
         isOpen={isLocationOpen}
-        onClose={() => setIsLocationOpen(false)}
+        onClose={handleCloseLocation}
         currentLocality={currentLocality}
         onSelectLocation={onSelectLocation}
       />

@@ -18,7 +18,8 @@ import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
 
 export default function CustomerHomePage() {
   // ── 1. Locality & GPS State ───────────────────────────────────────────────
-  const [currentLocality, setCurrentLocality] = useState("Kukas, Jaipur");
+  const [currentLocality, setCurrentLocality] = useState<string>("");
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [, setCurrentLat] = useState(27.0544);
   const [, setCurrentLng] = useState(75.8942);
 
@@ -58,7 +59,12 @@ export default function CustomerHomePage() {
         if (savedUser) setUser(JSON.parse(savedUser));
 
         const savedLocality = localStorage.getItem("servo_locality");
-        if (savedLocality) setCurrentLocality(savedLocality);
+        if (savedLocality) {
+          setCurrentLocality(savedLocality);
+        } else {
+          // In incognito or first visit, show the authentic Blinkit location prompt immediately!
+          setIsLocationOpen(true);
+        }
 
         const savedOrder = localStorage.getItem("servo_active_order");
         if (savedOrder) setActiveOrder(JSON.parse(savedOrder));
@@ -70,8 +76,19 @@ export default function CustomerHomePage() {
     setCurrentLocality(locality);
     setCurrentLat(lat);
     setCurrentLng(lng);
+    setIsLocationOpen(false);
     if (typeof window !== "undefined") {
       localStorage.setItem("servo_locality", locality);
+    }
+  };
+
+  const handleCloseLocation = () => {
+    setIsLocationOpen(false);
+    if (!currentLocality) {
+      setCurrentLocality("Kukas, Jaipur");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("servo_locality", "Kukas, Jaipur");
+      }
     }
   };
 
@@ -232,6 +249,9 @@ export default function CustomerHomePage() {
       <Header
         currentLocality={currentLocality}
         onSelectLocation={handleLocalityChange}
+        isLocationOpen={isLocationOpen}
+        onOpenLocation={() => setIsLocationOpen(true)}
+        onCloseLocation={handleCloseLocation}
         products={allProducts}
         wishlistCount={wishlist.length}
         wishlistedProducts={wishlistedProducts}
@@ -676,7 +696,7 @@ export default function CustomerHomePage() {
       <FloatingCartBar
         cart={cart}
         onOpenCart={() => setIsCartOpen(true)}
-        currentLocality={currentLocality}
+        currentLocality={currentLocality || "Kukas, Jaipur"}
       />
 
       {/* ── Slide-Out Cart Drawer ─────────────────────────────────── */}
@@ -687,7 +707,7 @@ export default function CustomerHomePage() {
         onUpdateCartQuantity={handleUpdateCartQuantity}
         onClearCart={handleClearCart}
         onOrderPlaced={handleOrderPlaced}
-        currentLocality={currentLocality}
+        currentLocality={currentLocality || "Kukas, Jaipur"}
         user={user}
         onOpenSignIn={() => setIsSignInOpen(true)}
       />
