@@ -224,3 +224,226 @@ class UserOTP(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class Address(Base):
+    __tablename__ = "addresses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    label = Column(String(50), nullable=False, default="Home")
+    line1 = Column(String(500), nullable=False)
+    locality = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    phone = Column(String(50), nullable=True)
+    lat = Column(Float, nullable=False, default=27.0544)
+    lng = Column(Float, nullable=False, default=75.8942)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PartnerProfile(Base):
+    __tablename__ = "partner_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_type = Column(String(100), nullable=True, default="Bike")
+    vehicle_number = Column(String(50), nullable=True)
+    is_online = Column(Boolean, default=False, nullable=False)
+    lat = Column(Float, nullable=True, default=27.0544)
+    lng = Column(Float, nullable=True, default=75.8942)
+    rating = Column(Float, default=4.9, nullable=False)
+    rating_count = Column(Integer, default=0, nullable=False)
+    onboarding_royalty_orders = Column(Integer, default=0, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PaymentIntent(Base):
+    __tablename__ = "payment_intents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    purpose = Column(String(100), nullable=False, default="ORDER_PAYMENT")
+    shop_id = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    amount = Column(Float, nullable=False)
+    razorpay_order_id = Column(String(100), nullable=True, index=True)
+    razorpay_payment_id = Column(String(100), nullable=True, index=True)
+    status = Column(String(50), default="CREATED", nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class OrderEvent(Base):
+    __tablename__ = "order_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    status = Column(String(50), nullable=False)
+    note = Column(String(255), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class WalletLedger(Base):
+    __tablename__ = "wallet_ledgers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, nullable=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    order_id = Column(Integer, nullable=True)
+    entry_type = Column(String(50), nullable=False)  # CREDIT, DEBIT, CASH_COLLECTION, COMMISSION, SETTLEMENT
+    amount = Column(Float, nullable=False)
+    balance_after = Column(Float, nullable=False)
+    note = Column(String(255), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, index=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    discount_type = Column(String(50), nullable=False, default="FLAT")  # FLAT, PERCENTAGE, FREE_DELIVERY
+    value = Column(Float, nullable=False)
+    min_order_value = Column(Float, default=0.0, nullable=False)
+    max_discount = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    usage_limit = Column(Integer, nullable=True)
+    used_count = Column(Integer, default=0, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AppVersionConfig(Base):
+    __tablename__ = "app_version_config"
+
+    id = Column(Integer, primary_key=True, index=True)
+    latest_version = Column(String(50), nullable=False, default="1.0.0")
+    min_required_version = Column(String(50), nullable=False, default="1.0.0")
+    force_update = Column(Boolean, default=False, nullable=False)
+    update_message = Column(String(255), nullable=False, default="Please update to the latest ServoLocal version.")
+    playstore_url = Column(String(255), nullable=False, default="https://play.google.com/store/apps")
+    maintenance_mode = Column(Boolean, default=False, nullable=False)
+    maintenance_message = Column(String(255), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PlatformSetting(Base):
+    __tablename__ = "platform_settings"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(JSON, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PromoBanner(Base):
+    __tablename__ = "promo_banners"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    image_url = Column(String(1000), nullable=False)
+    target_route = Column(String(255), nullable=False, default="/")
+    badge_text = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class AreaDemandRequest(Base):
+    __tablename__ = "area_demand_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    locality_name = Column(String(255), nullable=False)
+    pincode = Column(String(20), nullable=True)
+    phone_or_email = Column(String(255), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String(50), default="INFO", nullable=False)  # ORDER, PROMO, WALLET, SYSTEM
+    link_url = Column(String(255), nullable=True)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    order_id = Column(Integer, nullable=True)
+    subject = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String(50), default="OPEN", nullable=False)  # OPEN, IN_PROGRESS, RESOLVED, CLOSED
+    priority = Column(String(50), default="MEDIUM", nullable=False)  # LOW, MEDIUM, HIGH, URGENT
+    admin_response = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class WishlistItem(Base):
+    __tablename__ = "wishlist_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    product_id = Column(Integer, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

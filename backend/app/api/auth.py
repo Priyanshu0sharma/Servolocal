@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.email_service import send_otp_email
-from app.db.models import User, UserOTP
+from app.db.models import User, UserOTP, Shop, PartnerProfile
 from app.db.session import get_db
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -33,6 +33,31 @@ class VerifyOtpRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
     gender: Optional[str] = None
+
+
+class PartnerRegisterRequest(BaseModel):
+    role: str  # seller or partner
+    full_name: str
+    email: EmailStr
+    mobile_number: Optional[str] = None
+    otp_code: str
+    shop_name: Optional[str] = None
+    shop_address: Optional[str] = None
+    locality_name: Optional[str] = None
+    lat: Optional[float] = 27.0544
+    lng: Optional[float] = 75.8942
+    residential_address: Optional[str] = None
+
+
+class UpdatePermissionRequest(BaseModel):
+    location_permission_granted: Optional[bool] = None
+    terms_accepted: Optional[bool] = None
+    fcm_token: Optional[str] = None
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    role: str = "customer"
 
 
 def hash_otp(otp_code: str) -> str:
@@ -347,3 +372,183 @@ async def update_user_profile(
             "is_verified": True,
         },
     }
+
+
+@router.post("/register-partner")
+async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Registers a new Merchant (Seller) or Delivery Partner (Rider) after verifying OTP.
+    Creates user account, partner profile, and shop as applicable in Neon DB.
+    """
+    email_clean = payload.email.lower().strip()
+    provided_code = payload.otp_code.strip()
+    role_clean = payload.role.lower().strip()
+    now = datetime.now(timezone.utc)
+
+    if role_clean not in ("seller", "partner", "rider"):
+        raise HTTPException(status_code=400, detail="Invalid partner role specified.")
+
+    # 1. Verify OTP
+    stmt = (
+        select(UserOTP)
+        .where(UserOTP.email == email_clean, UserOTP.is_used == False)
+        .order_by(UserOTP.created_at.desc())
+        .limit(1)
+    )
+    res = await db.execute(stmt)
+    otp_record = res.scalar_one_or_none()
+
+    if not otp_record or otp_record.expires_at < now:
+        raise HTTPException(status_code=400, detail="Verification code expired or invalid.")
+
+    if hash_otp(provided_code) != otp_record.otp_hash:
+        otp_record.attempts += 1
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Incorrect verification code.")
+
+    otp_record.is_used = True
+    await db.commit()
+
+    # 2. Check if user already exists
+    user_res = await db.execute(select(User).where(User.email.ilike(email_clean)))
+    user = user_res.scalar_one_or_none()
+
+    if not user:
+        user = User(
+            email=email_clean,
+            name=payload.full_name.strip(),
+            role=role_clean,
+            servo_coins=0,
+            wallet_balance=0.0,
+            is_active=True,
+            terms_accepted=True,
+            location_permission_granted=True,
+            created_at=now,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        user.name = payload.full_name.strip()
+        user.role = role_clean
+        await db.commit()
+
+    # 3. Create role-specific entity
+    if role_clean == "seller":
+        shop_res = await db.execute(select(Shop).where(Shop.owner_id == user.id))
+        shop = shop_res.scalar_one_or_none()
+        if not shop:
+            shop = Shop(
+                owner_id=user.id,
+                name=payload.shop_name or f"{user.name}'s Mart",
+                category="Kirana / Daily Needs",
+                image_url=None,
+                is_open=True,
+                rating=5.0,
+                management_mode="DIRECT_MERCHANT",
+                lat=payload.lat or 27.0544,
+                lng=payload.lng or 75.8942,
+                locality_name=payload.locality_name or "Kukas, Jaipur",
+                delivery_scope="LOCAL_ONLY",
+                delivery_radius_km=5.0,
+                free_delivery_enabled=True,
+                min_order_for_free_delivery=150.0,
+                base_delivery_fee=15.0,
+                commission_rate_percent=5.0,
+                is_verified=True,
+                created_at=now,
+            )
+            db.add(shop)
+            await db.commit()
+    elif role_clean in ("partner", "rider"):
+        p_res = await db.execute(select(PartnerProfile).where(PartnerProfile.user_id == user.id))
+        p_profile = p_res.scalar_one_or_none()
+        if not p_profile:
+            p_profile = PartnerProfile(
+                user_id=user.id,
+                vehicle_type="Bike",
+                is_online=False,
+                lat=payload.lat or 27.0544,
+                lng=payload.lng or 75.8942,
+                rating=5.0,
+                rating_count=0,
+                onboarding_royalty_orders=0,
+                updated_at=now,
+            )
+            db.add(p_profile)
+            await db.commit()
+
+    access_token = create_access_token({
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+    })
+
+    return {
+        "success": True,
+        "role": user.role,
+        "email": user.email,
+        "status": "APPROVED",
+        "message": f"Partner onboarding complete! Welcome to ServoLocal.",
+        "access_token": access_token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "wallet_balance": user.wallet_balance,
+            "servo_coins": user.servo_coins,
+        },
+    }
+
+
+@router.post("/update-permission")
+async def update_permissions(
+    payload: UpdatePermissionRequest,
+    authorization: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Updates user device permissions (GPS permission, Terms acceptance, FCM Push Token).
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    token = authorization.split(" ")[1]
+    decoded = decode_token(token)
+
+    user_res = await db.execute(select(User).where(User.id == decoded.get("id")))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if payload.location_permission_granted is not None:
+        user.location_permission_granted = payload.location_permission_granted
+    if payload.terms_accepted is not None:
+        user.terms_accepted = payload.terms_accepted
+    if payload.fcm_token is not None:
+        user.fcm_token = payload.fcm_token
+
+    await db.commit()
+    return {"success": True, "message": "Permissions updated successfully."}
+
+
+@router.post("/google")
+async def google_login_endpoint(payload: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Authenticates with verified Google token where configured.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google OAuth is not configured on this server.")
+
+    # If google oauth client is present, token verification happens here
+    # For security, require valid token payload
+    if not payload.id_token or len(payload.id_token) < 10:
+        raise HTTPException(status_code=400, detail="Invalid Google ID token provided.")
+
+    raise HTTPException(
+        status_code=501,
+        detail="Google OAuth authentication requires direct Google Cloud Identity verification. Please use Email OTP login.",
+    )
+

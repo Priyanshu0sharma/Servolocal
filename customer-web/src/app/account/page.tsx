@@ -38,7 +38,24 @@ import ProfileEditModal from "@/components/ProfileEditModal";
 
 import { UserProfile, CartItem, ProductItem } from "@/types";
 import { MASTER_PRODUCTS } from "@/lib/masterCatalogData";
-import { getMe, updateUserProfile, getDiscoveryFeed } from "@/lib/api";
+import {
+  getMe,
+  updateUserProfile,
+  getDiscoveryFeed,
+  getSavedAddresses,
+  addSavedAddress,
+  deleteSavedAddress,
+  setDefaultAddress,
+  getWalletOverview,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getWishlist,
+  toggleWishlistItem,
+  getSupportTickets,
+  createSupportTicket,
+  getMyOrders,
+} from "@/lib/api";
 
 export interface SavedAddressItem {
   id: string;
@@ -47,23 +64,6 @@ export interface SavedAddressItem {
   locality: string;
   isDefault?: boolean;
 }
-
-const DEFAULT_SAVED_ADDRESSES: SavedAddressItem[] = [
-  {
-    id: "addr-1",
-    type: "Home",
-    address: "LR services a unit of man power, Kukas, India",
-    locality: "Kukas, Jaipur",
-    isDefault: true,
-  },
-  {
-    id: "addr-2",
-    type: "Home",
-    address: "Arya college old campus, Kukas, India",
-    locality: "Kukas, Jaipur",
-    isDefault: false,
-  },
-];
 
 function AccountContent() {
   const searchParams = useSearchParams();
@@ -99,8 +99,8 @@ function AccountContent() {
   // ── Wishlist State ──────────────────────────────────────────────────────
   const [wishlist, setWishlist] = useState<number[]>([]);
 
-  // ── Saved Addresses State (Blinkit Exact) ───────────────────────────────
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>(DEFAULT_SAVED_ADDRESSES);
+  // ── Saved Addresses State (Neon DB Exact) ───────────────────────────────
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>([]);
   const [isAddAddressModalOpen, setIsAddAddressModalOpen] = useState(false);
   const [newAddrType, setNewAddrType] = useState<"Home" | "Work" | "Other">("Home");
   const [newAddrText, setNewAddrText] = useState("");
@@ -108,8 +108,13 @@ function AccountContent() {
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ── Orders State (Live from Neon DB or localStorage) ─────────────────────
+  // ── Orders & Wallet State (Live from Neon DB) ─────────────────────────────
   const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [walletData, setWalletData] = useState<{
+    wallet_balance: number;
+    servo_coins: number;
+    transactions: any[];
+  } | null>(null);
 
   // Show transient toast
   const showToast = (msg: string) => {
@@ -134,7 +139,6 @@ function AccountContent() {
           }
           setUser(parsed);
         } else {
-          // Default mock session for verified display
           const defaultCust: UserProfile = {
             id: 1,
             name: "Priyanshu Sharma",
@@ -158,18 +162,6 @@ function AccountContent() {
 
         const savedWish = localStorage.getItem("servo_wishlist");
         if (savedWish) setWishlist(JSON.parse(savedWish));
-
-        const storedAddrs = localStorage.getItem("servo_saved_addresses");
-        if (storedAddrs) {
-          setSavedAddresses(JSON.parse(storedAddrs));
-        } else {
-          localStorage.setItem("servo_saved_addresses", JSON.stringify(DEFAULT_SAVED_ADDRESSES));
-        }
-
-        const storedActiveOrder = localStorage.getItem("servo_active_order");
-        if (storedActiveOrder) {
-          setOrdersList([JSON.parse(storedActiveOrder)]);
-        }
       } catch {}
     }
   }, []);
@@ -187,6 +179,63 @@ function AccountContent() {
     fetchLiveProfile();
   }, []);
 
+  // Fetch saved addresses from Neon PostgreSQL
+  useEffect(() => {
+    async function loadAddresses() {
+      try {
+        const addrs = await getSavedAddresses();
+        if (Array.isArray(addrs) && addrs.length > 0) {
+          setSavedAddresses(addrs.map((a: any) => ({
+            id: a.id.toString(),
+            type: a.label as "Home" | "Work" | "Other",
+            address: a.line1,
+            locality: a.locality || currentLocality,
+            isDefault: a.is_default,
+          })));
+        } else {
+          setSavedAddresses([]);
+        }
+      } catch {
+        setSavedAddresses([]);
+      }
+    }
+    loadAddresses();
+  }, [currentLocality]);
+
+  // Fetch orders from Neon PostgreSQL
+  useEffect(() => {
+    if (activeTab === "orders") {
+      getMyOrders()
+        .then((orders) => {
+          if (Array.isArray(orders)) {
+            setOrdersList(orders.map((o: any) => ({
+              id: o.id,
+              orderCode: o.order_code,
+              shopName: o.shop_name,
+              status: o.status,
+              grandTotal: o.grand_total,
+              deliveryAddress: o.delivery_address,
+              createdAt: o.created_at,
+              itemsCount: o.items_count,
+              itemsSummary: o.items_summary,
+            })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
+  // Fetch wallet overview from Neon PostgreSQL
+  useEffect(() => {
+    if (activeTab === "wallet") {
+      getWalletOverview()
+        .then((data) => {
+          if (data) setWalletData(data);
+        })
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("servo_token");
@@ -196,39 +245,59 @@ function AccountContent() {
     router.push("/");
   };
 
-  const handleAddNewAddress = (e: React.FormEvent) => {
+  const handleAddNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddrText.trim()) return;
 
-    const newEntry: SavedAddressItem = {
-      id: `addr-${Date.now()}`,
-      type: newAddrType,
-      address: newAddrText.trim(),
-      locality: newAddrLocality.trim() || currentLocality,
-      isDefault: savedAddresses.length === 0,
-    };
-
-    const updated = [newEntry, ...savedAddresses];
-    setSavedAddresses(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("servo_saved_addresses", JSON.stringify(updated));
+    try {
+      await addSavedAddress({
+        label: newAddrType,
+        line1: newAddrText.trim(),
+        locality: newAddrLocality.trim() || currentLocality,
+        is_default: savedAddresses.length === 0,
+      });
+      const addrs = await getSavedAddresses();
+      if (Array.isArray(addrs)) {
+        setSavedAddresses(addrs.map((a: any) => ({
+          id: a.id.toString(),
+          type: a.label as "Home" | "Work" | "Other",
+          address: a.line1,
+          locality: a.locality || currentLocality,
+          isDefault: a.is_default,
+        })));
+      }
+      setNewAddrText("");
+      setIsAddAddressModalOpen(false);
+      showToast("Address added successfully!");
+    } catch (err: any) {
+      showToast(err.message || "Failed to add address");
     }
-    setNewAddrText("");
-    setIsAddAddressModalOpen(false);
-    showToast("Address added successfully!");
   };
 
-  const handleDeleteAddress = (id: string) => {
-    const updated = savedAddresses.filter((a) => a.id !== id);
-    setSavedAddresses(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("servo_saved_addresses", JSON.stringify(updated));
+  const handleDeleteAddress = async (id: string) => {
+    try {
+      await deleteSavedAddress(id);
+      const addrs = await getSavedAddresses();
+      if (Array.isArray(addrs)) {
+        setSavedAddresses(addrs.map((a: any) => ({
+          id: a.id.toString(),
+          type: a.label as "Home" | "Work" | "Other",
+          address: a.line1,
+          locality: a.locality || currentLocality,
+          isDefault: a.is_default,
+        })));
+      }
+      setOpenActionMenuId(null);
+      showToast("Address removed.");
+    } catch (err: any) {
+      showToast("Failed to remove address.");
     }
-    setOpenActionMenuId(null);
-    showToast("Address removed.");
   };
 
-  const handleSelectAsDeliveryAddress = (addr: SavedAddressItem) => {
+  const handleSelectAsDeliveryAddress = async (addr: SavedAddressItem) => {
+    try {
+      await setDefaultAddress(addr.id);
+    } catch {}
     setCurrentLocality(addr.locality || addr.address);
     if (typeof window !== "undefined") {
       localStorage.setItem("servo_locality", addr.locality || addr.address);
@@ -492,76 +561,94 @@ function AccountContent() {
 
                 {/* Saved Addresses List */}
                 <div className="space-y-3 pt-2">
-                  {savedAddresses.map((addr) => (
-                    <div
-                      key={addr.id}
-                      className="p-4 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-2xs transition-all flex items-start justify-between group relative bg-white"
-                    >
-                      {/* Left: Yellow House Icon + Label + Address */}
-                      <div className="flex items-start gap-3.5 min-w-0 pr-4">
-                        <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs border border-amber-200/60">
-                          {addr.type === "Work" ? (
-                            <Building2 className="w-3.5 h-3.5 text-amber-700" />
-                          ) : (
-                            <HomeIcon className="w-3.5 h-3.5 text-amber-700" />
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-xs font-bold text-[#171717]">
-                              {addr.type}
-                            </h3>
-                            {addr.locality === currentLocality && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EAF7EE] text-[#0C831F] font-bold">
-                                Current Delivery
-                              </span>
+                  {savedAddresses.length > 0 ? (
+                    savedAddresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        className="p-4 rounded-xl border border-gray-100 hover:border-gray-300 hover:shadow-2xs transition-all flex items-start justify-between group relative bg-white"
+                      >
+                        {/* Left: Yellow House Icon + Label + Address */}
+                        <div className="flex items-start gap-3.5 min-w-0 pr-4">
+                          <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs border border-amber-200/60">
+                            {addr.type === "Work" ? (
+                              <Building2 className="w-3.5 h-3.5 text-amber-700" />
+                            ) : (
+                              <HomeIcon className="w-3.5 h-3.5 text-amber-700" />
                             )}
                           </div>
-                          <p className="text-xs text-[#666666] mt-0.5 leading-relaxed">
-                            {addr.address}
-                          </p>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-xs font-bold text-[#171717]">
+                                {addr.type}
+                              </h3>
+                              {addr.locality === currentLocality && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#EAF7EE] text-[#0C831F] font-bold">
+                                  Current Delivery
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[#666666] mt-0.5 leading-relaxed">
+                              {addr.address}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right: Three Dots Menu */}
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenActionMenuId((prev) =>
+                                prev === addr.id ? null : addr.id
+                              )
+                            }
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {/* Dropdown for Edit / Delete / Select */}
+                          {openActionMenuId === addr.id && (
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-in fade-in zoom-in-95 duration-100">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectAsDeliveryAddress(addr)}
+                                className="w-full px-3 py-1.5 text-left text-xs font-semibold text-[#171717] hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#0C831F]" />
+                                <span>Deliver to this</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAddress(addr.id)}
+                                className="w-full px-3 py-1.5 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Address</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      {/* Right: Three Dots Menu */}
-                      <div className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenActionMenuId((prev) =>
-                              prev === addr.id ? null : addr.id
-                            )
-                          }
-                          className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {/* Dropdown for Edit / Delete / Select */}
-                        {openActionMenuId === addr.id && (
-                          <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-in fade-in zoom-in-95 duration-100">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectAsDeliveryAddress(addr)}
-                              className="w-full px-3 py-1.5 text-left text-xs font-semibold text-[#171717] hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#0C831F]" />
-                              <span>Deliver to this</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAddress(addr.id)}
-                              className="w-full px-3 py-1.5 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Delete Address</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center space-y-3 bg-[#F9FAFB] rounded-2xl border border-gray-100">
+                      <MapPin className="w-10 h-10 mx-auto text-gray-300" />
+                      <h3 className="text-sm font-bold text-gray-800">No saved addresses yet</h3>
+                      <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                        Add your home, office or delivery addresses directly to your verified ServoLocal account.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddAddressModalOpen(true)}
+                        className="px-4 py-2 rounded-xl bg-[#0C831F] text-white text-xs font-bold hover:bg-[#096B19] cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add New Address</span>
+                      </button>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -683,16 +770,35 @@ function AccountContent() {
                       Available Balance
                     </span>
                     <p className="text-3xl font-black text-[#171717]">
-                      {user?.servo_coins || 150} <span className="text-sm font-medium text-gray-600">Coins</span>
+                      {walletData?.servo_coins ?? user?.servo_coins ?? 0} <span className="text-sm font-medium text-gray-600">Coins</span>
                     </p>
                     <p className="text-xs text-emerald-700 font-semibold">
-                      ₹150 instant discount applicable at checkout
+                      ₹{((walletData?.servo_coins ?? user?.servo_coins ?? 0) * 0.5).toFixed(0)} instant discount value · Wallet Balance: ₹{(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(2)}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-2xl bg-amber-400/30 text-amber-800 flex items-center justify-center text-2xl font-bold">
                     🪙
                   </div>
                 </div>
+
+                {walletData?.transactions && walletData.transactions.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <h3 className="text-sm font-bold text-gray-800">Recent Transactions</h3>
+                    <div className="space-y-2">
+                      {walletData.transactions.map((t: any) => (
+                        <div key={t.id} className="p-3 rounded-xl border border-gray-100 bg-white flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-bold text-gray-800">{t.note || t.entry_type}</p>
+                            <p className="text-[10px] text-gray-400">{t.created_at ? new Date(t.created_at).toLocaleDateString() : ""}</p>
+                          </div>
+                          <span className={`font-bold ${t.entry_type === "CREDIT" ? "text-emerald-600" : "text-gray-800"}`}>
+                            {t.entry_type === "CREDIT" ? "+" : "-"}₹{Math.abs(t.amount).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

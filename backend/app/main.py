@@ -9,10 +9,15 @@ from app.api.admin import router as admin_router
 from app.api.products import router as products_router
 from app.api.storage import router as storage_router
 from app.api.payments import router as payments_router
+from app.api.customer import router as customer_router
+from app.api.seller import router as seller_router
+from app.api.partner import router as partner_router
+from app.api.legal import router as legal_router
+from app.api.config_api import router as config_router
 
 app = FastAPI(
     title="ServoLocal API",
-    description="Hyperlocal marketplace platform backend - Blinkit-style local commerce engine",
+    description="Hyperlocal marketplace platform backend - Blinkit & Zomato style commerce engine",
     version=settings.VERSION,
     docs_url="/docs" if settings.APP_ENV != "production" else None,
     redoc_url="/redoc" if settings.APP_ENV != "production" else None,
@@ -37,6 +42,11 @@ app.include_router(admin_router, prefix="/api")
 app.include_router(products_router, prefix="/api")
 app.include_router(storage_router, prefix="/api")
 app.include_router(payments_router, prefix="/api")
+app.include_router(customer_router, prefix="/api")
+app.include_router(seller_router, prefix="/api")
+app.include_router(partner_router, prefix="/api")
+app.include_router(legal_router, prefix="/api")
+app.include_router(config_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"])

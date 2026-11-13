@@ -310,3 +310,157 @@ export async function getR2PresignedUrl(filename: string, contentType: string = 
   }
   return res.json();
 }
+
+
+/**
+ * Customer Account & Address APIs (Neon DB)
+ */
+export async function getSavedAddresses() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return [];
+  const res = await fetch(`${API_BASE_URL}/api/customer/addresses`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function addSavedAddress(payload: {
+  label: string;
+  line1: string;
+  locality?: string;
+  city?: string;
+  pincode?: string;
+  phone?: string;
+  lat?: number;
+  lng?: number;
+  is_default?: boolean;
+}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/addresses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save address");
+  }
+  return res.json();
+}
+
+export async function deleteSavedAddress(addressId: number | string) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/addresses/${addressId}`, {
+    method: "DELETE",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error("Failed to delete address");
+  return res.json();
+}
+
+export async function setDefaultAddress(addressId: number | string) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/addresses/${addressId}/default`, {
+    method: "PATCH",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error("Failed to set default address");
+  return res.json();
+}
+
+export async function getWalletOverview() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/wallet`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getNotifications() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return { unread_count: 0, notifications: [] };
+  const res = await fetch(`${API_BASE_URL}/api/customer/notifications`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return { unread_count: 0, notifications: [] };
+  return res.json();
+}
+
+export async function markNotificationRead(id: number) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return;
+  await fetch(`${API_BASE_URL}/api/customer/notifications/${id}/read`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function markAllNotificationsRead() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return;
+  await fetch(`${API_BASE_URL}/api/customer/notifications/read-all`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getWishlist() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return { items: [] };
+  const res = await fetch(`${API_BASE_URL}/api/customer/wishlist`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return { items: [] };
+  return res.json();
+}
+
+export async function toggleWishlistItem(productId: number) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/wishlist/toggle`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ product_id: productId }),
+  });
+  if (!res.ok) throw new Error("Failed to toggle wishlist");
+  return res.json();
+}
+
+export async function getSupportTickets() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return [];
+  const res = await fetch(`${API_BASE_URL}/api/customer/support`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function createSupportTicket(payload: { subject: string; message: string; order_id?: number }) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/customer/support`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create support ticket");
+  }
+  return res.json();
+}
