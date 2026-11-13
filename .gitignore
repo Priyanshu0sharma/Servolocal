@@ -29,6 +29,7 @@ venv/
 .venv/
 *.db
 *.sqlite3
+scratch/
 
 # ─── Node / Frontend ────────────────────────────────────────────
 node_modules/

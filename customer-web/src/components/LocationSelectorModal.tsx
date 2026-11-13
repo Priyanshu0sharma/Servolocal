@@ -9,6 +9,7 @@ import {
   PlaceSuggestion,
 } from "@/lib/locationSearch";
 import MapPinSelectorModal from "./MapPinSelectorModal";
+import CompleteAddressModal from "./CompleteAddressModal";
 
 interface LocationSelectorModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export default function LocationSelectorModal({
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isCompleteAddressOpen, setIsCompleteAddressOpen] = useState(false);
   const [unserviceableInfo, setUnserviceableInfo] = useState<{
     locality: string;
     lat: number;
@@ -369,16 +371,24 @@ export default function LocationSelectorModal({
                 </div>
               )}
 
-              {/* Set Location on Map Button (Red Pin Selector) */}
+              {/* Set Location on Map or Add Full Address */}
               {searchTerm.trim().length === 0 && (
-                <div className="mt-3 pt-2 border-t border-gray-100">
+                <div className="mt-3 pt-2 border-t border-gray-100 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCompleteAddressOpen(true)}
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#EAF7EE] hover:bg-[#d8f2df] text-[#0C831F] border border-[#0C831F]/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-[#0C831F]" />
+                    <span>Enter complete address (Map + Details)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsMapOpen(true)}
-                    className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-[#EAF7EE] text-gray-700 hover:text-[#075C2A] border border-gray-200 hover:border-[#0C831F]/30 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                    className="w-full py-2 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <div className="w-2 h-2 rounded-full bg-[#E53935]" />
-                    <span>Set delivery location on Map (Move Red Pin)</span>
+                    <span>Quick Pin Location on Map</span>
                   </button>
                 </div>
               )}
@@ -386,6 +396,22 @@ export default function LocationSelectorModal({
           )}
         </div>
       </div>
+
+      {/* Complete Interactive Address Modal (Blinkit Style) */}
+      {isCompleteAddressOpen && (
+        <CompleteAddressModal
+          isOpen={isCompleteAddressOpen}
+          onClose={() => setIsCompleteAddressOpen(false)}
+          initialLocality={currentLocality}
+          onAddressSaved={(newAddr) => {
+            setIsCompleteAddressOpen(false);
+            if (newAddr?.locality) {
+              onSelectLocation(newAddr.locality, newAddr.lat || 27.0544, newAddr.lng || 75.8942);
+            }
+            onClose();
+          }}
+        />
+      )}
 
       {/* Interactive Map Pin Selector Modal */}
       {isMapOpen && (

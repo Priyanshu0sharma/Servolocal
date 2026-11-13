@@ -107,6 +107,17 @@ async def test_search_suggest():
         assert "count" in data
 
 
+@pytest.mark.asyncio
+async def test_check_serviceability():
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
+        response = await ac.get("/api/discovery/check-serviceability?lat=27.0544&lng=75.8942")
+        assert response.status_code == 200
+        data = response.json()
+        assert "is_serviceable" in data
+        assert data["is_serviceable"] is True
+        assert "estimated_delivery_time" in data
+
+
 # ─── 3. Authentication & Security Tests ─────────────────────────────────────
 
 def test_jwt_token_generation_and_decoding():

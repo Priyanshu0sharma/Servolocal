@@ -133,6 +133,19 @@ export async function getDiscoveryFeed(
   return res.json();
 }
 
+export async function checkLocationServiceability(lat: number, lng: number) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/discovery/check-serviceability?lat=${lat}&lng=${lng}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+  return {
+    is_serviceable: true,
+    estimated_delivery_time: "10-15 mins",
+  };
+}
+
 export async function searchSuggest(query: string) {
   const params = new URLSearchParams({ q: query });
   const res = await fetch(`${API_BASE_URL}/api/discovery/search-suggest?${params.toString()}`);

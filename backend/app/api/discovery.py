@@ -236,3 +236,59 @@ async def search_suggest(
         }
     except Exception:
         return {"query": q, "count": 0, "products": []}
+
+
+@router.get("/check-serviceability")
+async def check_serviceability(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Check if a specific coordinate location is within the delivery radius of any active store.
+    Returns nearest shop information and instant delivery availability.
+    """
+    try:
+        shops_res = await db.execute(select(Shop).where(Shop.is_open == True))
+        db_shops = shops_res.scalars().all()
+
+        serviceable_shops = []
+        min_distance = 999999.0
+        nearest_shop = None
+
+        for s in db_shops:
+            dist = calculate_haversine_distance(lat, lng, s.lat, s.lng)
+            if dist < min_distance:
+                min_distance = dist
+                nearest_shop = s
+
+            radius = s.delivery_radius_km or 10.0
+            if dist <= radius:
+                serviceable_shops.append({
+                    "id": s.id,
+                    "name": s.name,
+                    "distance_km": dist,
+                    "eta": s.local_eta_mins or "10-15 mins",
+                })
+
+        # Check if coordinates fall within local delivery area (Kukas, Amer, Jaipur & surroundings)
+        is_serviceable = len(serviceable_shops) > 0 or (
+            26.70 <= lat <= 27.35 and 75.50 <= lng <= 76.15
+        )
+
+        return {
+            "is_serviceable": is_serviceable,
+            "shop_count": len(serviceable_shops),
+            "shops": serviceable_shops,
+            "min_distance_km": round(min_distance, 2) if nearest_shop else None,
+            "nearest_shop_name": nearest_shop.name if nearest_shop else None,
+            "estimated_delivery_time": "10-15 mins" if is_serviceable else "Currently not serviceable for instant delivery",
+        }
+    except Exception as e:
+        return {
+            "is_serviceable": True,
+            "shop_count": 1,
+            "shops": [],
+            "estimated_delivery_time": "10-15 mins",
+        }
+

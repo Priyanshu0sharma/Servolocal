@@ -35,6 +35,7 @@ import SmartCartDrawer from "@/components/SmartCartDrawer";
 import SignInModal from "@/components/SignInModal";
 import LocationSelectorModal from "@/components/LocationSelectorModal";
 import ProfileEditModal from "@/components/ProfileEditModal";
+import CompleteAddressModal from "@/components/CompleteAddressModal";
 
 import { UserProfile, CartItem, ProductItem } from "@/types";
 import { MASTER_PRODUCTS } from "@/lib/masterCatalogData";
@@ -884,91 +885,39 @@ function AccountContent() {
         </div>
       </main>
 
-      {/* ── Add New Address Modal ─────────────────────────────────── */}
-      {isAddAddressModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="text-base font-bold text-[#171717]">Add new address</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddAddressModalOpen(false)}
-                className="text-gray-400 hover:text-gray-700 text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddNewAddress} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Address Type
-                </label>
-                <div className="flex gap-2">
-                  {(["Home", "Work", "Other"] as const).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setNewAddrType(t)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                        newAddrType === t
-                          ? "bg-[#EAF7EE] border-[#0C831F] text-[#0C831F]"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Complete Address
-                </label>
-                <textarea
-                  rows={3}
-                  value={newAddrText}
-                  onChange={(e) => setNewAddrText(e.target.value)}
-                  placeholder="House / Flat No., Landmark, Street, Area"
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#0C831F]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Locality / City
-                </label>
-                <input
-                  type="text"
-                  value={newAddrLocality}
-                  onChange={(e) => setNewAddrLocality(e.target.value)}
-                  placeholder="Kukas, Jaipur"
-                  className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#0C831F]"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-[#0C831F] hover:bg-[#096B19] text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Save Address
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddAddressModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ── Blinkit-Style Complete Interactive Address Selection Modal ─────────────────────────────────── */}
+      <CompleteAddressModal
+        isOpen={isAddAddressModalOpen}
+        onClose={() => setIsAddAddressModalOpen(false)}
+        user={user}
+        initialLocality={currentLocality}
+        onAddressSaved={async (newAddr) => {
+          try {
+            const addrs = await getSavedAddresses();
+            if (Array.isArray(addrs) && addrs.length > 0) {
+              setSavedAddresses(
+                addrs.map((a: any) => ({
+                  id: a.id.toString(),
+                  type: (a.label as any) || "Home",
+                  address: a.line1,
+                  locality: a.locality || currentLocality,
+                  isDefault: a.is_default,
+                }))
+              );
+            } else if (newAddr) {
+              setSavedAddresses((prev) => [newAddr, ...prev]);
+            }
+          } catch {
+            if (newAddr) {
+              setSavedAddresses((prev) => [newAddr, ...prev]);
+            }
+          }
+          if (newAddr?.locality) {
+            setCurrentLocality(newAddr.locality);
+          }
+          showToast("Address saved successfully!");
+        }}
+      />
 
       {/* ── Slide-Out Cart Drawer ─────────────────────────────────── */}
       <SmartCartDrawer
