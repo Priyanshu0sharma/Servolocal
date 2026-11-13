@@ -245,3 +245,68 @@ export async function updateAdminOrderStatus(orderId: number, status: string) {
   if (!res.ok) throw new Error("Status update error");
   return res.json();
 }
+
+/**
+ * Razorpay Payment Gateway APIs
+ */
+export async function createRazorpayOrder(amount: number, receipt: string, notes?: Record<string, string>) {
+  const res = await fetch(`${API_BASE_URL}/api/payments/create-order`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, receipt, notes }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create payment order");
+  }
+  return res.json();
+}
+
+export async function verifyRazorpayPayment(payload: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  const res = await fetch(`${API_BASE_URL}/api/payments/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Payment verification failed");
+  }
+  return res.json();
+}
+
+/**
+ * Cloudflare R2 Image Storage APIs
+ */
+export async function uploadImageToR2(file: File, folder: string = "products") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+
+  const res = await fetch(`${API_BASE_URL}/api/storage/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to upload image to R2");
+  }
+  return res.json();
+}
+
+export async function getR2PresignedUrl(filename: string, contentType: string = "image/jpeg", folder: string = "products") {
+  const res = await fetch(`${API_BASE_URL}/api/storage/presigned-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename, content_type: contentType, folder }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to generate presigned upload URL");
+  }
+  return res.json();
+}

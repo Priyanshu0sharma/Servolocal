@@ -7,6 +7,8 @@ from app.api.discovery import router as discovery_router
 from app.api.orders import router as orders_router
 from app.api.admin import router as admin_router
 from app.api.products import router as products_router
+from app.api.storage import router as storage_router
+from app.api.payments import router as payments_router
 
 app = FastAPI(
     title="ServoLocal API",
@@ -33,6 +35,8 @@ app.include_router(discovery_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(products_router, prefix="/api")
+app.include_router(storage_router, prefix="/api")
+app.include_router(payments_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"])

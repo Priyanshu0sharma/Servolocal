@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Query, Depends
 from typing import Optional, List
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 
 from app.db.session import get_db
 from app.db.models import Shop, ShopInventory, MasterCatalogItem
+from app.core.redis_client import redis_client
 
 router = APIRouter(prefix="/discovery", tags=["Discovery"])
 
@@ -18,9 +20,17 @@ async def get_discovery_feed(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Hyperlocal discovery feed directly querying real PostgreSQL database for
-    active shops and products.
+    Hyperlocal discovery feed querying Upstash Redis cache first (sub-5ms)
+    with seamless fallback to PostgreSQL database for active shops and products.
     """
+    cache_key = f"feed:{mode}:{locality}:{round(lat, 2)}:{round(lng, 2)}"
+    try:
+        cached = await redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
+
     try:
         # Fetch real shops from DB
         shops_res = await db.execute(select(Shop).order_by(Shop.rating.desc()))
@@ -82,7 +92,7 @@ async def get_discovery_feed(
                 "delivery_mode": p.delivery_mode or "IN_MINUTES",
             })
 
-        return {
+        feed_response = {
             "mode": mode,
             "is_area_serviceable": True,
             "user_locality": locality,
@@ -95,6 +105,11 @@ async def get_discovery_feed(
                 "popular_products": products_data[:8],
             },
         }
+        try:
+            await redis_client.set(cache_key, json.dumps(feed_response), expire_seconds=180)
+        except Exception:
+            pass
+        return feed_response
     except Exception as e:
         import traceback
         traceback.print_exc()
