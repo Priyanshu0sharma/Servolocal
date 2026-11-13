@@ -119,3 +119,118 @@ export async function checkBackendHealth() {
   return res.data;
 }
 
+export interface AdminOrderItem {
+  id: number;
+  order_code: string;
+  customer_id: number;
+  shop_id: number;
+  status: string;
+  grand_total: number;
+  delivery_pin?: string;
+  pickup_pin?: string;
+  delivery_address: string;
+  payment_method: string;
+  payment_status: string;
+  created_at: string;
+  items: Array<{
+    item_name: string;
+    weight_or_size?: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+  }>;
+}
+
+export interface AdminUserItem {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  wallet_balance: number;
+  servo_coins: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface AdminCatalogItem {
+  id: number;
+  name: string;
+  brand: string;
+  category: string;
+  sub_category: string;
+  default_weight_or_size: string;
+  mrp: number;
+  selling_price: number;
+  discount_percent: number;
+  image_url: string;
+  is_veg: boolean;
+  description?: string;
+  created_at?: string;
+}
+
+export interface AdminSettlementsData {
+  total_gmv: number;
+  platform_commission: number;
+  partner_payouts_completed: number;
+  recent_transactions: Array<{
+    order_id: number;
+    order_code: string;
+    amount: number;
+    commission: number;
+    partner_earning: number;
+    payment_method: string;
+    payment_status: string;
+    status: string;
+    date?: string;
+  }>;
+}
+
+export interface AdminAuditEvent {
+  id: number;
+  order_id: number;
+  status: string;
+  note?: string;
+  timestamp?: string;
+}
+
+export async function getAdminOrders(): Promise<AdminOrderItem[]> {
+  const res = await api.get("/api/admin/orders");
+  return res.data;
+}
+
+export async function updateAdminOrderStatus(orderId: number, status: string) {
+  const res = await api.patch(`/api/admin/orders/${orderId}/status`, { status });
+  return res.data;
+}
+
+export async function getAdminUsers(role?: string): Promise<AdminUserItem[]> {
+  const res = await api.get("/api/admin/users", { params: role ? { role } : {} });
+  return res.data;
+}
+
+export async function toggleUserActive(userId: number) {
+  const res = await api.post(`/api/admin/users/${userId}/toggle-active`);
+  return res.data;
+}
+
+export async function getAdminCatalog(q?: string): Promise<AdminCatalogItem[]> {
+  const res = await api.get("/api/admin/catalog", { params: q ? { q } : {} });
+  return res.data;
+}
+
+export async function createAdminCatalogItem(payload: any) {
+  const res = await api.post("/api/admin/catalog", payload);
+  return res.data;
+}
+
+export async function getAdminSettlements(): Promise<AdminSettlementsData> {
+  const res = await api.get("/api/admin/settlements");
+  return res.data;
+}
+
+export async function getAdminAudits(): Promise<AdminAuditEvent[]> {
+  const res = await api.get("/api/admin/audits");
+  return res.data;
+}
+
+

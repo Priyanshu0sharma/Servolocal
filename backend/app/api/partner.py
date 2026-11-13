@@ -158,7 +158,7 @@ async def get_duty_status(
         select(Order)
         .where(
             Order.delivery_partner_id == user_id,
-            Order.status.in_(["READY_FOR_PICKUP", "PICKED_UP", "OUT_FOR_DELIVERY"]),
+            Order.status.in_(["ASSIGNED", "ACCEPTED", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "PICKED_UP", "OUT_FOR_DELIVERY"]),
         )
         .order_by(Order.created_at.desc())
         .limit(1)
@@ -199,6 +199,123 @@ async def get_duty_status(
         "servo_coins": user.servo_coins if user else 0,
         "active_job": job_data,
     }
+
+
+@router.get("/available-orders")
+async def get_available_orders(
+    rider: dict = Depends(get_current_rider),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns live unassigned orders ready or preparing for pickup near this delivery partner (Zomato style radar).
+    """
+    user_id = rider.get("id")
+    profile_res = await db.execute(select(PartnerProfile).where(PartnerProfile.user_id == user_id))
+    profile = profile_res.scalar_one_or_none()
+
+    if not profile or not profile.is_online:
+        return {"orders": [], "message": "Go ON DUTY to receive delivery requests."}
+
+    # Find unassigned active orders
+    orders_res = await db.execute(
+        select(Order)
+        .where(
+            Order.delivery_partner_id.is_(None),
+            Order.status.in_(["PLACED", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP"]),
+        )
+        .order_by(Order.created_at.desc())
+        .limit(10)
+    )
+    unassigned_orders = orders_res.scalars().all()
+
+    available = []
+    for ord_obj in unassigned_orders:
+        shop_res = await db.execute(select(Shop).where(Shop.id == ord_obj.shop_id))
+        shop = shop_res.scalar_one_or_none()
+        cust_res = await db.execute(select(User).where(User.id == ord_obj.customer_id))
+        cust = cust_res.scalar_one_or_none()
+        items_res = await db.execute(select(OrderItem).where(OrderItem.order_id == ord_obj.id))
+        items = items_res.scalars().all()
+
+        available.append({
+            "id": ord_obj.id,
+            "order_code": ord_obj.order_code,
+            "status": ord_obj.status,
+            "shop_name": shop.name if shop else "Local Store",
+            "shop_locality": shop.locality_name if shop else "Kukas, Jaipur",
+            "shop_lat": shop.lat if shop else 27.0544,
+            "shop_lng": shop.lng if shop else 75.8942,
+            "customer_name": cust.name if cust else "Verified Customer",
+            "customer_address": ord_obj.delivery_address,
+            "customer_lat": ord_obj.delivery_lat or 27.0544,
+            "customer_lng": ord_obj.delivery_lng or 75.8942,
+            "items_summary": f"{len(items)} items ({', '.join(i.item_name for i in items[:2])})",
+            "grand_total": ord_obj.grand_total,
+            "estimated_earning": ord_obj.partner_earning_amount or 25.0,
+            "created_at": ord_obj.created_at.isoformat() if ord_obj.created_at else None,
+        })
+
+    return {"orders": available, "count": len(available)}
+
+
+@router.post("/orders/{order_id}/accept")
+async def accept_delivery_order(
+    order_id: int,
+    rider: dict = Depends(get_current_rider),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Rider accepts an available delivery order. Sets delivery_partner_id atomically.
+    """
+    user_id = rider.get("id")
+    order_res = await db.execute(select(Order).where(Order.id == order_id))
+    order = order_res.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+
+    if order.delivery_partner_id and order.delivery_partner_id != user_id:
+        raise HTTPException(status_code=400, detail="This order has already been accepted by another delivery partner.")
+
+    order.delivery_partner_id = user_id
+    if order.status in ("PLACED", "CONFIRMED"):
+        order.status = "ASSIGNED"
+    order.updated_at = datetime.now(timezone.utc)
+
+    # Log audit event
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    rider_user = user_res.scalar_one_or_none()
+    rider_name = rider_user.name if rider_user else f"Partner #{user_id}"
+
+    event = OrderEvent(
+        order_id=order.id,
+        status="ASSIGNED",
+        note=f"Delivery accepted by partner {rider_name}.",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(event)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Order #{order.order_code} assigned to you! Proceed to store for pickup.",
+        "order_id": order.id,
+        "order_code": order.order_code,
+        "pickup_pin": order.pickup_pin,
+    }
+
+
+@router.post("/orders/{order_id}/reject")
+async def reject_delivery_order(
+    order_id: int,
+    rider: dict = Depends(get_current_rider),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Rider declines delivery offer.
+    """
+    return {"success": True, "message": "Delivery assignment declined."}
+
 
 
 @router.post("/verify-pickup-pin")

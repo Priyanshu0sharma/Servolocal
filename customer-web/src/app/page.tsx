@@ -54,8 +54,8 @@ export default function CustomerHomePage() {
   // ── 1. Locality & GPS State ───────────────────────────────────────────────
   const [currentLocality, setCurrentLocality] = useState<string>("");
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [, setCurrentLat] = useState(27.0544);
-  const [, setCurrentLng] = useState(75.8942);
+  const [currentLat, setCurrentLat] = useState(27.0544);
+  const [currentLng, setCurrentLng] = useState(75.8942);
 
   // ── 2. Navigation & View State ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<SidebarTab>("home");
@@ -125,6 +125,15 @@ export default function CustomerHomePage() {
           setIsLocationOpen(true);
         }
 
+        const savedCoords = localStorage.getItem("servo_delivery_coords");
+        if (savedCoords) {
+          try {
+            const parsedCoords = JSON.parse(savedCoords);
+            if (parsedCoords?.lat) setCurrentLat(parsedCoords.lat);
+            if (parsedCoords?.lng) setCurrentLng(parsedCoords.lng);
+          } catch {}
+        }
+
         const savedOrder = localStorage.getItem("servo_active_order");
         if (savedOrder) setActiveOrder(JSON.parse(savedOrder));
       } catch {}
@@ -139,8 +148,8 @@ export default function CustomerHomePage() {
       try {
         const feedMode = activeDeliveryMode === "PAN_INDIA" ? "PAN_INDIA" : "LOCAL";
         const data = await getDiscoveryFeed(
-          27.0544,
-          75.8942,
+          currentLat,
+          currentLng,
           feedMode,
           currentLocality || "Kukas, Jaipur"
         );
@@ -162,7 +171,7 @@ export default function CustomerHomePage() {
     return () => {
       isMounted = false;
     };
-  }, [currentLocality, activeDeliveryMode]);
+  }, [currentLocality, activeDeliveryMode, currentLat, currentLng]);
 
   const handleLocalityChange = (locality: string, lat: number, lng: number) => {
     setCurrentLocality(locality);

@@ -436,6 +436,21 @@ export async function getDutyStatus() {
   return res.data;
 }
 
+export async function getAvailableOrders() {
+  const res = await api.get("/api/partner/available-orders");
+  return res.data;
+}
+
+export async function acceptDeliveryOrder(order_id: number) {
+  const res = await api.post(`/api/partner/orders/${order_id}/accept`);
+  return res.data;
+}
+
+export async function rejectDeliveryOrder(order_id: number) {
+  const res = await api.post(`/api/partner/orders/${order_id}/reject`);
+  return res.data;
+}
+
 export async function getActiveRiders() {
   const res = await api.get("/api/partner/active-riders");
   return res.data;

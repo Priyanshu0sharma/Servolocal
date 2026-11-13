@@ -218,9 +218,28 @@ export async function getMyOrders() {
   return res.json();
 }
 
-export async function trackOrder(orderId: string) {
+export async function trackOrder(orderId: string | number) {
   const res = await fetch(`${API_BASE_URL}/api/orders/track/${orderId}`);
   if (!res.ok) throw new Error("Tracking error");
+  return res.json();
+}
+
+export async function submitOrderReview(payload: {
+  order_id: number | string;
+  shop_rating: number;
+  partner_rating: number;
+  comment?: string;
+}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/orders/review`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to submit review");
   return res.json();
 }
 

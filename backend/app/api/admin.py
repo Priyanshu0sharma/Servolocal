@@ -6,7 +6,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.db.session import get_db
-from app.db.models import Order, OrderItem, Shop, ShopInventory, User
+from app.db.models import (
+    Order,
+    OrderItem,
+    Shop,
+    ShopInventory,
+    User,
+    PartnerProfile,
+    MasterCatalogItem,
+    OrderEvent,
+    WalletLedger,
+)
 from app.api.auth import decode_token
 
 router = APIRouter(prefix="/admin", tags=["Admin Portal"])
@@ -41,6 +51,11 @@ async def get_admin_overview(
             select(func.count(Order.id)).where(Order.created_at >= today_start)
         )
     ).scalar() or 0
+    today_sales = (
+        await db.execute(
+            select(func.sum(Order.grand_total)).where(Order.created_at >= today_start)
+        )
+    ).scalar() or 0.0
     shops_count = (await db.execute(select(func.count(Shop.id)))).scalar() or 0
     active_shops = (
         await db.execute(select(func.count(Shop.id)).where(Shop.is_open == True))
@@ -49,19 +64,22 @@ async def get_admin_overview(
         await db.execute(select(func.count(Shop.id)).where(Shop.is_verified == False))
     ).scalar() or 0
     total_users = (await db.execute(select(func.count(User.id)))).scalar() or 0
+    total_customers = (await db.execute(select(func.count(User.id)).where(User.role == "customer"))).scalar() or 0
+    total_merchants = (await db.execute(select(func.count(User.id)).where(User.role == "seller"))).scalar() or 0
+    total_riders = (await db.execute(select(func.count(User.id)).where(User.role.in_(["partner", "rider"])))).scalar() or 0
     total_sales = (await db.execute(select(func.sum(Order.grand_total)))).scalar() or 0.0
 
     return {
         "total_users": total_users,
-        "total_customers": total_users,
-        "total_merchants": shops_count,
-        "total_riders": 2,
+        "total_customers": total_customers,
+        "total_merchants": total_merchants,
+        "total_riders": total_riders,
         "total_shops": shops_count,
         "active_shops": active_shops,
         "total_orders": orders_count,
         "today_orders": today_orders,
         "total_gmv": round(total_sales, 2),
-        "today_gmv": round(total_sales, 2),
+        "today_gmv": round(today_sales, 2),
         "platform_earnings": round(total_sales * 0.05, 2),
         "pending_shop_approvals": pending_approvals,
     }
@@ -220,4 +238,198 @@ async def update_order_status(
         "order_id": order.id,
         "new_status": order.status,
     }
+
+
+# ─── USER & PARTNER MANAGEMENT ─────────────────────────────────────────────
+
+@router.get("/users")
+async def get_admin_users(
+    role: Optional[str] = None,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List customers, merchants, and delivery partners with wallet balances & statuses.
+    """
+    query = select(User).order_by(User.id.desc()).limit(100)
+    if role:
+        query = query.where(User.role == role)
+    res = await db.execute(query)
+    users = res.scalars().all()
+
+    out = []
+    for u in users:
+        out.append({
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "wallet_balance": round(u.wallet_balance or 0.0, 2),
+            "servo_coins": u.servo_coins or 0,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        })
+    return out
+
+
+@router.post("/users/{user_id}/toggle-active")
+async def toggle_user_active(
+    user_id: int,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Activate or suspend a user account.
+    """
+    res = await db.execute(select(User).where(User.id == user_id))
+    target = res.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.is_active = not target.is_active
+    await db.commit()
+    return {"success": True, "user_id": target.id, "is_active": target.is_active}
+
+
+# ─── MASTER PRODUCT CATALOG MANAGEMENT ────────────────────────────────────
+
+class MasterItemCreatePayload(BaseModel):
+    name: str
+    brand: str = "Local"
+    category: str
+    sub_category: str
+    default_weight_or_size: str = "1 Unit"
+    mrp: float
+    selling_price: Optional[float] = None
+    discount_percent: Optional[float] = 0.0
+    image_url: str
+    is_veg: bool = True
+    description: Optional[str] = None
+
+
+@router.get("/catalog")
+async def get_admin_catalog(
+    q: Optional[str] = None,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List master catalog products for platform catalog management.
+    """
+    query = select(MasterCatalogItem).order_by(MasterCatalogItem.id.desc()).limit(100)
+    if q:
+        query = query.where(MasterCatalogItem.name.ilike(f"%{q.strip()}%"))
+    res = await db.execute(query)
+    items = res.scalars().all()
+
+    return [
+        {
+            "id": it.id,
+            "name": it.name,
+            "brand": it.brand,
+            "category": it.category,
+            "sub_category": it.sub_category,
+            "default_weight_or_size": it.default_weight_or_size,
+            "mrp": it.mrp,
+            "selling_price": it.selling_price or it.mrp,
+            "discount_percent": it.discount_percent or 0.0,
+            "image_url": it.image_url,
+            "is_veg": it.is_veg,
+            "description": it.description,
+            "created_at": it.created_at.isoformat() if it.created_at else None,
+        }
+        for it in items
+    ]
+
+
+@router.post("/catalog")
+async def create_admin_catalog_item(
+    payload: MasterItemCreatePayload,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Add a new verified product to the platform master catalog.
+    """
+    item = MasterCatalogItem(
+        name=payload.name.strip(),
+        brand=payload.brand.strip(),
+        category=payload.category.strip(),
+        sub_category=payload.sub_category.strip(),
+        default_weight_or_size=payload.default_weight_or_size.strip(),
+        mrp=payload.mrp,
+        selling_price=payload.selling_price or payload.mrp,
+        discount_percent=payload.discount_percent or 0.0,
+        image_url=payload.image_url.strip(),
+        is_veg=payload.is_veg,
+        description=payload.description.strip() if payload.description else None,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(item)
+    await db.commit()
+    await db.refresh(item)
+    return {"success": True, "item_id": item.id, "message": "Master product created successfully"}
+
+
+# ─── SETTLEMENTS & AUDITS ─────────────────────────────────────────────────
+
+@router.get("/settlements")
+async def get_admin_settlements(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Financial settlements, merchant payouts, and delivery partner ledgers.
+    """
+    orders_res = await db.execute(select(Order).order_by(Order.id.desc()).limit(100))
+    orders = orders_res.scalars().all()
+
+    total_gmv = sum(o.grand_total for o in orders)
+    platform_commission = sum(o.platform_commission_amount or (o.grand_total * 0.05) for o in orders)
+    partner_payouts = sum(o.partner_earning_amount or 25.0 for o in orders if o.status == "DELIVERED")
+
+    return {
+        "total_gmv": round(total_gmv, 2),
+        "platform_commission": round(platform_commission, 2),
+        "partner_payouts_completed": round(partner_payouts, 2),
+        "recent_transactions": [
+            {
+                "order_id": o.id,
+                "order_code": o.order_code,
+                "amount": o.grand_total,
+                "commission": round(o.platform_commission_amount or (o.grand_total * 0.05), 2),
+                "partner_earning": o.partner_earning_amount or 25.0,
+                "payment_method": o.payment_method,
+                "payment_status": o.payment_status,
+                "status": o.status,
+                "date": o.created_at.isoformat() if o.created_at else None,
+            }
+            for o in orders[:25]
+        ],
+    }
+
+
+@router.get("/audits")
+async def get_admin_audits(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Stream live order lifecycle events and audit notes.
+    """
+    events_res = await db.execute(
+        select(OrderEvent).order_by(OrderEvent.created_at.desc()).limit(60)
+    )
+    events = events_res.scalars().all()
+
+    return [
+        {
+            "id": e.id,
+            "order_id": e.order_id,
+            "status": e.status,
+            "note": e.note,
+            "timestamp": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in events
+    ]
+
 

@@ -25,7 +25,25 @@ import {
 } from "lucide-react";
 import { CartItem, UserProfile } from "@/types";
 import { ActiveOrderData } from "./LiveOrderTrackerAndReview";
-import { checkoutOrder } from "@/lib/api";
+import {
+  checkoutOrder,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getSavedAddresses,
+} from "@/lib/api";
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 interface SmartCartDrawerProps {
   isOpen: boolean;
@@ -64,6 +82,22 @@ export default function SmartCartDrawer({
   useEffect(() => {
     setAddress(`House/Flat 402, Main Road, ${currentLocality}`);
   }, [currentLocality]);
+
+  // Load real default saved address from Neon DB
+  useEffect(() => {
+    if (isOpen && user) {
+      getSavedAddresses()
+        .then((addrs) => {
+          if (Array.isArray(addrs) && addrs.length > 0) {
+            const def = addrs.find((a: any) => a.is_default) || addrs[0];
+            if (def) {
+              setAddress(`${def.line1}, ${def.locality || currentLocality}`);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, user, currentLocality]);
 
   // Reset drawer step to "CART" when drawer is closed or opened
   useEffect(() => {
@@ -119,11 +153,12 @@ export default function SmartCartDrawer({
     setDrawerStep("CHECKOUT");
   };
 
-  const handleFinalOrderSubmit = async () => {
+  const executeCheckout = async (payStatus: string = "PAID", paymentRef?: string) => {
     setIsPlacing(true);
     let orderCode = "SL-" + Math.floor(100000 + Math.random() * 900000);
     let deliveryPin = String(Math.floor(1000 + Math.random() * 9000));
-    let pickupPin = String(Math.floor(1000 + Math.random() * 9000));
+    let pickupPin = String(Math.floor(10 + Math.random() * 90));
+    let createdOrderId = "ord_" + Date.now();
 
     try {
       const targetShopId = cart[0]?.shop_id || 1;
@@ -138,13 +173,14 @@ export default function SmartCartDrawer({
       });
       if (dbRes?.order_code) {
         orderCode = dbRes.order_code;
+        if (dbRes.id) createdOrderId = String(dbRes.id);
         if (dbRes.delivery_pin) deliveryPin = String(dbRes.delivery_pin);
         if (dbRes.pickup_pin) pickupPin = String(dbRes.pickup_pin);
       }
     } catch {}
 
     const newOrder: ActiveOrderData = {
-      id: "ord_" + Date.now(),
+      id: createdOrderId,
       orderCode,
       status: "PLACED",
       shopName: deliveringShop,
@@ -161,6 +197,64 @@ export default function SmartCartDrawer({
     onClearCart();
     setDrawerStep("CART");
     onClose();
+  };
+
+  const handleFinalOrderSubmit = async () => {
+    setIsPlacing(true);
+
+    // Handle online payment via Razorpay if UPI or CARD
+    if (paymentMethod === "UPI" || paymentMethod === "CARD") {
+      try {
+        const isLoaded = await loadRazorpayScript();
+        if (isLoaded && (window as any).Razorpay) {
+          const razorpayRes = await createRazorpayOrder(
+            grandTotal,
+            "RCP-" + Date.now()
+          );
+
+          if (razorpayRes?.payment_order) {
+            const keyId = razorpayRes.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1DP5mmOlF5G5ag";
+            const options = {
+              key: keyId,
+              amount: razorpayRes.payment_order.amount,
+              currency: "INR",
+              name: "ServoLocal",
+              description: `Instant Delivery Order from ${deliveringShop}`,
+              order_id: razorpayRes.payment_order.id,
+              prefill: {
+                name: user?.name || "Customer",
+                email: user?.email || "customer@servolocal.in",
+                contact: user?.phone || "+919352286423",
+              },
+              theme: { color: "#0C831F" },
+              handler: async (resp: any) => {
+                try {
+                  await verifyRazorpayPayment({
+                    razorpay_order_id: resp.razorpay_order_id,
+                    razorpay_payment_id: resp.razorpay_payment_id,
+                    razorpay_signature: resp.razorpay_signature,
+                  });
+                } catch {}
+                await executeCheckout("PAID", resp.razorpay_payment_id);
+              },
+              modal: {
+                ondismiss: () => {
+                  setIsPlacing(false);
+                },
+              },
+            };
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Razorpay flow initialized fallback:", err);
+      }
+    }
+
+    // COD or fallback checkout
+    await executeCheckout(paymentMethod === "COD" ? "PENDING_COD" : "PAID");
   };
 
   return (

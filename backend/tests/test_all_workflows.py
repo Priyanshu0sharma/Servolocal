@@ -275,3 +275,39 @@ def test_razorpay_signature_verification():
         razorpay_signature="invalid_tampered_signature_string",
     )
     assert is_valid is False
+
+
+# ─── 7. Partner & Admin Advanced Endpoints ─────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_partner_available_orders_endpoint():
+    partner_token = create_access_token({"id": 1, "email": "rider@servolocal.in", "role": "partner"})
+    headers = {"Authorization": f"Bearer {partner_token}"}
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
+        res = await ac.get("/api/partner/available-orders", headers=headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert "orders" in data
+
+
+@pytest.mark.asyncio
+async def test_admin_extended_endpoints():
+    admin_token = create_access_token({"id": 1, "email": "priyanshusharma1131@gmail.com", "role": "admin"})
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
+        users_res = await ac.get("/api/admin/users", headers=headers)
+        assert users_res.status_code == 200
+        assert isinstance(users_res.json(), list)
+
+        catalog_res = await ac.get("/api/admin/catalog", headers=headers)
+        assert catalog_res.status_code == 200
+        assert isinstance(catalog_res.json(), list)
+
+        settlements_res = await ac.get("/api/admin/settlements", headers=headers)
+        assert settlements_res.status_code == 200
+        assert "total_gmv" in settlements_res.json()
+
+        audits_res = await ac.get("/api/admin/audits", headers=headers)
+        assert audits_res.status_code == 200
+        assert isinstance(audits_res.json(), list)
+

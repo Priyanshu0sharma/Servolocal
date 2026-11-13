@@ -456,7 +456,15 @@ async def update_seller_order_status(
     Validates and updates order state (ACCEPTED_BY_SHOP, PREPARING, READY_FOR_PICKUP, REJECTED).
     Logs event into order_events table.
     """
-    valid_transitions = ["ACCEPTED_BY_SHOP", "PREPARING", "READY_FOR_PICKUP", "REJECTED"]
+    valid_transitions = [
+        "ACCEPTED",
+        "ACCEPTED_BY_SHOP",
+        "CONFIRMED",
+        "PREPARING",
+        "READY_FOR_PICKUP",
+        "REJECTED",
+        "CANCELLED",
+    ]
     new_status = payload.status.upper().strip()
 
     if new_status not in valid_transitions:

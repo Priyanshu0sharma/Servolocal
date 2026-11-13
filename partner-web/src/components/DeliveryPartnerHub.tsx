@@ -37,6 +37,9 @@ import {
   verifyDeliveryPin,
   onboardShopField,
   getDutyStatus,
+  getAvailableOrders,
+  acceptDeliveryOrder,
+  rejectDeliveryOrder,
   OnboardShopFieldPayload
 } from "@/lib/api";
 
@@ -74,6 +77,8 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
 
   // Live active delivery job (null when idle)
   const [activeJob, setActiveJob] = useState<ActiveOrderJob | null>(null);
+  const [incomingOrder, setIncomingOrder] = useState<any>(null);
+  const [acceptingOrder, setAcceptingOrder] = useState(false);
 
   // PIN inputs
   const [pickupPinInput, setPickupPinInput] = useState("");
@@ -167,6 +172,87 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
       setErrorMsg(err?.response?.data?.detail || "Failed to update duty status.");
       setTimeout(() => setErrorMsg(""), 3500);
     }
+  };
+
+  // Live Zomato-style Radar: Poll for active duty status and incoming unassigned orders
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    const pollDutyAndRadar = async () => {
+      try {
+        const duty = await getDutyStatus();
+        if (isMounted && duty) {
+          if (duty.is_on_duty !== undefined) {
+            setIsOnDuty(duty.is_on_duty);
+          }
+          if (duty.wallet_balance !== undefined) {
+            setWalletBalance(duty.wallet_balance);
+          }
+          if (duty.active_job) {
+            setActiveJob(duty.active_job);
+            setIncomingOrder(null);
+            return;
+          } else {
+            setActiveJob(null);
+          }
+        }
+
+        // If on duty and no active job, check for available orders
+        if (isOnDuty) {
+          const avail = await getAvailableOrders();
+          if (isMounted && avail?.orders?.length > 0) {
+            setIncomingOrder(avail.orders[0]);
+          } else if (isMounted) {
+            setIncomingOrder(null);
+          }
+        } else if (isMounted) {
+          setIncomingOrder(null);
+        }
+      } catch (err) {
+        // Suppress transient poll error
+      }
+    };
+
+    pollDutyAndRadar();
+    interval = setInterval(pollDutyAndRadar, 3500);
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [isOnDuty]);
+
+  const handleAcceptOrder = async () => {
+    if (!incomingOrder) return;
+    setAcceptingOrder(true);
+    try {
+      await acceptDeliveryOrder(incomingOrder.id);
+      const duty = await getDutyStatus();
+      if (duty?.active_job) {
+        setActiveJob(duty.active_job);
+      }
+      setIncomingOrder(null);
+      setStatusMsg(`✅ Order #${incomingOrder.order_code} accepted! Proceed to store.`);
+      try {
+        confetti({ particleCount: 50, spread: 60 });
+      } catch {}
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Order could not be accepted.");
+      setIncomingOrder(null);
+    } finally {
+      setAcceptingOrder(false);
+      setTimeout(() => setStatusMsg(""), 3500);
+      setTimeout(() => setErrorMsg(""), 3500);
+    }
+  };
+
+  const handleDeclineOrder = async () => {
+    if (!incomingOrder) return;
+    try {
+      await rejectDeliveryOrder(incomingOrder.id);
+    } catch {}
+    setIncomingOrder(null);
   };
 
   // Handle 2-Digit Pickup PIN
@@ -664,6 +750,91 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            ) : incomingOrder ? (
+              <div className="rounded-3xl bg-slate-900 border-2 border-indigo-500 overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-950 px-6 py-4 border-b border-indigo-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                    </span>
+                    <div>
+                      <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest block">
+                        New Delivery Request Nearby
+                      </span>
+                      <h2 className="text-lg font-black text-white font-mono">
+                        #{incomingOrder.order_code}
+                      </h2>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Guaranteed Pay
+                    </span>
+                    <span className="text-xl font-black text-emerald-400">
+                      ₹{incomingOrder.estimated_earning ? incomingOrder.estimated_earning.toFixed(2) : "25.00"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
+                        <Store className="w-4 h-4" />
+                        <span>Pickup From</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white">{incomingOrder.shop_name}</h4>
+                      <p className="text-xs text-slate-400">{incomingOrder.shop_locality}</p>
+                      <div className="pt-1.5 text-xs text-slate-300 font-mono bg-slate-900/60 p-2 rounded-xl">
+                        <span className="text-slate-500">Package: </span>
+                        {incomingOrder.items_summary}
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                        <MapPin className="w-4 h-4" />
+                        <span>Deliver To</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white">{incomingOrder.customer_name}</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                        {incomingOrder.customer_address}
+                      </p>
+                      <div className="pt-1.5 text-xs text-slate-400">
+                        Total Order Value: <span className="text-white font-bold">₹{incomingOrder.grand_total}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={handleDeclineOrder}
+                      disabled={acceptingOrder}
+                      className="w-1/3 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all disabled:opacity-40"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={handleAcceptOrder}
+                      disabled={acceptingOrder}
+                      className="w-2/3 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-40 flex items-center justify-center gap-2"
+                    >
+                      {acceptingOrder ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Accepting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Accept Delivery & Proceed</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (

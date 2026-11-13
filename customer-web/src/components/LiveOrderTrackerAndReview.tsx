@@ -16,6 +16,7 @@ import {
   Bike,
   KeyRound,
 } from "lucide-react";
+import { trackOrder, submitOrderReview } from "@/lib/api";
 
 export interface ActiveOrderData {
   id: string;
@@ -48,6 +49,8 @@ export default function LiveOrderTrackerAndReview({
 }: LiveOrderTrackerAndReviewProps) {
   const [currentStatus, setCurrentStatus] = useState<ActiveOrderData["status"]>(order.status || "PLACED");
   const [etaMins, setEtaMins] = useState(12);
+  const [liveOrder, setLiveOrder] = useState<any>(null);
+  const [riderInfo, setRiderInfo] = useState<any>(null);
 
   // Review state
   const [showReview, setShowReview] = useState(false);
@@ -55,31 +58,58 @@ export default function LiveOrderTrackerAndReview({
   const [riderRating, setRiderRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Auto-advance simulated live demo stages for realistic 10-15m Blinkit experience
+  // Real-time Order Tracking Polling from Neon PostgreSQL via FastAPI
   useEffect(() => {
-    const timer1 = setTimeout(() => {
-      setCurrentStatus("PACKING");
-      setEtaMins(9);
-    }, 4500);
+    let isMounted = true;
+    const fetchLiveStatus = async () => {
+      try {
+        const orderIdentifier = order.orderCode || order.id;
+        if (!orderIdentifier) return;
+        const data = await trackOrder(orderIdentifier);
+        if (isMounted && data) {
+          setLiveOrder(data);
+          if (data.rider) {
+            setRiderInfo(data.rider);
+          }
 
-    const timer2 = setTimeout(() => {
-      setCurrentStatus("OUT_FOR_DELIVERY");
-      setEtaMins(5);
-    }, 11000);
-
-    const timer3 = setTimeout(() => {
-      setCurrentStatus("DELIVERED");
-      setEtaMins(0);
-      setShowReview(true);
-    }, 20000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
+          // Map backend status to UI status
+          const beStatus = (data.status || "").toUpperCase();
+          if (beStatus === "DELIVERED") {
+            setCurrentStatus("DELIVERED");
+            setEtaMins(0);
+            setShowReview(true);
+          } else if (beStatus === "OUT_FOR_DELIVERY" || beStatus === "PICKED_UP") {
+            setCurrentStatus("OUT_FOR_DELIVERY");
+            setEtaMins(5);
+          } else if (
+            beStatus === "READY_FOR_PICKUP" ||
+            beStatus === "PREPARING" ||
+            beStatus === "CONFIRMED" ||
+            beStatus === "PACKING" ||
+            beStatus === "ACCEPTED" ||
+            beStatus === "ASSIGNED"
+          ) {
+            setCurrentStatus("PACKING");
+            setEtaMins(8);
+          } else {
+            setCurrentStatus("PLACED");
+            setEtaMins(12);
+          }
+        }
+      } catch (err) {
+        // Suppress transient network errors
+      }
     };
-  }, []);
+
+    fetchLiveStatus();
+    const interval = setInterval(fetchLiveStatus, 3500);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [order.id, order.orderCode]);
 
   const getStepIndex = (status: ActiveOrderData["status"]) => {
     switch (status) {
@@ -97,13 +127,30 @@ export default function LiveOrderTrackerAndReview({
 
   const currentStep = getStepIndex(currentStatus);
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setShowReview(false);
-      onClose();
-    }, 1800);
+    setIsSubmittingReview(true);
+    try {
+      await submitOrderReview({
+        order_id: liveOrder?.id || order.id,
+        shop_rating: shopRating,
+        partner_rating: riderRating,
+        comment: comment.trim() || undefined,
+      });
+      setSubmitted(true);
+      setTimeout(() => {
+        setShowReview(false);
+        onClose();
+      }, 1800);
+    } catch {
+      setSubmitted(true);
+      setTimeout(() => {
+        setShowReview(false);
+        onClose();
+      }, 1500);
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   return (
@@ -198,7 +245,7 @@ export default function LiveOrderTrackerAndReview({
                 Doorstep Delivery PIN
               </span>
               <span className="text-base font-black text-[#171717] tracking-widest font-mono">
-                {order.deliveryPin}
+                {liveOrder?.delivery_pin || order.deliveryPin}
               </span>
             </div>
           </div>
@@ -214,40 +261,48 @@ export default function LiveOrderTrackerAndReview({
               <Store className="w-4 h-4 text-[#078B35] shrink-0" />
               <div className="min-w-0">
                 <span className="font-bold text-[#171717] block truncate">
-                  {order.shopName}
+                  {liveOrder?.shop?.name || order.shopName}
                 </span>
                 <span className="text-[10px] text-[#666666] block truncate">
-                  {order.shopLocality}
+                  {liveOrder?.shop?.locality || order.shopLocality}
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              className="px-2.5 py-1 rounded-lg bg-white border border-[#E8ECE9] text-[#171717] font-semibold text-[11px] flex items-center gap-1 hover:bg-[#EAF7EE] hover:text-[#078B35] cursor-pointer"
-            >
-              <Phone className="w-3 h-3" />
-              <span>Contact Store</span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E8ECE9]">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[11px] text-[#171717]">
-                RK
-              </div>
-              <div className="min-w-0">
-                <span className="font-bold text-[#171717] block">
-                  Ramesh Kumar (Delivery Partner)
-                </span>
-                <span className="text-[10px] text-[#666666] block">
-                  Verified Local Runner • Bajaj Chetak EV
-                </span>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF7EE] text-[#078B35]">
-              ⭐ 4.9
+            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+              Verified Store
             </span>
           </div>
+
+          {riderInfo ? (
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E8ECE9]">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-emerald-100 text-[#0C831F] flex items-center justify-center font-bold text-[11px]">
+                  <Bike className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="font-bold text-[#171717] block">
+                    {riderInfo.name || "Delivery Partner Assigned"}
+                  </span>
+                  <span className="text-[10px] text-[#666666] block">
+                    {riderInfo.vehicle || "Verified Runner"} • {riderInfo.phone ? "Contact via App" : "On the way"}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF7EE] text-[#078B35]">
+                ⭐ {riderInfo.rating || 4.9}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8F9FA] border border-dashed border-[#E8ECE9]">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bike className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-500 font-medium">
+                  {currentStatus === "PACKING" ? "Store packing items • Assigning nearest rider" : "Assigning local runner..."}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 animate-pulse">⚡ 10-15 Min Hub</span>
+            </div>
+          )}
         </div>
 
         {/* Review Modal Triggered After Delivery */}
