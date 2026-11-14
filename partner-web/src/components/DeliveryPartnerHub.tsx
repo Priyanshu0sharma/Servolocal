@@ -25,7 +25,17 @@ import {
   Send,
   Sliders,
   Layers,
-  Award
+  Award,
+  Volume2,
+  VolumeX,
+  Banknote,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CheckSquare,
+  Square,
+  X,
+  Wallet,
+  PhoneCall,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import {
@@ -40,7 +50,10 @@ import {
   getAvailableOrders,
   acceptDeliveryOrder,
   rejectDeliveryOrder,
-  OnboardShopFieldPayload
+  OnboardShopFieldPayload,
+  PartnerEarningsOverview,
+  getPartnerEarnings,
+  requestPartnerPayout,
 } from "@/lib/api";
 
 interface DeliveryPartnerHubProps {
@@ -56,10 +69,17 @@ interface ActiveOrderJob {
   shop_lat: number;
   shop_lng: number;
   customer_name: string;
+  customer_phone?: string;
   customer_address: string;
   customer_lat: number;
   customer_lng: number;
   items_summary: string;
+  items_count?: number;
+  grand_total: number;
+  payment_method: string;
+  payment_status: string;
+  is_cod?: boolean;
+  cod_amount?: number;
   estimated_earning: number;
   status: "ASSIGNED" | "PICKED_UP" | "OUT_FOR_DELIVERY" | "DELIVERED";
 }
@@ -75,6 +95,11 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Zomato/Swiggy Order Alert & Sound Settings
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [countdownSeconds, setCountdownSeconds] = useState(45);
+  const [cashCollectedConfirmed, setCashCollectedConfirmed] = useState(false);
+
   // Live active delivery job (null when idle)
   const [activeJob, setActiveJob] = useState<ActiveOrderJob | null>(null);
   const [incomingOrder, setIncomingOrder] = useState<any>(null);
@@ -84,6 +109,13 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   const [pickupPinInput, setPickupPinInput] = useState("");
   const [deliveryPinInput, setDeliveryPinInput] = useState("");
   const [verifyingPin, setVerifyingPin] = useState(false);
+
+  // Payout & Earnings State
+  const [earningsData, setEarningsData] = useState<PartnerEarningsOverview | null>(null);
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState<number>(0);
+  const [payoutUpiInput, setPayoutUpiInput] = useState<string>(user.upi_id || "");
+  const [isProcessingPayout, setIsProcessingPayout] = useState(false);
 
   // Field Onboarding Form State
   const [scoutOwnerName, setScoutOwnerName] = useState("");
@@ -96,6 +128,30 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   const [scoutUpi, setScoutUpi] = useState("");
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [scoutSuccess, setScoutSuccess] = useState<string | null>(null);
+
+  // Zomato / Swiggy 2-tone order alert chime (E5 -> B5)
+  const playAlertSound = () => {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const playBeep = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + duration);
+      };
+      playBeep(659.25, 0, 0.16);
+      playBeep(987.77, 0.16, 0.26);
+    } catch {}
+  };
 
   // Periodic GPS Broadcaster
   useEffect(() => {
@@ -255,6 +311,86 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
     setIncomingOrder(null);
   };
 
+  // Audio Chime & 45-Second Countdown for Incoming Delivery Order
+  useEffect(() => {
+    if (!incomingOrder || activeJob) return;
+
+    setCountdownSeconds(45);
+    playAlertSound();
+
+    const soundInterval = setInterval(() => {
+      playAlertSound();
+    }, 3000);
+
+    const timerInterval = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          handleDeclineOrder();
+          return 45;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(soundInterval);
+      clearInterval(timerInterval);
+    };
+  }, [incomingOrder?.id, activeJob]);
+
+  // Load live earnings & payout overview
+  useEffect(() => {
+    if (activeTab === "EARNINGS") {
+      getPartnerEarnings()
+        .then((data) => {
+          if (data) {
+            setEarningsData(data);
+            setWalletBalance(data.wallet_balance);
+            if (data.upi_id) setPayoutUpiInput(data.upi_id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
+  // Handle Instant Payout Request to UPI
+  const handleRequestPayout = async () => {
+    if (!payoutAmount || payoutAmount <= 0) {
+      setErrorMsg("Please enter a valid withdrawal amount.");
+      return;
+    }
+    if (payoutAmount > walletBalance) {
+      setErrorMsg(`Cannot withdraw more than available balance (₹${walletBalance.toFixed(2)}).`);
+      return;
+    }
+    if (!payoutUpiInput.trim()) {
+      setErrorMsg("Please provide your UPI ID (e.g. 98290XXXXX@paytm).");
+      return;
+    }
+    setIsProcessingPayout(true);
+    setErrorMsg("");
+    try {
+      const res = await requestPartnerPayout(payoutAmount, payoutUpiInput.trim());
+      setStatusMsg(res.message || `₹${payoutAmount.toFixed(2)} payout initiated to ${payoutUpiInput}!`);
+      setIsPayoutModalOpen(false);
+      try {
+        confetti({ particleCount: 60, spread: 70 });
+      } catch {}
+      // Refresh earnings
+      const updated = await getPartnerEarnings();
+      if (updated) {
+        setEarningsData(updated);
+        setWalletBalance(updated.wallet_balance);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || "Payout request failed. Please verify details.");
+    } finally {
+      setIsProcessingPayout(false);
+      setTimeout(() => setStatusMsg(""), 5000);
+      setTimeout(() => setErrorMsg(""), 5000);
+    }
+  };
+
   // Handle 2-Digit Pickup PIN
   const handleVerifyPickup = async () => {
     if (!activeJob) return;
@@ -282,6 +418,12 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   // Handle 4-Digit Delivery PIN
   const handleVerifyDelivery = async () => {
     if (!activeJob) return;
+    if (activeJob.is_cod && !cashCollectedConfirmed) {
+      setErrorMsg(
+        `⚠️ Please confirm: Did you collect ₹${activeJob.grand_total} CASH from the customer? Please check the box below.`
+      );
+      return;
+    }
     if (deliveryPinInput.length < 4) {
       setErrorMsg("Please enter the customer's 4-digit delivery PIN.");
       return;
@@ -291,16 +433,26 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
     try {
       const res = await verifyDeliveryPin(activeJob.id, deliveryPinInput.trim());
       setActiveJob({ ...activeJob, status: "DELIVERED" });
-      const payout = res?.partner_earning || activeJob.estimated_earning;
+      const payout = res?.earned || activeJob.estimated_earning;
       setWalletBalance((prev) => prev + payout);
-      setStatusMsg(`🎉 Delivered! ₹${payout.toFixed(2)} credited to your wallet!`);
+      setStatusMsg(
+        activeJob.is_cod
+          ? `🎉 Delivered! ₹${payout.toFixed(2)} earnings credited & ₹${activeJob.grand_total.toFixed(2)} cash collected in hand!`
+          : `🎉 Delivered! ₹${payout.toFixed(2)} credited to your wallet!`
+      );
       try {
         confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       } catch {}
+      getPartnerEarnings()
+        .then((d) => {
+          if (d) setEarningsData(d);
+        })
+        .catch(() => {});
     } catch (err: any) {
       setErrorMsg(err?.response?.data?.detail || "Invalid 4-digit delivery PIN. Please ask customer to verify.");
     } finally {
       setVerifyingPin(false);
+      setCashCollectedConfirmed(false);
       setTimeout(() => setStatusMsg(""), 5000);
     }
   };
@@ -389,6 +541,19 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
 
         {/* Right Header Controls: Wallet & Duty Toggle */}
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* Mute / Unmute Sound Alert */}
+          <button
+            onClick={() => setSoundEnabled((prev) => !prev)}
+            title={soundEnabled ? "Mute Order Chime" : "Unmute Order Chime"}
+            className={`p-2 rounded-xl border transition-all ${
+              soundEnabled
+                ? "bg-slate-800 border-slate-700 text-amber-400 hover:text-amber-300"
+                : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400"
+            }`}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
           {/* Live Wallet Pill */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
@@ -634,9 +799,20 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
 
                     {/* Customer Box */}
                     <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                      <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-                        <MapPin className="w-4 h-4" />
-                        <span>Delivery Address</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                          <MapPin className="w-4 h-4" />
+                          <span>Delivery Address</span>
+                        </div>
+                        {activeJob.customer_phone && (
+                          <a
+                            href={`tel:${activeJob.customer_phone}`}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[11px] font-bold border border-emerald-500/30 flex items-center gap-1 transition-all"
+                          >
+                            <PhoneCall className="w-3 h-3" />
+                            <span>Call</span>
+                          </a>
+                        )}
                       </div>
                       <h4 className="text-sm font-bold text-white">
                         {activeJob.customer_name}
@@ -644,7 +820,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                       <p className="text-xs text-slate-400 leading-relaxed">
                         {activeJob.customer_address}
                       </p>
-                      <div className="pt-2 flex items-center gap-2">
+                      <div className="pt-2 flex flex-wrap items-center gap-2">
                         <a
                           href={`https://www.google.com/maps/dir/?api=1&destination=${activeJob.customer_lat},${activeJob.customer_lng}`}
                           target="_blank"
@@ -697,7 +873,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                   )}
 
                   {activeJob.status === "OUT_FOR_DELIVERY" && (
-                    <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                    <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-4">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="w-5 h-5 text-emerald-400" />
                         <div>
@@ -710,6 +886,39 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                         </div>
                       </div>
 
+                      {/* COD Cash Collection Indicator & Confirmation */}
+                      {activeJob.is_cod ? (
+                        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 space-y-2.5">
+                          <div className="flex items-center gap-2 text-amber-400">
+                            <Banknote className="w-5 h-5" />
+                            <span className="text-xs font-black uppercase tracking-wider">
+                              Cash on Delivery: Collect ₹{(activeJob.cod_amount || activeJob.grand_total).toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300">
+                            This is a COD order. Take the cash from the customer before completing delivery and entering the PIN.
+                          </p>
+                          <div
+                            onClick={() => setCashCollectedConfirmed((prev) => !prev)}
+                            className="flex items-center gap-2.5 pt-1 cursor-pointer select-none"
+                          >
+                            {cashCollectedConfirmed ? (
+                              <CheckSquare className="w-5 h-5 text-emerald-400 shrink-0" />
+                            ) : (
+                              <Square className="w-5 h-5 text-amber-400 shrink-0" />
+                            )}
+                            <span className="text-xs font-bold text-white">
+                              I confirm: ₹{(activeJob.cod_amount || activeJob.grand_total).toFixed(2)} cash collected in hand
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Pre-paid Order — Do NOT ask customer for any cash!</span>
+                        </div>
+                      )}
+
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -721,7 +930,11 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                         />
                         <button
                           onClick={handleVerifyDelivery}
-                          disabled={verifyingPin || deliveryPinInput.length < 4}
+                          disabled={
+                            verifyingPin ||
+                            deliveryPinInput.length < 4 ||
+                            (Boolean(activeJob.is_cod) && !cashCollectedConfirmed)
+                          }
                           className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
                         >
                           <span>Complete & Credit ₹{activeJob.estimated_earning}</span>
@@ -761,9 +974,14 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
                     </span>
                     <div>
-                      <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest block">
-                        New Delivery Request Nearby
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest block">
+                          New Delivery Request Nearby
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 border border-rose-500/40 text-rose-400 animate-pulse">
+                          ⏳ {countdownSeconds}s
+                        </span>
+                      </div>
                       <h2 className="text-lg font-black text-white font-mono">
                         #{incomingOrder.order_code}
                       </h2>
@@ -776,6 +994,39 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                     <span className="text-xl font-black text-emerald-400">
                       ₹{incomingOrder.estimated_earning ? incomingOrder.estimated_earning.toFixed(2) : "25.00"}
                     </span>
+                  </div>
+                </div>
+
+                {/* Zomato-style Trip Breakdown & COD Indicator Strip */}
+                <div className="bg-slate-950/80 px-6 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3 text-slate-300">
+                    <span className="flex items-center gap-1 font-bold text-indigo-400">
+                      <Store className="w-3.5 h-3.5" />
+                      Pickup: {incomingOrder.pickup_distance_km ? `${incomingOrder.pickup_distance_km} km` : "<1 km"}
+                    </span>
+                    <span className="text-slate-600">•</span>
+                    <span className="flex items-center gap-1 font-bold text-emerald-400">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Drop: {incomingOrder.drop_distance_km ? `${incomingOrder.drop_distance_km} km` : "1.2 km"}
+                    </span>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-slate-400 font-semibold">
+                      Total Trip: {incomingOrder.total_trip_km ? `${incomingOrder.total_trip_km} km` : "1.8 km"}
+                    </span>
+                  </div>
+
+                  <div>
+                    {incomingOrder.is_cod ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-black text-[11px]">
+                        <Banknote className="w-3.5 h-3.5" />
+                        COD Cash Collection: ₹{(incomingOrder.cod_amount || incomingOrder.grand_total).toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Pre-paid Online (₹{incomingOrder.grand_total})
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -815,7 +1066,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                       disabled={acceptingOrder}
                       className="w-1/3 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all disabled:opacity-40"
                     >
-                      Decline
+                      Decline ({countdownSeconds}s)
                     </button>
                     <button
                       onClick={handleAcceptOrder}
@@ -1038,61 +1289,317 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
         {/* TAB 3: EARNINGS & WALLET HISTORY */}
         {activeTab === "EARNINGS" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                  Available Wallet Balance
-                </span>
-                <h3 className="text-2xl font-black text-emerald-400">
-                  ₹{walletBalance.toFixed(2)}
-                </h3>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Settled to registered UPI ID
-                </p>
+            {/* 4 Stat Cards: Zomato/Swiggy Fleet Financials */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Available Balance */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                    Available Balance
+                  </span>
+                  <h3 className="text-2xl font-black text-emerald-400">
+                    ₹{(earningsData?.wallet_balance ?? walletBalance).toFixed(2)}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Ready for instant UPI transfer
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setPayoutAmount(earningsData?.wallet_balance ?? walletBalance);
+                    setIsPayoutModalOpen(true);
+                  }}
+                  disabled={(earningsData?.wallet_balance ?? walletBalance) <= 0}
+                  className="mt-4 w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-slate-950 text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  <span>Withdraw to UPI</span>
+                </button>
               </div>
 
+              {/* Card 2: Today's Earnings */}
               <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                  Payout UPI Handle
+                  Today&apos;s Earnings
                 </span>
-                <h3 className="text-sm font-bold text-white truncate mt-1">
-                  {user.upi_id || "Not Linked"}
+                <h3 className="text-2xl font-black text-white">
+                  ₹{(earningsData?.today_earned ?? 0).toFixed(2)}
                 </h3>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Direct merchant/rider payouts
+                <p className="text-[11px] text-indigo-400 font-bold mt-1">
+                  {earningsData?.today_orders_count ?? 0} deliveries completed today
                 </p>
+                <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-500">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Base fare + customer tips</span>
+                </div>
               </div>
 
+              {/* Card 3: COD Cash in Hand (Floating Cash) */}
               <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                  Fleet Duty Status
+                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block mb-1">
+                  Cash in Hand (COD)
                 </span>
-                <h3 className="text-sm font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${isOnDuty ? "bg-emerald-400 animate-ping" : "bg-slate-500"}`} />
-                  <span>{isOnDuty ? "Online (Radar Active)" : "Offline"}</span>
+                <h3 className="text-2xl font-black text-amber-400">
+                  ₹{(earningsData?.cash_in_hand ?? 0).toFixed(2)}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  High-accuracy GPS telemetry
+                  Floating cash collected from COD
                 </p>
+                <div className="mt-3 text-[10px] text-slate-500">
+                  Dues Limit: <span className="text-slate-300 font-bold">₹{(earningsData?.dues_limit ?? 1500).toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Card 4: Total Lifetime Earning */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  Lifetime Earnings
+                </span>
+                <h3 className="text-2xl font-black text-indigo-400">
+                  ₹{(earningsData?.total_lifetime_earned ?? 0).toFixed(2)}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {earningsData?.total_orders_count ?? 0} total trips fulfilled
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-500">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>ServoPartner Star Fleet</span>
+                </div>
               </div>
             </div>
 
             {/* Payout History Ledger */}
             <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Recent Earnings Ledger
-              </h3>
-              <div className="py-8 text-center rounded-2xl bg-slate-950/60 border border-slate-800/80">
-                <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p className="font-semibold text-xs text-slate-300">No payout records in current period</p>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
-                  When you complete delivery runs or earn vendor onboarding royalties, each transaction will be recorded here with instant UPI settlement.
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Recent Transactions & Settlements Ledger
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Real-time wallet credits, COD cash collections, and instant UPI payouts
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    getPartnerEarnings().then((d) => {
+                      if (d) setEarningsData(d);
+                    });
+                  }}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all"
+                  title="Refresh Ledger"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
+
+              {earningsData?.transactions && earningsData.transactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                        <th className="py-3 px-3">Type</th>
+                        <th className="py-3 px-3">Details / Order</th>
+                        <th className="py-3 px-3 text-right">Amount</th>
+                        <th className="py-3 px-3 text-right">Date & Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {earningsData.transactions.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-3 px-3">
+                            {tx.entry_type === "CREDIT" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold border border-emerald-500/20">
+                                <ArrowDownCircle className="w-3 h-3" />
+                                <span>CREDIT</span>
+                              </span>
+                            ) : tx.entry_type === "DEBIT" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 text-[10px] font-extrabold border border-rose-500/20">
+                                <ArrowUpCircle className="w-3 h-3" />
+                                <span>PAYOUT</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-extrabold border border-amber-500/20">
+                                <Banknote className="w-3 h-3" />
+                                <span>COD CASH</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 font-sans">
+                            <p className="text-white font-medium text-xs">
+                              {tx.note || (tx.entry_type === "CREDIT" ? "Delivery Payout" : "Cash Collection")}
+                            </p>
+                            {tx.order_id && (
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                Order #{tx.order_id}
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={`py-3 px-3 text-right font-black text-sm ${
+                              tx.entry_type === "CREDIT"
+                                ? "text-emerald-400"
+                                : tx.entry_type === "DEBIT"
+                                ? "text-rose-400"
+                                : "text-amber-400"
+                            }`}
+                          >
+                            {tx.entry_type === "CREDIT"
+                              ? `+₹${tx.amount.toFixed(2)}`
+                              : tx.entry_type === "DEBIT"
+                              ? `-₹${tx.amount.toFixed(2)}`
+                              : `₹${tx.amount.toFixed(2)}`}
+                          </td>
+                          <td className="py-3 px-3 text-right text-[11px] text-slate-500">
+                            {new Date(tx.created_at || Date.now()).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-8 text-center rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                  <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                  <p className="font-semibold text-xs text-slate-300">
+                    No transactions recorded yet
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                    When you accept and complete delivery orders or collect COD cash, every rupee is tracked here with instant audit trail.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
       </main>
+
+      {/* ── Instant UPI Payout Modal ─────────────────────────────── */}
+      <AnimatePresence>
+        {isPayoutModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      Instant UPI Withdrawal
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Transfer wallet earnings directly to bank via UPI
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPayoutModalOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Current Balance Pill */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-400">Available to Withdraw:</span>
+                <span className="text-lg font-black text-emerald-400">
+                  ₹{walletBalance.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Amount Input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Withdrawal Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={walletBalance}
+                  value={payoutAmount || ""}
+                  onChange={(e) => setPayoutAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="e.g. 250"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-base font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-emerald-500"
+                />
+                <div className="flex gap-2 pt-1">
+                  {[50, 100, 250, 500].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      disabled={amt > walletBalance}
+                      onClick={() => setPayoutAmount(amt)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-[11px] font-bold text-slate-300 transition-colors"
+                    >
+                      ₹{amt}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPayoutAmount(walletBalance)}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-[11px] font-bold transition-colors ml-auto"
+                  >
+                    All (₹{walletBalance.toFixed(0)})
+                  </button>
+                </div>
+              </div>
+
+              {/* UPI ID Input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Registered UPI ID
+                </label>
+                <input
+                  type="text"
+                  value={payoutUpiInput}
+                  onChange={(e) => setPayoutUpiInput(e.target.value)}
+                  placeholder="e.g. 9829012345@paytm"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPayoutModalOpen(false)}
+                  className="w-1/3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequestPayout}
+                  disabled={isProcessingPayout || payoutAmount <= 0 || payoutAmount > walletBalance}
+                  className="w-2/3 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 text-xs font-black transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  {isProcessingPayout ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Processing Payout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Transfer ₹{payoutAmount.toFixed(2)} Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

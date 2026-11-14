@@ -461,6 +461,36 @@ export async function getTrackOrder(order_id: number) {
   return res.data;
 }
 
+export interface PartnerEarningsOverview {
+  wallet_balance: number;
+  upi_id?: string;
+  today_earned: number;
+  today_orders_count: number;
+  total_orders_count: number;
+  total_lifetime_earned: number;
+  cash_in_hand: number;
+  dues_limit: number;
+  transactions: Array<{
+    id: number;
+    entry_type: string;
+    amount: number;
+    balance_after: number;
+    note: string;
+    order_id?: number;
+    created_at?: string;
+  }>;
+}
+
+export async function getPartnerEarnings(): Promise<PartnerEarningsOverview> {
+  const res = await api.get("/api/partner/earnings");
+  return res.data;
+}
+
+export async function requestPartnerPayout(amount: number, upi_id?: string) {
+  const res = await api.post("/api/partner/payout-request", { amount, upi_id });
+  return res.data;
+}
+
 // ── Super Admin Founder Panel Endpoints ──────────────────────────────────
 
 export interface AdminOverviewData {

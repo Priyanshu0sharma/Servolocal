@@ -16,6 +16,7 @@ from app.db.models import (
     WalletLedger,
 )
 from app.api.auth import decode_token
+from app.api.discovery import calculate_haversine_distance
 
 router = APIRouter(prefix="/partner", tags=["Delivery Partner & Rider Hub"])
 
@@ -182,10 +183,17 @@ async def get_duty_status(
             "shop_lat": shop.lat if shop else 27.0544,
             "shop_lng": shop.lng if shop else 75.8942,
             "customer_name": cust.name if cust else "Customer",
+            "customer_phone": cust.phone if (cust and cust.phone) else "+919352286423",
             "customer_address": active_order.delivery_address,
             "customer_lat": active_order.delivery_lat or 27.0544,
             "customer_lng": active_order.delivery_lng or 75.8942,
             "items_summary": f"{len(items)} items ({', '.join(i.item_name for i in items[:2])})",
+            "items_count": len(items),
+            "grand_total": active_order.grand_total,
+            "payment_method": active_order.payment_method,
+            "payment_status": active_order.payment_status,
+            "is_cod": active_order.payment_method == "COD",
+            "cod_amount": active_order.grand_total if active_order.payment_method == "COD" else 0.0,
             "estimated_earning": active_order.partner_earning_amount or 25.0,
             "status": active_order.status,
             "pickup_pin": active_order.pickup_pin,
@@ -228,6 +236,9 @@ async def get_available_orders(
     )
     unassigned_orders = orders_res.scalars().all()
 
+    rider_lat = profile.lat if (profile and profile.lat) else 27.0544
+    rider_lng = profile.lng if (profile and profile.lng) else 75.8942
+
     available = []
     for ord_obj in unassigned_orders:
         shop_res = await db.execute(select(Shop).where(Shop.id == ord_obj.shop_id))
@@ -237,21 +248,39 @@ async def get_available_orders(
         items_res = await db.execute(select(OrderItem).where(OrderItem.order_id == ord_obj.id))
         items = items_res.scalars().all()
 
+        shop_lat = shop.lat if (shop and shop.lat) else 27.0544
+        shop_lng = shop.lng if (shop and shop.lng) else 75.8942
+        cust_lat = ord_obj.delivery_lat or shop_lat
+        cust_lng = ord_obj.delivery_lng or shop_lng
+
+        pickup_dist = round(calculate_haversine_distance(rider_lat, rider_lng, shop_lat, shop_lng), 1)
+        drop_dist = round(calculate_haversine_distance(shop_lat, shop_lng, cust_lat, cust_lng), 1)
+        total_trip = round(pickup_dist + drop_dist, 1)
+
         available.append({
             "id": ord_obj.id,
             "order_code": ord_obj.order_code,
             "status": ord_obj.status,
             "shop_name": shop.name if shop else "Local Store",
             "shop_locality": shop.locality_name if shop else "Local Area",
-            "shop_lat": shop.lat if shop else 27.0544,
-            "shop_lng": shop.lng if shop else 75.8942,
+            "shop_lat": shop_lat,
+            "shop_lng": shop_lng,
             "customer_name": cust.name if cust else "Verified Customer",
+            "customer_phone": cust.phone if (cust and cust.phone) else "+919352286423",
             "customer_address": ord_obj.delivery_address,
-            "customer_lat": ord_obj.delivery_lat or 27.0544,
-            "customer_lng": ord_obj.delivery_lng or 75.8942,
+            "customer_lat": cust_lat,
+            "customer_lng": cust_lng,
             "items_summary": f"{len(items)} items ({', '.join(i.item_name for i in items[:2])})",
+            "items_count": len(items),
             "grand_total": ord_obj.grand_total,
+            "payment_method": ord_obj.payment_method,
+            "payment_status": ord_obj.payment_status,
+            "is_cod": ord_obj.payment_method == "COD",
+            "cod_amount": ord_obj.grand_total if ord_obj.payment_method == "COD" else 0.0,
             "estimated_earning": ord_obj.partner_earning_amount or 25.0,
+            "pickup_distance_km": pickup_dist,
+            "drop_distance_km": drop_dist,
+            "total_trip_km": total_trip,
             "created_at": ord_obj.created_at.isoformat() if ord_obj.created_at else None,
         })
 
@@ -376,6 +405,8 @@ async def verify_delivery_pin(
     now = datetime.now(timezone.utc)
     order.status = "DELIVERED"
     order.updated_at = now
+    if order.payment_method == "COD":
+        order.payment_status = "PAID"
 
     # Credit partner earnings to rider wallet
     earning = order.partner_earning_amount or 25.0
@@ -396,6 +427,19 @@ async def verify_delivery_pin(
         )
         db.add(ledger)
 
+        # If COD order, log floating cash collection
+        if order.payment_method == "COD":
+            cash_ledger = WalletLedger(
+                user_id=rider_user.id,
+                order_id=order.id,
+                entry_type="CASH_COLLECTION",
+                amount=order.grand_total,
+                balance_after=new_balance,
+                note=f"Cash collected from customer for COD Order #{order.order_code}",
+                created_at=now,
+            )
+            db.add(cash_ledger)
+
     # Log audit event
     event = OrderEvent(
         order_id=order.id,
@@ -410,6 +454,137 @@ async def verify_delivery_pin(
         "success": True,
         "message": f"Order {order.order_code} successfully delivered! ₹{earning} credited to your wallet.",
         "earned": earning,
+        "is_cod": order.payment_method == "COD",
+        "cash_collected": order.grand_total if order.payment_method == "COD" else 0.0,
+    }
+
+
+class PayoutRequestPayload(BaseModel):
+    amount: float
+    upi_id: Optional[str] = None
+
+
+@router.get("/earnings")
+async def get_partner_earnings(
+    rider: dict = Depends(get_current_rider),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns live delivery partner earnings summary, today's metrics, floating cash in hand, and transaction history.
+    """
+    user_id = rider.get("id")
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Partner account not found.")
+
+    # Fetch recent ledger entries
+    ledger_res = await db.execute(
+        select(WalletLedger)
+        .where(WalletLedger.user_id == user_id)
+        .order_by(WalletLedger.created_at.desc())
+        .limit(30)
+    )
+    ledgers = ledger_res.scalars().all()
+
+    # Calculate today's earnings & orders
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_orders_res = await db.execute(
+        select(Order)
+        .where(
+            Order.delivery_partner_id == user_id,
+            Order.status == "DELIVERED",
+            Order.updated_at >= today_start,
+        )
+    )
+    today_orders = today_orders_res.scalars().all()
+    today_earned = sum(o.partner_earning_amount or 25.0 for o in today_orders)
+
+    # Calculate floating cash in hand (COD orders delivered)
+    today_cod_orders = [o for o in today_orders if o.payment_method == "COD"]
+    cash_in_hand = sum(o.grand_total for o in today_cod_orders)
+
+    # Total lifetime completed deliveries
+    total_orders_res = await db.execute(
+        select(Order).where(Order.delivery_partner_id == user_id, Order.status == "DELIVERED")
+    )
+    total_orders = total_orders_res.scalars().all()
+    total_lifetime_earned = sum(o.partner_earning_amount or 25.0 for o in total_orders)
+
+    return {
+        "wallet_balance": round(user.wallet_balance or 0.0, 2),
+        "upi_id": user.upi_id,
+        "today_earned": round(today_earned, 2),
+        "today_orders_count": len(today_orders),
+        "total_orders_count": len(total_orders),
+        "total_lifetime_earned": round(total_lifetime_earned, 2),
+        "cash_in_hand": round(cash_in_hand, 2),
+        "dues_limit": user.dues_limit or 1500.0,
+        "transactions": [
+            {
+                "id": l.id,
+                "entry_type": l.entry_type,
+                "amount": round(l.amount, 2),
+                "balance_after": round(l.balance_after, 2),
+                "note": l.note,
+                "order_id": l.order_id,
+                "created_at": l.created_at.isoformat() if l.created_at else None,
+            }
+            for l in ledgers
+        ],
+    }
+
+
+@router.post("/payout-request")
+async def request_partner_payout(
+    payload: PayoutRequestPayload,
+    rider: dict = Depends(get_current_rider),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Withdraw available partner wallet earnings to registered UPI ID.
+    """
+    user_id = rider.get("id")
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Partner account not found.")
+
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid withdrawal amount.")
+
+    current_bal = float(user.wallet_balance or 0.0)
+    if current_bal < payload.amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient wallet balance. You have ₹{current_bal:.2f} available.",
+        )
+
+    payout_upi = payload.upi_id or user.upi_id
+    if not payout_upi:
+        raise HTTPException(status_code=400, detail="Please provide a valid UPI ID (e.g. 98290XXXXX@paytm) for payout.")
+
+    user.wallet_balance = round(current_bal - payload.amount, 2)
+    if payload.upi_id:
+        user.upi_id = payload.upi_id.strip()
+
+    now = datetime.now(timezone.utc)
+    ledger = WalletLedger(
+        user_id=user.id,
+        entry_type="DEBIT",
+        amount=payload.amount,
+        balance_after=user.wallet_balance,
+        note=f"Instant payout transfer to UPI: {payout_upi}",
+        created_at=now,
+    )
+    db.add(ledger)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Payout of ₹{payload.amount:.2f} transferred to {payout_upi} successfully!",
+        "new_balance": user.wallet_balance,
+        "payout_ref": f"TXN-{int(now.timestamp())}",
     }
 
 
