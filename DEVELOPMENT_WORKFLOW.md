@@ -1,14 +1,24 @@
 # Servolocal — Permanent AI Software Development Factory Workflow
 
-> **Document Version**: 1.0.0  
-> **Classification**: Permanent Engineering Standard & Lifecycle Protocol  
+> **Document Version**: 2.0.0  
+> **Classification**: Permanent Engineering Standard, Conflict Prevention & Safety Lifecycle  
 > **Environment**: Antigravity IDE + Windows 11 + Servolocal Hyperlocal Platform  
 
 ---
 
-## 1. Primary Operational Directive
+## 1. Master Priority Hierarchy
 
-Whenever any engineering, frontend, backend, database, security, or deployment task is requested for Servolocal, all autonomous agents must automatically follow this deterministic 12-step lifecycle without requiring repetitive prompt instructions.
+Whenever any conflict arises between tools, skills, agents, or instructions, all operations MUST resolve disputes using this non-negotiable priority order:
+
+1. **User Data & Security** (Zero data loss, zero secrets exposed, OWASP Top 10 compliance).
+2. **Existing Working Application** (Zero regressions, working auth, active payments, operational stores).
+3. **Project-Specific AGENTS.md** (Factory architecture, schemas, and workspace rules).
+4. **Task Requirements** (Specific feature specifications and user acceptance criteria).
+5. **Relevant Specialist Tools** (Plugins, skills, MCP, and CLI utilities).
+
+---
+
+## 2. The 12-Step Lifecycle with Conflict Prevention & Safety Gates
 
 ```
   ┌────────────────────────────────────────────────────────────────────────┐
@@ -22,10 +32,6 @@ Whenever any engineering, frontend, backend, database, security, or deployment t
    9. FIX ERRORS ➔ 10. RETEST FLOW ➔ 11. REVIEW & AUDIT ➔ 12. REPORT EVIDENCE
 ```
 
----
-
-## 2. The 12-Step Lifecycle in Detail
-
 ### Step 1: Understand the Request
 - Parse the user's intent, constraints, and business domain (Customer Web, Partner Web, Rider Fleet, or Backend API).
 - Clarify ambiguous specifications using Socratic probing (`grill-me`, `to-spec`) before altering code.
@@ -35,26 +41,28 @@ Whenever any engineering, frontend, backend, database, security, or deployment t
 - Inspect existing files, schema models, and component hierarchies.
 - Never assume an API contract or database field exists without checking source code.
 
-### Step 3: Identify Relevant Installed Tools
-- Query the global and workspace toolchain:
-  - Plugins: `agent-toolkit`, `agent-workflows`, `codex-agents`, `superpowers`, `modern-web-guidance`.
-  - Skills: `impeccable`, `security-audit`, `find-skills`, `spec-driven-development`, `graphify`, `to-spec`, `to-tickets`, etc.
-  - CLI Utilities: `semgrep`, `gitleaks`, `repomix`, `playwright`, `pytest`.
+### Step 3: Identify Relevant Tools & Check Duplicate Functionality
+- Query the global and workspace toolchain in [`TOOL_REGISTRY.md`](file:///c:/Users/Priyanshuu/Desktop/ServoLocal/TOOL_REGISTRY.md).
+- **Conflict Prevention Check**: Identify overlapping capabilities across toolkits.
+- Designate **ONE primary execution agent** for the task slice.
+- Assign specialist tools (e.g. `security-audit`, `graphify`, `impeccable`) exclusively to bounded subtasks.
 
-### Step 4: Select the Best Tools for the Specific Task
-- Dynamically route to domain-specific tools:
-  - **UI/UX Work**: Trigger `impeccable` + `modern-web-guidance` + `shadcn/ui` patterns.
-  - **Planning/Decomposition**: Trigger `spec-driven-development` + `BMAD-Method` + `GSD` atomic slicing.
-  - **Bug Fixes**: Trigger `systematic-debugging` + `root-cause` before proposing code changes.
-  - **Security Audits**: Trigger `security-audit` (Cloudflare) + `semgrep` SAST + `gitleaks`.
+### Step 4: Select the Best Tools & Enforce Concurrency Guardrails
+- Dynamically route to domain-specific tools per the Routing Matrix.
+- **Single Writer Rule**: Never allow multiple agents or tools to modify the same files simultaneously. Parallel subagents must operate on strictly disjoint files or isolated git worktrees.
+- If two tools give contradictory guidance, stop and report the conflict rather than guessing.
 
 ### Step 5: Read Relevant Documentation Before Execution
-- Read the governing `SKILL.md` instructions or official framework guides before applying changes.
+- Read governing `SKILL.md` instructions or official framework guides before applying changes.
 - Avoid guessing framework APIs (e.g. Next.js 15 Server Actions, React 19 hooks, FastAPI async sessions).
 
-### Step 6: Create a Step-by-Step Implementation Plan
+### Step 6: Create Step-by-Step Plan & Establish Safe Checkpoint
 - Formulate a phased, atomic plan with explicit acceptance criteria.
-- Present major architectural modifications to the user before touching code.
+- **Pre-Change Safe Checkpoint Protocol**:
+  1. Run `git status` to inspect existing working tree state.
+  2. Preserve all existing uncommitted user changes.
+  3. Verify `.env` and `.env.local` files remain untouched and ignored.
+  4. Verify that dependencies in `package.json` and `requirements.txt` are intact.
 
 ### Step 7: Execute the Task (Atomic Implementation)
 - Write clean, modular, and idiomatic code adhering to TypeScript strict mode and Python PEP 8.
@@ -72,8 +80,9 @@ Whenever any engineering, frontend, backend, database, security, or deployment t
 - If a build, lint, type check, or test fails, isolate the exact root cause from the error log.
 - Fix the bug at the source rather than silencing errors with `@ts-ignore`, `eslint-disable`, or comment bypasses.
 
-### Step 10: Retest the Complete Affected Workflow
+### Step 10: Retest the Complete Affected Workflow & Rollback Gate
 - Rerun the test suite to guarantee zero regression across dependent modules.
+- **Atomic Rollback Protocol**: If verification fails and cannot be resolved cleanly, roll back ONLY the changes introduced by the current task slice (`git checkout <modified_file>` or `git restore`). Never execute destructive whole-repository resets (`git reset --hard`) that wipe uncommitted user work.
 
 ### Step 11: Perform Code Review, Security Review & Quality Checks
 - Run Semgrep SAST: `semgrep scan --config "p/python" backend/app --metrics=off`
@@ -93,3 +102,4 @@ Whenever any engineering, frontend, backend, database, security, or deployment t
 3. **Database Integrity**: Never drop tables, truncate collections, or execute destructive raw migrations without approval.
 4. **Evidence-Based Done**: Never state that a task is complete without showing actual command outputs proving it works.
 5. **Real Functionality**: Never build mock or fake demo functionality when a real working implementation is required.
+6. **No Mid-Task Tool Updates**: Do not install or update tools automatically during active production work without checking compatibility.

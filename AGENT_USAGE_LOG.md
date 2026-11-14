@@ -208,6 +208,30 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `AGENT_USAGE_LOG.md` (This entry)
 - **Final Status**: ✅ COMPLETED & REGISTERED
 
+---
+
+### TASK-007: Tool Conflict Prevention, Priority Hierarchy & Safe Checkpoint Integration
+- **Date / Timestamp**: 2026-11-14T21:31:00+05:30
+- **Goal**: Codify permanent tool conflict prevention, absolute priority hierarchy, single execution agent rule, safe checkpoint/rollback standards, and enhance `TOOL_REGISTRY.md` with conflict resolution and verification tracking.
+- **Rules & Hierarchy Codified**:
+  1. User Data & Security ➔ 2. Existing Working Application ➔ 3. Project AGENTS.md ➔ 4. Task Requirements ➔ 5. Specialist Tools.
+  - Single Execution Agent + Specialist Subtask Allocation.
+  - Strict Concurrency Ban (Single Writer Rule).
+  - Pre-Change Checkpoints (git status check, zero-secret guarantee, preserve user WIP).
+  - Atomic Rollback Protocol (roll back only current task slice on verification failure).
+- **Changed Files**:
+  - `TOOL_REGISTRY.md` (Updated to v3.0.0 with Priority Hierarchy, Conflict Matrix, Concurrency Guardrails, Safe Checkpoints)
+  - `DEVELOPMENT_WORKFLOW.md` (Updated to v2.0.0 with Conflict Check in Step 3, Checkpoint in Step 6, Rollback in Step 10)
+  - `AGENTS.md` (Added Section 16 for Conflict Prevention & Project Safety Protocols)
+  - `.agents/rules/servolocal-rules.md` (Added Section 7 for Conflict Prevention & Safety Hierarchy)
+  - `AGENT_USAGE_LOG.md` (This entry)
+- **Verification Outcomes**:
+  - `npm --prefix customer-web run type-check; npm --prefix customer-web run build` -> Exit code 0, 8/8 routes compiled.
+  - `npm --prefix partner-web run type-check; npm --prefix partner-web run build` -> Exit code 0, 7/7 routes compiled.
+  - Gitleaks scan -> 0 leaks found.
+- **Final Status**: ✅ COMPLETED, CODIFIED & VERIFIED
+
+
 
 
 

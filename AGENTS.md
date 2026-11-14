@@ -207,4 +207,28 @@ All engineering tasks on Servolocal are governed by the factory protocols:
 2. **[`TOOL_REGISTRY.md`](TOOL_REGISTRY.md)**: Master inventory and automatic tool routing index across all installed and reference repositories.
 3. **[`.agents/mcp_config.json`](.agents/mcp_config.json)**: Model Context Protocol configuration for repository tools (e.g. `repomix`).
 
+---
+
+## 16. Tool Conflict Prevention, Priority Hierarchy & Project Safety Protocols
+
+### Master Priority Order:
+1. **User Data & Security** (Zero data loss, zero secret exposure, OWASP Top 10 compliance).
+2. **Existing Working Application** (Zero regressions, working auth, active payments, operational stores).
+3. **Project-Specific AGENTS.md** (Factory architecture, schemas, and workspace rules).
+4. **Task Requirements** (Specific feature specifications and user acceptance criteria).
+5. **Relevant Specialist Tools** (Plugins, skills, MCP, and CLI utilities).
+
+### Conflict Prevention Rules:
+- **Single Execution Agent**: Exactly one primary execution agent drives each task slice. Specialist tools are assigned exclusively to bounded subtasks.
+- **Single Writer Rule**: Never allow multiple agents to modify the same files simultaneously.
+- **Contradiction Escalation**: If two tools or skills conflict, ground the decision in official framework documentation; if ambiguity remains, stop and report the conflict to the user instead of guessing.
+- **No Mid-Task Tool Updates**: Never install, upgrade, or remove CLI packages or plugins during active production feature work.
+
+### Pre-Change Checkpoints & Atomic Rollback:
+- Check `git status` before modifying code. Preserve uncommitted user changes.
+- Never overwrite `.env` or secrets. Never delete dependencies without verification.
+- Run lint, type-checks, tests, and production build after changes. Review `git diff`.
+- If verification fails, roll back **only** changes introduced by the current task slice (`git checkout <file>` or `git restore`). Never execute destructive repository resets (`git reset --hard`).
+
+
 

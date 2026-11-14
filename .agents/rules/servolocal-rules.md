@@ -69,3 +69,13 @@ Maintain `AGENT_USAGE_LOG.md` at the workspace root, logging:
 - Use `npx repomix` with `repomix.config.json` for token-efficient codebase context serialization.
 - Follow BMAD-Method and GSD principles: atomic, single-turn execution slices with explicit acceptance criteria.
 
+## 7. Tool Conflict Prevention & Safety Hierarchy
+- **Priority Hierarchy**: (1) User Data & Security ➔ (2) Existing Working Application ➔ (3) Project AGENTS.md ➔ (4) Task Requirements ➔ (5) Specialist Tools.
+- **Single Execution Agent**: Assign one primary execution agent per task slice; specialist tools handle bounded subtasks only.
+- **Single Writer Rule**: Never allow multiple agents to modify the same files simultaneously.
+- **Contradiction Escalation**: If two tools conflict, consult official docs; if unresolved, stop and report the conflict to the user rather than guessing.
+- **Safe Checkpoints**: Inspect `git status` before changing code. Preserve uncommitted user changes. Never touch `.env`.
+- **Atomic Rollback**: If verification fails, roll back ONLY changes introduced by the current task slice (`git checkout <file>` or `git restore`). Never execute destructive repository resets (`git reset --hard`).
+- **No Mid-Task Tool Updates**: Never install or upgrade tools during active production feature work.
+
+
