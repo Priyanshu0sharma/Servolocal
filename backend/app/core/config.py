@@ -70,7 +70,8 @@ class Settings(BaseSettings):
     # Resend & Brevo Email Service
     RESEND_API_KEY: Optional[str] = None
     BREVO_API_KEY: Optional[str] = None
-    EMAIL_FROM: str = "ServoLocal <Servolocal@resend.dev>"
+    BREVO_SENDER_EMAIL: str = "priyanshusharma1131@gmail.com"
+    EMAIL_FROM: str = "ServoLocal <priyanshusharma1131@gmail.com>"
 
     # SMTP Configuration (Fallback Email)
     SMTP_HOST: str = "smtp.gmail.com"

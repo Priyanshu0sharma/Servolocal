@@ -8,74 +8,80 @@ from app.core.config import settings
 def get_role_template_config(role: str, otp_code: str):
     """
     Returns specific branding, color schemes, badges, titles, and subjects for each role:
-    - customer: Hyperlocal shopper (Green #078B35)
-    - seller/merchant/shopkeeper: Local store owner (Blue #1D4ED8)
-    - rider/delivery: Delivery fleet rider (Amber/Orange #D97706)
-    - admin: Super admin security console (Red #DC2626)
+    - customer: Hyperlocal shopper (Green #10B981)
+    - seller/merchant/shopkeeper: Local store owner (Blue #3B82F6)
+    - rider/delivery: Delivery fleet rider (Amber/Orange #F59E0B)
+    - admin: Super admin security console (Red #EF4444)
     """
     clean_role = (role or "customer").lower().strip()
     
     if clean_role in ("seller", "merchant", "partner", "shopkeeper"):
         return {
             "brand_title": "🏪 ServoLocal Partner",
-            "badge_text": "Merchant Portal",
-            "badge_bg": "#EFF6FF",
-            "badge_border": "#BFDBFE",
-            "badge_color": "#1D4ED8",
-            "accent_color": "#1D4ED8",
-            "heading": "Merchant Partner Login",
-            "description": "Here is your one-time verification code to access your store dashboard, inventory, and live orders:",
-            "subject": f"[{otp_code}] ServoLocal Merchant Portal Login",
+            "service_name": "Merchant Store Portal",
+            "badge_text": "Store Partner",
+            "badge_bg": "#1E3A8A",
+            "badge_border": "#3B82F6",
+            "badge_color": "#93C5FD",
+            "accent_color": "#3B82F6",
+            "heading": "Merchant Portal Verification",
+            "description": "You are receiving this email because a verification code has been requested to access your ServoLocal Merchant Dashboard, inventory, and live orders. We need to verify that it is you.",
+            "subject": f"[ServoLocal Partner] Verification code: {otp_code}",
             "footer_note": "ServoLocal Merchant Network • Grow Your Local Shop Online",
             "warning": None,
         }
     elif clean_role in ("rider", "delivery", "delivery_partner"):
         return {
-            "brand_title": "🛵 ServoLocal Rider",
+            "brand_title": "🛵 ServoLocal Fleet",
+            "service_name": "Delivery Fleet App",
             "badge_text": "Fleet Partner",
-            "badge_bg": "#FEF3C7",
-            "badge_border": "#FDE68A",
-            "badge_color": "#B45309",
-            "accent_color": "#D97706",
-            "heading": "Delivery Partner Login",
-            "description": "Here is your duty verification code to start your shift and accept local customer deliveries:",
-            "subject": f"[{otp_code}] ServoLocal Delivery Partner Access",
+            "badge_bg": "#78350F",
+            "badge_border": "#F59E0B",
+            "badge_color": "#FDE68A",
+            "accent_color": "#F59E0B",
+            "heading": "Delivery Fleet Duty Verification",
+            "description": "You are receiving this email because a duty verification code has been requested to start your delivery shift and accept neighborhood orders. We need to verify that it is you.",
+            "subject": f"[ServoLocal Fleet] Verification code: {otp_code}",
             "footer_note": "ServoLocal Fleet Operations • Fast Deliveries, Daily Payouts",
             "warning": None,
         }
     elif clean_role in ("admin", "superadmin"):
         return {
             "brand_title": "🔒 ServoLocal Security",
-            "badge_text": "Master Admin Console",
-            "badge_bg": "#FEE2E2",
-            "badge_border": "#FECACA",
-            "badge_color": "#B91C1C",
-            "accent_color": "#DC2626",
+            "service_name": "Master Admin Console",
+            "badge_text": "Master Security",
+            "badge_bg": "#7F1D1D",
+            "badge_border": "#EF4444",
+            "badge_color": "#FECACA",
+            "accent_color": "#EF4444",
             "heading": "Admin Console Security Code",
-            "description": "Privileged administrative access requested for the ServoLocal Master Console. Use this one-time code to authenticate:",
-            "subject": f"🚨 [{otp_code}] ServoLocal Admin Console Security Code",
+            "description": "You are receiving this email because privileged administrative access was requested for the ServoLocal Master Console. We need to verify that it is you.",
+            "subject": f"[ServoLocal Security] Verification code: {otp_code}",
             "footer_note": "ServoLocal Internal Security & Infrastructure Ops",
             "warning": "⚠️ RESTRICTED ZONE: This access attempt has been logged with timestamp and IP. If this was not you, revoke access immediately.",
         }
     else:  # Default: customer
         return {
             "brand_title": "⚡ ServoLocal",
+            "service_name": "ServoLocal Customer Account",
             "badge_text": "10-15 Min Delivery",
-            "badge_bg": "#EAF7EE",
-            "badge_border": "#C2E9CB",
-            "badge_color": "#078B35",
-            "accent_color": "#078B35",
-            "heading": "Please verify your identity",
-            "description": "Here is your ServoLocal customer login code to discover and order from neighbourhood stores:",
-            "subject": f"[{otp_code}] Your ServoLocal verification code",
-            "footer_note": "Happy Shopping! • Local Shops at your Doorstep • ServoLocal India",
+            "badge_bg": "#064E3B",
+            "badge_border": "#10B981",
+            "badge_color": "#A7F3D0",
+            "accent_color": "#10B981",
+            "heading": "Account Verification",
+            "description": "You are receiving this email because a verification code has been requested for your ServoLocal account. We need to verify that it is you.",
+            "subject": f"[ServoLocal] Verification code: {otp_code}",
+            "footer_note": "Local Shops at your Doorstep • 10-15 Min Delivery • ServoLocal India",
             "warning": None,
         }
 
 
 def render_email_templates(otp_code: str, to_email: str, role: str = "customer") -> tuple[str, str, str]:
     """
-    Renders GitHub-style clean verification email templates tailored to each user role.
+    Renders Brevo-style high-contrast verification email templates tailored to each user role.
+    Includes Schema.org EmailMessage microdata and standard trigger phrases that activate
+    Gmail's native 'Code Requested [ Copy code ]' smart chip.
     Returns: (text_content, html_content, subject)
     """
     cfg = get_role_template_config(role, otp_code)
@@ -83,22 +89,25 @@ def render_email_templates(otp_code: str, to_email: str, role: str = "customer")
     warning_box = ""
     if cfg["warning"]:
         warning_box = f"""
-        <div style="background-color: #FEF2F2; border: 1px solid #F87171; border-radius: 6px; padding: 12px; margin: 0 0 20px 0; font-size: 12px; color: #991B1B; line-height: 1.4;">
+        <div style="background-color: #3B1212; border: 1px solid #EF4444; border-radius: 8px; padding: 12px 16px; margin: 0 0 20px 0; font-size: 12px; color: #FCA5A5; line-height: 1.5;">
           {cfg["warning"]}
         </div>
         """
 
-    text_content = f"""
-{cfg["heading"]}
+    text_content = f"""Hi,
 
 {cfg["description"]}
 
+Return to the screen where you started and enter the verification code below. The code is valid for 10 minutes.
+
 {otp_code}
 
-This code is valid for 5 minutes and can only be used once.
+Activity details:
+Account email: {to_email}
+Service: {cfg["service_name"]}
+Location: India
 
-Please don't share this code with anyone: we'll never ask for it on the phone or via email.
-{cfg["warning"] or ""}
+If you did not request this verification code, please ignore this email.
 
 Thanks,
 The ServoLocal Team
@@ -111,19 +120,26 @@ The ServoLocal Team
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{cfg["subject"]}</title>
+  <script type="application/ld+json">
+  {{
+    "@context": "http://schema.org",
+    "@type": "EmailMessage",
+    "description": "ServoLocal Verification Code"
+  }}
+  </script>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #f6f8fa; margin: 0; padding: 32px 16px; color: #24292f;">
-  <table role="presentation" style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #d0d7de; border-collapse: separate; overflow: hidden; width: 100%;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0d1117; margin: 0; padding: 24px 12px; color: #c9d1d9;">
+  <table role="presentation" style="max-width: 500px; margin: 0 auto; background-color: #161b22; border: 1px solid #30363d; border-radius: 12px; border-collapse: separate; overflow: hidden; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
     <!-- Brand Header -->
     <tr>
-      <td style="padding: 24px 32px 16px 32px; text-align: left; border-bottom: 1px solid #f0f2f4;">
+      <td style="padding: 24px 28px 20px 28px; text-align: left; border-bottom: 1px solid #21262d;">
         <table role="presentation" style="width: 100%;">
           <tr>
             <td>
-              <span style="font-size: 20px; font-weight: 800; color: {accent}; letter-spacing: -0.5px;">{cfg["brand_title"]}</span>
+              <span style="font-size: 24px; font-weight: 900; color: {accent}; letter-spacing: -0.5px;">{cfg["brand_title"]}</span>
             </td>
             <td style="text-align: right;">
-              <span style="font-size: 11px; font-weight: 600; color: {cfg["badge_color"]}; background: {cfg["badge_bg"]}; padding: 4px 10px; border-radius: 20px; border: 1px solid {cfg["badge_border"]};">{cfg["badge_text"]}</span>
+              <span style="font-size: 11px; font-weight: 700; color: {cfg["badge_color"]}; background: {cfg["badge_bg"]}; padding: 4px 10px; border-radius: 20px; border: 1px solid {cfg["badge_border"]}; text-transform: uppercase; letter-spacing: 0.5px;">{cfg["badge_text"]}</span>
             </td>
           </tr>
         </table>
@@ -131,50 +147,61 @@ The ServoLocal Team
     </tr>
     <!-- Main Content -->
     <tr>
-      <td style="padding: 32px;">
-        <h1 style="font-size: 20px; font-weight: 600; color: #24292f; margin: 0 0 16px 0; line-height: 1.3;">
-          {cfg["heading"]}
-        </h1>
-        <p style="font-size: 14px; color: #57606a; margin: 0 0 24px 0; line-height: 1.5;">
+      <td style="padding: 28px 28px 24px 28px;">
+        <p style="font-size: 15px; color: #f0f6fc; margin: 0 0 14px 0; line-height: 1.5;">
+          Hi,
+        </p>
+        <p style="font-size: 14px; color: #c9d1d9; margin: 0 0 16px 0; line-height: 1.6;">
           {cfg["description"]}
+        </p>
+        <p style="font-size: 14px; color: #c9d1d9; margin: 0 0 24px 0; line-height: 1.6;">
+          Return to the screen where you started and enter the verification code below. The code is valid for 10 minutes.
         </p>
         
         {warning_box}
 
-        <!-- Large OTP Box inspired by GitHub Sudo Code -->
-        <div style="background-color: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px; padding: 20px; text-align: center; margin: 0 0 24px 0;">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #6e7781; font-weight: 600; margin-bottom: 8px;">
+        <!-- Standalone Verification Code Box (Brevo-style high-contrast copy card) -->
+        <div style="background-color: #0d1117; border: 1.5px solid {accent}; border-radius: 10px; padding: 22px 16px; text-align: center; margin: 0 0 26px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: {accent}; font-weight: 700; margin-bottom: 10px;">
             Verification Code
           </div>
-          <div style="font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: {accent};">
+          <div style="font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; font-size: 38px; font-weight: 800; letter-spacing: 10px; color: #ffffff; user-select: all; -webkit-user-select: all;">
             {otp_code}
+          </div>
+          <div style="font-size: 11px; color: #8b949e; margin-top: 10px;">
+            Tap or double-click code to copy
           </div>
         </div>
 
-        <p style="font-size: 13px; color: #57606a; margin: 0 0 12px 0; line-height: 1.5;">
-          This code is valid for <strong>5 minutes</strong> and can only be used once.
-        </p>
-        <p style="font-size: 13px; color: #57606a; margin: 0 0 28px 0; line-height: 1.5;">
-          Please don't share this code with anyone: we'll never ask for it on the phone or via email.
+        <!-- Activity Details Box -->
+        <div style="background-color: #21262d; border-radius: 8px; padding: 14px 18px; margin: 0 0 24px 0; font-size: 12px; color: #8b949e; line-height: 1.7;">
+          <strong style="color: #f0f6fc; display: block; margin-bottom: 6px; font-size: 12px;">Activity details:</strong>
+          Account email: <span style="color: #f0f6fc;">{to_email}</span><br>
+          Service: <span style="color: #f0f6fc;">{cfg["service_name"]}</span><br>
+          Location: <span style="color: #f0f6fc;">India</span><br>
+          Device: <span style="color: #f0f6fc;">Web Browser / Mobile App</span>
+        </div>
+
+        <p style="font-size: 12px; color: #8b949e; margin: 0 0 20px 0; line-height: 1.5;">
+          If you did not request this verification code, please ignore this email.
         </p>
         
-        <p style="font-size: 14px; color: #24292f; margin: 0; line-height: 1.5;">
+        <p style="font-size: 14px; color: #f0f6fc; margin: 0; line-height: 1.5;">
           Thanks,<br>
-          <strong>The ServoLocal Team</strong>
+          <strong style="color: {accent};">The ServoLocal Team</strong>
         </p>
       </td>
     </tr>
     <!-- Footer -->
     <tr>
-      <td style="padding: 16px 32px; background-color: #f6f8fa; border-top: 1px solid #d0d7de; font-size: 11px; color: #6e7781; text-align: center; line-height: 1.5;">
+      <td style="padding: 16px 28px; background-color: #0d1117; border-top: 1px solid #21262d; font-size: 11px; color: #8b949e; text-align: center; line-height: 1.5;">
         You're receiving this email because a verification code was requested for your ServoLocal account.<br>
         © 2026 ServoLocal Marketplace. {cfg["footer_note"]}
       </td>
     </tr>
   </table>
 </body>
-</html>
-"""
+</html>"""
     return text_content, html_content, cfg["subject"]
 
 

@@ -309,3 +309,25 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
 
 
 
+
+
+---
+
+### TASK-010: Brevo HTTPS REST API Integration & Smart Chip Verification Copy Box
+- **Date / Timestamp**: 2026-11-14T22:45:00+05:30
+- **Goal**: Connect 100% free Brevo transactional email delivery via HTTPS REST API (Port 443) to eliminate cloud port 587/465 blockades, and redesign verification email templates to mirror Brevo's exact verification style with a standalone copy box triggering Gmail's native '[ Copy code ]' smart chip.
+- **Actions Executed**:
+  1. 'backend/app/core/config.py': Added 'BREVO_API_KEY' and 'BREVO_SENDER_EMAIL' configuration properties.
+  2. 'backend/app/core/email_service.py': Prioritized Brevo REST API over HTTPS port 443 with direct SMTP fallback. Redesigned email templates across all roles ('customer', 'seller', 'rider', 'admin') incorporating Schema.org 'EmailMessage' microdata, Gmail NLP trigger phrases ('Return to the screen where you started and enter the verification code below'), and standalone verification code copy box with monospace 38px bold typography, 'letter-spacing: 10px', and 'user-select: all'.
+  3. 'backend/.env': Updated with verified production Brevo API key and sender email.
+- **Changed Files**:
+  - 'backend/app/core/config.py'
+  - 'backend/app/core/email_service.py'
+  - 'AGENT_USAGE_LOG.md'
+- **Verification Proof**:
+  - Brevo API live delivery test to 'ps4567210@gmail.com': HTTP 201 Created ('<202611141714.16178468291@smtp-relay.mailin.fr>').
+  - 'pytest backend/tests': 25 passed.
+  - 'npm --prefix customer-web run type-check': 0 errors.
+  - 'npm --prefix partner-web run type-check': 0 errors.
+  - 'gitleaks detect --pipe' on git diff: 0 leaks found.
+- **Final Status**: ✅ COMPLETED & VERIFIED
