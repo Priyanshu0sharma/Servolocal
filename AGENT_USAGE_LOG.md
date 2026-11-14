@@ -77,3 +77,28 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `partner-web/package.json` (added `"type-check": "tsc --noEmit"`)
 - **Final Status**: ✅ PASSED & VERIFIED
 
+---
+
+### TASK-003: Additional Engineering Toolkit Configuration & Security Verification
+- **Date / Timestamp**: 2026-11-14T20:42:00+05:30
+- **Goal**: Configure and verify additional UI references (shadcn, magicui, spectrum-ui), marketplace patterns (Medusa, Vendure, SaaS-Boilerplate), security toolkits (Semgrep, Gitleaks, OWASP, CodeQL), and automated testing toolkits (Playwright, a11y-next-app).
+- **Repositories & Tools Evaluated**:
+  - `shadcn-ui/ui`, `magicuidesign/magicui`, `arihantcodes/spectrum-ui`, `shadcn-ui/lint`
+  - `medusajs/medusa`, `vendurehq/vendure`, `ixartz/SaaS-Boilerplate`, `nextjs/saas-starter`
+  - `OWASP/CheatSheetSeries`, `semgrep/semgrep`, `semgrep-rules`, `github/codeql-action`, `gitleaks/gitleaks`
+  - `microsoft/playwright`, `chandansamal/a11y-next-app`
+- **Commands Executed**:
+  - `pip install semgrep` -> semgrep v1.185.0 installed and verified.
+  - Dependency conflict resolution: `pip install "starlette<0.39.0,>=0.37.2"` to restore FastAPI compatibility.
+  - Downloaded and verified standalone `gitleaks` v8.24.0 in `C:\Users\Priyanshuu\.gemini\bin\gitleaks.exe`.
+  - `npx --yes playwright --version` -> v1.65.1 verified.
+  - `semgrep scan --config "p/python" backend/app --metrics=off` -> 0 findings across 27 files with 151 rules.
+  - `gitleaks detect --source . --no-git` -> 37 findings in local uncommitted build files and .env; confirmed .gitignore blocks all secret leaks.
+  - `pytest backend/tests` -> 25/25 passed.
+- **Changed / Created Files**:
+  - `AGENTS.md` (extended with UI, Commerce, Security, and Testing sections)
+  - `.agents/rules/servolocal-rules.md` (extended with security and testing guardrails)
+  - `AGENT_USAGE_LOG.md` (updated log)
+- **Final Status**: ✅ COMPLETED & FULLY VERIFIED
+
+

@@ -27,11 +27,19 @@ Every task must automatically follow this lifecycle:
 ## 3. Mandatory Verification Standards
 Always run and show terminal outputs for:
 - Customer Web: `npm --prefix customer-web run type-check` and `npm --prefix customer-web run build`
-- Partner Web: `npm --prefix partner-web run build`
+- Partner Web: `npm --prefix partner-web run type-check` and `npm --prefix partner-web run build`
 - Backend: `pytest backend/tests`
+- Security SAST (when backend/auth modified): `semgrep scan --config "p/python" backend/app --metrics=off`
+- Secret Leak Audit (before commits): `C:\Users\Priyanshuu\.gemini\bin\gitleaks.exe detect --source . --no-git`
 Never claim an issue is resolved without verifying the fix with terminal evidence.
 
-## 4. Permanent Usage Logging
+## 4. UI, Architecture & Security Reference Guardrails
+- **UI Design**: Use `shadcn/ui`, `magicui`, and `spectrum-ui` as design references for accessible components and clean micro-interactions. Never overload the application with unnecessary animations or bloated dependencies.
+- **Marketplace Reference**: Use `medusa` and `vendure` patterns for order state machines and multi-vendor inventory isolation. Never replace or migrate Servolocal's FastAPI/Neon DB architecture without explicit approval.
+- **Security Standards**: Follow `OWASP CheatSheetSeries` for input validation, JWT handling, and password security. Never print or log `.env` secrets.
+- **Automated Testing**: Use `playwright` for end-to-end user journey verification and `a11y-next-app` for accessibility standards.
+
+## 5. Permanent Usage Logging
 Maintain `AGENT_USAGE_LOG.md` at the workspace root, logging:
 - Task ID and description
 - Repositories and skills triggered

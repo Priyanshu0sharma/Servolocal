@@ -74,7 +74,82 @@ Before proposing or completing any feature or bugfix, run and verify the relevan
 
 ---
 
-## 4. Strict Safety Guardrails
+## 5. UI & Design Reference Systems
+
+| Toolkit | Reference Source | Application Scope | Operational Rule |
+| :--- | :--- | :--- | :--- |
+| **shadcn/ui** | `shadcn-ui/ui` | Core component primitives & styling | Accessible, unstyled Radix / Tailwind primitives. Copy specific components only when needed; avoid bloating bundles. |
+| **Magic UI** | `magicuidesign/magicui` | Micro-interactions & animations | Subtle cart drawer entrances, checkout badges, and order stepper indicators. **Strict rule**: Never overload the app with unnecessary animations. |
+| **Spectrum UI** | `arihantcodes/spectrum-ui` | Modern cards, chips & data displays | Clean status pills (e.g. `PACKED`, `CONFIRMED`), shop tags, and order breakdown views. |
+| **shadcn/lint** | `shadcn-ui/lint` | React & Tailwind styling conventions | Enforces clean class ordering and accessible JSX structure. |
+
+---
+
+## 6. Commerce & Marketplace Architecture References
+
+> [!IMPORTANT]
+> These are architectural and pattern references, **not** instructions to replace the existing Servolocal tech stack. Never migrate the backend away from FastAPI/Neon DB without explicit approval.
+
+| Reference Repository | Architectural Patterns Borrowed | Servolocal Adaptation |
+| :--- | :--- | :--- |
+| **MedusaJS** (`medusajs/medusa`) | Multi-vendor cart quoting, line-item adjustments, order state machines, payment sessions. | Inspires the 5-stage order transition lifecycle (`CREATED` ➔ `ACCEPTED` ➔ `PACKING` ➔ `OUT_FOR_DELIVERY` ➔ `DELIVERED`). |
+| **Vendure** (`vendurehq/vendure`) | Merchant inventory segregation, channel permissions, tax/fee calculations. | Applied to local merchant inventory isolation and real-time open/closed duty status. |
+| **SaaS Boilerplate** (`ixartz/SaaS-Boilerplate`) | Next.js App Router organization, clean layout wrappers, and robust error boundaries. | Ensures clean modular Next.js architecture across `customer-web` and `partner-web`. |
+| **Next.js SaaS Starter** (`nextjs/saas-starter`) | Optimistic UI updates, server action patterns, and clean session token propagation. | Informs instant cart counter updates and balance reflection. |
+
+---
+
+## 7. Security & Automated Vulnerability Scanning
+
+| Security Tool | Installation / Setup | Scope & Audit Focus |
+| :--- | :--- | :--- |
+| **Semgrep** (`semgrep/semgrep`) | Installed (`semgrep 1.185.0`) | Automated SAST scanning for Python FastAPI backend and Next.js React frontend. |
+| **Semgrep Rules** (`semgrep-rules`) | `p/python`, `p/security-audit`, `p/owasp-top-ten` | Scans for SQL injection, insecure deserialization, unsafe headers, and broken auth. |
+| **Gitleaks** (`gitleaks/gitleaks`) | Installed (`v8.24.0` in `~/.gemini/bin/gitleaks.exe`) | Scans staged diffs and repository files for exposed API keys, DB passwords, and private tokens. |
+| **OWASP Cheat Sheet** (`OWASP/CheatSheetSeries`) | Permanent security reference | Guides session security, JWT token handling, password hashing, and input validation. |
+| **GitHub CodeQL** (`github/codeql-action`) | CI/CD automation template | Semantic vulnerability and taint tracking for GitHub pull requests. |
+
+---
+
+## 8. Automated Testing & Accessibility Toolkit
+
+| Tool | Target Scope | Execution Method |
+| :--- | :--- | :--- |
+| **Playwright** (`microsoft/playwright`) | Cross-browser End-to-End user journeys (login, cart, checkout, partner dispatch). | Automated headless browser testing via `npx playwright test`. |
+| **a11y-next-app** (`chandansamal/a11y-next-app`) | Accessibility compliance (WCAG 2.1 AA, keyboard navigation, contrast, ARIA tokens). | Audits dialog focus traps, screen-reader labels, and color contrast. |
+
+---
+
+## 9. Full Verification Command Suite
+
+Run the applicable command suite for every meaningful change:
+
+1. **Customer Web**:
+   ```bash
+   npm --prefix customer-web run type-check
+   npm --prefix customer-web run build
+   ```
+2. **Partner Web**:
+   ```bash
+   npm --prefix partner-web run type-check
+   npm --prefix partner-web run build
+   ```
+3. **Backend Test Suite**:
+   ```bash
+   pytest backend/tests
+   ```
+4. **Security Vulnerability Scan (SAST)**:
+   ```bash
+   semgrep scan --config "p/python" backend/app --metrics=off
+   ```
+5. **Secret & Key Leak Detection**:
+   ```bash
+   C:\Users\Priyanshuu\.gemini\bin\gitleaks.exe detect --source . --no-git
+   ```
+
+---
+
+## 10. Strict Safety Guardrails
 
 - **Zero-Secret Exposure**: Never touch, overwrite, or log secrets from `.env` or `.env.local`.
 - **Preserve Working Features**: Do not replace the existing tech stack, break working Firebase auth, or delete working payments.
