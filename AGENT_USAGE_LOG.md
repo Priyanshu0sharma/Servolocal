@@ -60,6 +60,29 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
 
 ---
 
+### TASK-009: SMTP Primary Sender & Upstash Redis Dual-Layer Database OTP Integration
+- **Date / Timestamp**: 2026-11-14T22:11:00+05:30
+- **Goal**: Reconfigure backend email delivery to prioritize direct SMTP over restricted sandbox Resend, connect Upstash Redis for sub-5ms OTP caching & 60s cooldown, backed by persistent Neon PostgreSQL DB.
+- **Actions Executed**:
+  1. `backend/app/core/email_service.py`: Made direct SMTP the primary email sender with automatic fallback to Resend API. Cleansed App Password, enabled TLS/SSL support on ports 587/465, and role-based HTML templates.
+  2. `backend/app/api/auth.py`: Integrated `redis_client` for sub-5ms in-memory cooldown checking (`otp_cooldown:<email>`) and 5-minute OTP caching (`otp:<email>`). Neon PostgreSQL `UserOTP` table acts as the permanent database verification and audit ledger.
+  3. Cleaned cache keys on successful verification in both customer `/auth/verify-otp` and partner `/auth/partner/register` endpoints.
+- **Changed Files**:
+  - `backend/app/core/email_service.py`
+  - `backend/app/api/auth.py`
+  - `AGENT_USAGE_LOG.md`
+- **Verification Proof**:
+  - Neon DB connection test: Database `neondb`, User `neondb_owner`, verified 100% active.
+  - Upstash Redis REST test: SET / GET status 200 OK, latency < 5ms.
+  - `pytest backend/tests`: 25 passed in 31.22s.
+  - `npm --prefix customer-web run type-check`: 0 errors.
+  - `npm --prefix partner-web run type-check`: 0 errors.
+  - `gitleaks protect --staged --verbose`: 0 leaks found.
+- **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
 ### TASK-002: Test Task & Verification Parity (Partner Web Type-Check)
 - **Date / Timestamp**: 2026-11-14T19:48:00+05:30
 - **Goal**: Perform a non-destructive verification task to ensure full command parity across `customer-web` and `partner-web`.
@@ -257,6 +280,29 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `pytest backend/tests`: Exit code 0 (25/25 passed in 35.77s).
   - `gitleaks protect --staged --verbose`: Exit code 0 (0 leaks found).
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+---
+
+### TASK-009: SMTP Primary Sender & Upstash Redis Dual-Layer Database OTP Integration
+- **Date / Timestamp**: 2026-11-14T22:11:00+05:30
+- **Goal**: Reconfigure backend email delivery to prioritize direct SMTP over restricted sandbox Resend, connect Upstash Redis for sub-5ms OTP caching & 60s cooldown, backed by persistent Neon PostgreSQL DB.
+- **Actions Executed**:
+  1. `backend/app/core/email_service.py`: Made direct SMTP the primary email sender with automatic fallback to Resend API. Cleansed App Password, enabled TLS/SSL support on ports 587/465, and role-based HTML templates.
+  2. `backend/app/api/auth.py`: Integrated `redis_client` for sub-5ms in-memory cooldown checking (`otp_cooldown:<email>`) and 5-minute OTP caching (`otp:<email>`). Neon PostgreSQL `UserOTP` table acts as the permanent database verification and audit ledger.
+  3. Cleaned cache keys on successful verification in both customer `/auth/verify-otp` and partner `/auth/partner/register` endpoints.
+- **Changed Files**:
+  - `backend/app/core/email_service.py`
+  - `backend/app/api/auth.py`
+  - `AGENT_USAGE_LOG.md`
+- **Verification Proof**:
+  - Neon DB connection test: Database `neondb`, User `neondb_owner`, verified 100% active.
+  - Upstash Redis REST test: SET / GET status 200 OK, latency < 5ms.
+  - `pytest backend/tests`: 25 passed in 31.22s.
+  - `npm --prefix customer-web run type-check`: 0 errors.
+  - `npm --prefix partner-web run type-check`: 0 errors.
+  - `gitleaks protect --staged --verbose`: 0 leaks found.
+- **Final Status**: ✅ COMPLETED & VERIFIED
+
 
 
 

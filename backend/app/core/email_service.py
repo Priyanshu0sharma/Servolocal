@@ -181,14 +181,53 @@ The ServoLocal Team
 def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tuple[bool, str]:
     """
     Sends a real 6-digit verification code to the recipient's email inbox with role-based formatting.
+    Uses SMTP as the primary email provider, with automatic fallback to Resend / Brevo APIs.
     """
-    resend_api_key = os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", None)
-    brevo_api_key = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", None)
-    email_from = os.getenv("EMAIL_FROM") or getattr(settings, "EMAIL_FROM", "ServoLocal <onboarding@resend.dev>")
-    
     text_content, html_content, subject = render_email_templates(otp_code, to_email, role)
 
-    # --- 1. Resend REST API (HTTPS Port 443, Zero Port-Blocking on Render) ---
+    smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL") or getattr(settings, "SMTP_USER", None)
+    smtp_pass = os.getenv("SMTP_PASSWORD") or getattr(settings, "SMTP_PASSWORD", None)
+    smtp_host = os.getenv("SMTP_HOST") or getattr(settings, "SMTP_HOST", "smtp.gmail.com")
+    try:
+        smtp_port = int(os.getenv("SMTP_PORT") or getattr(settings, "SMTP_PORT", 587))
+    except (ValueError, TypeError):
+        smtp_port = 587
+
+    smtp_errors = []
+
+    # --- 1. PRIMARY: SMTP Direct Delivery ---
+    if smtp_user and smtp_pass:
+        clean_pass = smtp_pass.replace(" ", "").strip()
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"ServoLocal <{smtp_user}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(text_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        # Try Port 587 with STARTTLS first
+        try:
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_host, 465, timeout=12)
+            else:
+                server = smtplib.SMTP(smtp_host, smtp_port, timeout=12)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+
+            server.login(smtp_user, clean_pass)
+            server.send_message(msg)
+            server.quit()
+            return (True, f"Verification code successfully sent via SMTP to {to_email}")
+        except smtplib.SMTPAuthenticationError as auth_err:
+            smtp_errors.append(f"SMTP Auth Error (code {auth_err.smtp_code}): Invalid or expired App Password for {smtp_user}")
+        except Exception as smtp_exc:
+            smtp_errors.append(f"SMTP Error: {str(smtp_exc)}")
+
+    # --- 2. FALLBACK: Resend REST API (HTTPS Port 443) ---
+    resend_api_key = os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", None)
+    email_from = os.getenv("EMAIL_FROM") or getattr(settings, "EMAIL_FROM", "ServoLocal <onboarding@resend.dev>")
+
     if resend_api_key and resend_api_key.strip():
         try:
             with httpx.Client(timeout=10.0) as client:
@@ -211,11 +250,14 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
                 else:
                     err_data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
                     err_msg = err_data.get("message") or resp.text
-                    return (False, f"Resend API error ({resp.status_code}): {err_msg}")
-        except Exception as e:
-            return (False, f"Failed to send email via Resend API: {str(e)}")
+                    resend_err = f"Resend API error ({resp.status_code}): {err_msg}"
+        except Exception as resend_exc:
+            resend_err = f"Resend connection error: {str(resend_exc)}"
+    else:
+        resend_err = "Resend API key not configured"
 
-    # --- 2. Brevo REST API (HTTPS Port 443) ---
+    # --- 3. FALLBACK: Brevo REST API (HTTPS Port 443) ---
+    brevo_api_key = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", None)
     if brevo_api_key and brevo_api_key.strip():
         try:
             with httpx.Client(timeout=10.0) as client:
@@ -235,47 +277,15 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
                 )
                 if resp.status_code in (200, 201):
                     return (True, f"Verification code successfully sent via Brevo API to {to_email}")
-                else:
-                    return (False, f"Brevo API error ({resp.status_code}): {resp.text}")
-        except Exception as e:
-            return (False, f"Failed to send email via Brevo API: {str(e)}")
+        except Exception:
+            pass
 
-    # --- 3. SMTP Fallback ---
-    smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL")
-    smtp_pass = os.getenv("SMTP_PASSWORD")
-    smtp_host = os.getenv("SMTP_HOST") or "smtp.gmail.com"
-    try:
-        smtp_port = int(os.getenv("SMTP_PORT") or 587)
-    except ValueError:
-        smtp_port = 587
+    # If all providers failed, build informative diagnostic message
+    all_details = []
+    if smtp_errors:
+        all_details.append(smtp_errors[0])
+    if resend_err:
+        all_details.append(resend_err)
 
-    if not smtp_user or not smtp_pass:
-        return (
-            False,
-            "No email service configured. Please provide RESEND_API_KEY in environment variables."
-        )
-
-    clean_pass = smtp_pass.replace(" ", "").strip()
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"ServoLocal <{smtp_user}>"
-    msg["To"] = to_email
-    msg.attach(MIMEText(text_content, "plain"))
-    msg.attach(MIMEText(html_content, "html"))
-
-    try:
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(smtp_user, clean_pass)
-        server.send_message(msg)
-        server.quit()
-        return (True, f"6-digit verification code successfully sent to {to_email}")
-    except smtplib.SMTPAuthenticationError as auth_err:
-        return (
-            False,
-            f"SMTP Authentication Error: Google rejected credentials ({auth_err.smtp_code}). Please verify your App Password."
-        )
-    except Exception as exc:
-        return (False, f"Failed to connect to email provider: {exc}")
+    combined_msg = " | ".join(all_details) if all_details else "No working email provider available."
+    return (False, f"Email delivery failed: {combined_msg}")

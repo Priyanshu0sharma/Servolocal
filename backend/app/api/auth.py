@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.email_service import send_otp_email
+from app.core.redis_client import redis_client
 from app.db.models import User, UserOTP, Shop, PartnerProfile
 from app.db.session import get_db
 
@@ -103,7 +104,19 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
                 detail="Access Denied: This email address does not have administrator privileges.",
             )
 
-    # 1. Check for existing active OTP to enforce 60-second resend cooldown
+    # 1. Fast Redis in-memory check followed by Neon PostgreSQL cooldown check
+    cooldown_key = f"otp_cooldown:{email_clean}"
+    try:
+        if await redis_client.get(cooldown_key):
+            raise HTTPException(
+                status_code=429,
+                detail="Please wait 60 seconds before requesting another verification code.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     stmt = (
         select(UserOTP)
         .where(
@@ -141,6 +154,13 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     db.add(new_otp_record)
     await db.commit()
     await db.refresh(new_otp_record)
+
+    # Cache OTP hash and 60-second cooldown in Upstash Redis
+    try:
+        await redis_client.set(f"otp:{email_clean}", otp_hash_val, expire_seconds=300)
+        await redis_client.set(cooldown_key, "1", expire_seconds=60)
+    except Exception:
+        pass
 
     # 4. Deliver through real configured email provider with role-tailored template
     success, message = send_otp_email(email_clean, raw_otp_code, role=clean_role)
@@ -229,6 +249,20 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
     # 5. Mark OTP as used to prevent replay attacks
     otp_record.is_used = True
     await db.commit()
+
+    # Clear Upstash Redis OTP & cooldown cache
+    try:
+        await redis_client.delete(f"otp:{email_clean}")
+        await redis_client.delete(f"otp_cooldown:{email_clean}")
+    except Exception:
+        pass
+
+    # Clear Upstash Redis OTP & cooldown cache on successful verification
+    try:
+        await redis_client.delete(f"otp:{email_clean}")
+        await redis_client.delete(f"otp_cooldown:{email_clean}")
+    except Exception:
+        pass
 
     # 6. Fetch or Create User in PostgreSQL
     user_stmt = select(User).where(User.email.ilike(email_clean))
@@ -425,6 +459,13 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
 
     otp_record.is_used = True
     await db.commit()
+
+    # Clear Upstash Redis OTP & cooldown cache
+    try:
+        await redis_client.delete(f"otp:{email_clean}")
+        await redis_client.delete(f"otp_cooldown:{email_clean}")
+    except Exception:
+        pass
 
     # 2. Check if user already exists
     user_res = await db.execute(select(User).where(User.email.ilike(email_clean)))
