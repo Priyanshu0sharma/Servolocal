@@ -310,8 +310,8 @@ export default function SmartCartDrawer({
           order_id: razorpayRes.payment_order.id,
           prefill: {
             name: user?.name || "Customer",
-            email: user?.email || "customer@servolocal.in",
-            contact: user?.phone || "+919352286423",
+            email: user?.email || "",
+            contact: user?.phone || "",
           },
           theme: { color: "#0C831F" },
           handler: async (resp: any) => {

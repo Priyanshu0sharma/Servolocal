@@ -50,9 +50,9 @@ export default function CustomerProfileView({
   wishlistCount = 0,
 }: CustomerProfileViewProps) {
   const [isEditingInline, setIsEditingInline] = useState(false);
-  const [nameInput, setNameInput] = useState(user?.name || "Priyanshu Sharma");
+  const [nameInput, setNameInput] = useState(user?.name || "");
   const [genderInput, setGenderInput] = useState(user?.gender || "Male");
-  const [phoneInput, setPhoneInput] = useState(user?.phone || "+91 98765 43210");
+  const [phoneInput, setPhoneInput] = useState(user?.phone || "");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -64,7 +64,7 @@ export default function CustomerProfileView({
         const liveUser = await getMe();
         if (liveUser) {
           onUpdateUser(liveUser);
-          setNameInput(liveUser.name || "Priyanshu Sharma");
+          setNameInput(liveUser.name || "");
           if (liveUser.gender) setGenderInput(liveUser.gender);
           if (liveUser.phone) setPhoneInput(liveUser.phone);
         }
@@ -146,7 +146,7 @@ export default function CustomerProfileView({
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-black text-[#171717] tracking-tight">
-                  {user?.name || "Priyanshu Sharma"}
+                  {user?.name || "Customer Account"}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#EAF7EE] text-[#078B35] text-xs font-bold border border-[#078B35]/30 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 fill-[#078B35] text-white" />
@@ -154,7 +154,7 @@ export default function CustomerProfileView({
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-gray-600 font-medium">
-                {user?.email || "priyanshusharma1131@gmail.com"}
+                {user?.email || "No email linked"}
               </p>
               <div className="flex items-center gap-3 text-xs text-gray-500 pt-1">
                 <span className="flex items-center gap-1">
@@ -353,13 +353,13 @@ export default function CustomerProfileView({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-1">
               <span className="text-[11px] text-gray-500 font-medium">Full Name</span>
-              <p className="text-sm font-bold text-[#171717]">{user?.name || "Priyanshu Sharma"}</p>
+              <p className="text-sm font-bold text-[#171717]">{user?.name || "Not specified"}</p>
               <span className="text-[10px] text-gray-400">Primary display identity</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-1">
               <span className="text-[11px] text-gray-500 font-medium">Email Address</span>
-              <p className="text-sm font-bold text-[#171717] truncate">{user?.email || "priyanshusharma1131@gmail.com"}</p>
+              <p className="text-sm font-bold text-[#171717] truncate">{user?.email || "Not linked"}</p>
               <span className="text-[10px] text-[#078B35] font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 fill-[#078B35] text-white" />
                 Verified via Email OTP

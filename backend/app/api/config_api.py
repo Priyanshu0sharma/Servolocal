@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.db.models import AppVersionConfig, PromoBanner
+from app.db.models import AppVersionConfig, PromoBanner, PlatformSetting
 
 router = APIRouter(tags=["App Config"])
 
@@ -11,15 +11,33 @@ router = APIRouter(tags=["App Config"])
 @router.get("/app-config")
 async def get_app_config(db: AsyncSession = Depends(get_db)):
     """
-    Returns application configuration, version requirements, maintenance mode status, and active banners.
+    Returns application configuration, version requirements, maintenance mode status, dynamic promo banners, and announcement tickers.
     """
-    config_res = await db.execute(select(AppVersionConfig).limit(1))
-    config = config_res.scalar_one_or_none()
+    config = None
+    banners = []
+    ticker_text = "🎉 Grand Launch Offer! Up to 50% OFF on Local Shops | Free Delivery on Selected Stores"
 
-    banners_res = await db.execute(
-        select(PromoBanner).where(PromoBanner.is_active == True).order_by(PromoBanner.display_order.asc())
-    )
-    banners = banners_res.scalars().all()
+    try:
+        config_res = await db.execute(select(AppVersionConfig).limit(1))
+        config = config_res.scalar_one_or_none()
+    except Exception:
+        pass
+
+    try:
+        banners_res = await db.execute(
+            select(PromoBanner).where(PromoBanner.is_active == True).order_by(PromoBanner.display_order.asc())
+        )
+        banners = banners_res.scalars().all()
+    except Exception:
+        pass
+
+    try:
+        ticker_res = await db.execute(select(PlatformSetting).where(PlatformSetting.key == "ticker_text"))
+        ticker_setting = ticker_res.scalar_one_or_none()
+        if ticker_setting and isinstance(ticker_setting.value, dict) and ticker_setting.value.get("text"):
+            ticker_text = ticker_setting.value.get("text")
+    except Exception:
+        pass
 
     return {
         "latest_version": config.latest_version if config else "1.0.0",
@@ -29,6 +47,7 @@ async def get_app_config(db: AsyncSession = Depends(get_db)):
         "playstore_url": config.playstore_url if config else "https://play.google.com/store/apps",
         "maintenance_mode": config.maintenance_mode if config else False,
         "maintenance_message": config.maintenance_message if config else None,
+        "ticker_text": ticker_text,
         "banners": [
             {
                 "id": b.id,

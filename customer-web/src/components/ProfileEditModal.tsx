@@ -25,11 +25,11 @@ export default function ProfileEditModal({
     .slice(-10);
 
   const [name, setName] = useState(
-    user.name && !user.name.toLowerCase().includes("1131")
+    user.name && !user.name.toLowerCase().includes("1131") && user.name !== "Customer"
       ? user.name
-      : "Priyanshu Sharma"
+      : ""
   );
-  const [phone, setPhone] = useState(initialPhone || "9352286423");
+  const [phone, setPhone] = useState(initialPhone || "");
   const [gender, setGender] = useState<string>(user.gender || "Male");
   const [dob, setDob] = useState<string>(user.date_of_birth || "");
   const [loading, setLoading] = useState(false);
@@ -153,7 +153,7 @@ export default function ProfileEditModal({
                 setName(e.target.value);
                 if (error) setError("");
               }}
-              placeholder="e.g. Priyanshu Sharma"
+              placeholder="e.g. Rahul Sharma"
               autoFocus
               className="w-full px-3.5 py-2.5 text-xs text-gray-900 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F]"
             />

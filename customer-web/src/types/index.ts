@@ -22,6 +22,8 @@ export interface ProductItem {
   available_stock?: number;
   shop_id?: number;
   shop_name?: string;
+  shop_is_open?: boolean;
+  shop_distance_km?: number;
   local_eta_mins?: string;
   delivery_mode?: string;
 }

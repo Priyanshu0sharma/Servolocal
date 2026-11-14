@@ -21,6 +21,36 @@ export async function checkBackendHealth(): Promise<ApiHealthResponse> {
   return response.json();
 }
 
+export interface AppConfig {
+  latest_version: string;
+  min_required_version: string;
+  force_update: boolean;
+  update_message: string;
+  playstore_url: string;
+  maintenance_mode: boolean;
+  maintenance_message?: string;
+  ticker_text?: string;
+  banners: Array<{
+    id: number;
+    title: string;
+    image_url: string;
+    target_route: string;
+    badge_text?: string;
+  }>;
+}
+
+export async function getAppConfig(): Promise<AppConfig> {
+  const res = await fetch(`${API_BASE_URL}/api/app-config`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load app config: ${res.status}`);
+  }
+  return res.json();
+}
+
 /**
  * Authentication
  */

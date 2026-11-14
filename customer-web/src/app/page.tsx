@@ -49,11 +49,12 @@ import AccountSettingsView from "@/components/AccountSettingsView";
 
 import { ProductItem, CartItem, UserProfile, CategoryItem } from "@/types";
 import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
-import { getDiscoveryFeed } from "@/lib/api";
+import { getDiscoveryFeed, getAppConfig } from "@/lib/api";
 
 export default function CustomerHomePage() {
   // ── 1. Locality & GPS State ───────────────────────────────────────────────
   const [currentLocality, setCurrentLocality] = useState<string>("");
+  const [tickerText, setTickerText] = useState<string>("");
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [currentLat, setCurrentLat] = useState(27.0544);
   const [currentLng, setCurrentLng] = useState(75.8942);
@@ -108,13 +109,6 @@ export default function CustomerHomePage() {
         const savedUser = localStorage.getItem("servo_user");
         if (savedUser) {
           const parsed = JSON.parse(savedUser);
-          if (parsed && (!parsed.name || parsed.name.includes("1131") || parsed.name === parsed.email)) {
-            if (parsed.email && parsed.email.toLowerCase().includes("priyanshu")) {
-              parsed.name = "Priyanshu Sharma";
-              if (!parsed.gender) parsed.gender = "Male";
-              localStorage.setItem("servo_user", JSON.stringify(parsed));
-            }
-          }
           setUser(parsed);
         }
 
@@ -149,6 +143,13 @@ export default function CustomerHomePage() {
         }
       } catch {}
     }
+
+    // OTA Dynamic App Config & Ticker
+    getAppConfig()
+      .then((cfg) => {
+        if (cfg?.ticker_text) setTickerText(cfg.ticker_text);
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch real database records from Neon PostgreSQL via FastAPI discovery feed
@@ -519,6 +520,7 @@ export default function CustomerHomePage() {
       <AnnouncementBar
         currentLocality={currentLocality}
         onOpenLocation={() => setIsLocationOpen(true)}
+        tickerText={tickerText}
       />
 
       {/* ── Top Header ────────────────────────────────────────────── */}

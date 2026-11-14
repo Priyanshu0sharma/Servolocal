@@ -8,13 +8,29 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
+      { url: "/servolocal_partner_logo.jpeg" },
       { url: "/favicon.ico" },
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
       { url: "/logo.jpeg", sizes: "192x192", type: "image/jpeg" },
     ],
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/servolocal_partner_logo.jpeg", sizes: "180x180", type: "image/jpeg" },
     ],
+  },
+  openGraph: {
+    title: "ServoPartner — Merchant Store Manager & Delivery Fleet",
+    description: "Manage local store inventory, accept live customer orders, and dispatch deliveries with ServoLocal.",
+    url: "https://servopartner.vercel.app",
+    siteName: "ServoPartner",
+    images: [
+      {
+        url: "/servolocal_partner_logo.jpeg",
+        width: 800,
+        height: 800,
+        alt: "ServoPartner Logo",
+      },
+    ],
+    locale: "en_IN",
+    type: "website",
   },
 };
 

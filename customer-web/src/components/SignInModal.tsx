@@ -128,12 +128,24 @@ export default function SignInModal({
       const data = await verifyOtp(email.trim(), cleanOtp, "customer");
       if (data && data.user) {
         setVerifiedUser(data.user);
-        const cleanDefault = email.trim().toLowerCase().includes("priyanshu")
-          ? "Priyanshu Sharma"
-          : (data.user.name || "").replace(/[0-9]/g, "").trim() || "Priyanshu Sharma";
-        setNameInput(cleanDefault);
+        const hasExistingPhone = Boolean(data.user.phone && data.user.phone.replace("+91", "").trim().length >= 10);
+        const hasExistingName = Boolean(data.user.name && data.user.name.trim().length >= 2 && !data.user.name.toLowerCase().includes("customer"));
+
+        if (hasExistingName && hasExistingPhone) {
+          // Returning user with complete profile - log in immediately!
+          setStep("SUCCESS");
+          setLoading(false);
+          successTimeoutRef.current = setTimeout(() => {
+            onLoginSuccess(data.user);
+          }, 400);
+          return;
+        }
+
+        // New user or missing profile details: clean blank inputs for user entry
+        const cleanExistingName = (data.user.name || "").replace(/[0-9]/g, "").trim();
+        setNameInput(cleanExistingName !== "Customer" ? cleanExistingName : "");
         const initialPhone = (data.user.phone || "").replace("+91", "").replace(/\D/g, "").slice(-10);
-        setPhoneInput(initialPhone || (email.trim().toLowerCase().includes("priyanshu") ? "9352286423" : ""));
+        setPhoneInput(initialPhone || "");
         if (data.user.date_of_birth) setDobInput(data.user.date_of_birth);
         setGenderInput(data.user.gender || "Male");
         setStep("PROFILE");
@@ -467,7 +479,7 @@ export default function SignInModal({
                     setNameInput(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="e.g. Priyanshu Sharma"
+                  placeholder="e.g. Rahul Sharma"
                   autoFocus
                   disabled={loading}
                   className={`w-full px-4 py-3 text-sm text-gray-900 bg-white border rounded-xl placeholder:text-gray-400 transition-all outline-none ${

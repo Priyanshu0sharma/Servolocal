@@ -6,11 +6,13 @@ import { Megaphone, ArrowRight } from "lucide-react";
 interface AnnouncementBarProps {
   currentLocality: string;
   onOpenLocation: () => void;
+  tickerText?: string;
 }
 
 export default function AnnouncementBar({
   currentLocality,
   onOpenLocation,
+  tickerText,
 }: AnnouncementBarProps) {
   return (
     <div className="bg-[#4E160E] text-[#FFF6EE] text-[11px] sm:text-xs py-2 px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between select-none border-b border-[#3D1009] transition-colors">
@@ -20,10 +22,16 @@ export default function AnnouncementBar({
           <Megaphone className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
         </span>
         <div className="flex items-center gap-1.5 truncate">
-          <strong className="font-bold text-amber-300 shrink-0">Grand Launch Offer!</strong>
-          <span className="text-white/90 truncate">Up to 50% OFF on Local Shops</span>
-          <span className="hidden md:inline text-white/50">|</span>
-          <span className="hidden md:inline text-white/90">Free Delivery on Selected Stores</span>
+          {tickerText ? (
+            <span className="text-white/95 font-medium truncate">{tickerText}</span>
+          ) : (
+            <>
+              <strong className="font-bold text-amber-300 shrink-0">Grand Launch Offer!</strong>
+              <span className="text-white/90 truncate">Up to 50% OFF on Local Shops</span>
+              <span className="hidden md:inline text-white/50">|</span>
+              <span className="hidden md:inline text-white/90">Free Delivery on Selected Stores</span>
+            </>
+          )}
         </div>
       </div>
 

@@ -315,14 +315,14 @@ export default function Header({
                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-black text-xl shrink-0 border border-[#078B35]/20">
-                        {(user.name?.trim()?.charAt(0) || "P").toUpperCase()}
+                        {(user.name?.trim()?.charAt(0) || user.email?.trim()?.charAt(0) || "U").toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="text-sm font-bold text-[#171717] truncate leading-tight">
-                          {user.name || "Priyanshu Sharma"}
+                          {user.name || "My Account"}
                         </h4>
                         <p className="text-xs text-gray-500 truncate leading-tight mt-0.5">
-                          {user.email || "priyanshusharma1131@gmail.com"}
+                          {user.email || ""}
                         </p>
                         <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-[#078B35]">
                           <CheckCircle2 className="w-3.5 h-3.5 fill-[#078B35] text-white shrink-0" />

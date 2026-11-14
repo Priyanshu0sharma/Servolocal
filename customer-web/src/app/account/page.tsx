@@ -182,8 +182,8 @@ function AccountContent() {
         order_id: res.payment_order.id || res.payment_order.order_id,
         prefill: {
           name: user?.name || "Customer",
-          email: user?.email || "customer@servolocal.in",
-          contact: user?.phone || "+919352286423",
+          email: user?.email || "",
+          contact: user?.phone || "",
         },
         theme: {
           color: "#0C831F",
@@ -245,29 +245,9 @@ function AccountContent() {
         const savedUser = localStorage.getItem("servo_user");
         if (savedUser) {
           const parsed = JSON.parse(savedUser);
-          if (parsed && (!parsed.name || parsed.name.includes("1131") || parsed.name === parsed.email)) {
-            if (parsed.email && parsed.email.toLowerCase().includes("priyanshu")) {
-              parsed.name = "Priyanshu Sharma";
-              if (!parsed.gender) parsed.gender = "Male";
-              if (!parsed.phone) parsed.phone = "+919352286423";
-              localStorage.setItem("servo_user", JSON.stringify(parsed));
-            }
-          }
           setUser(parsed);
         } else {
-          const defaultCust: UserProfile = {
-            id: 1,
-            name: "Priyanshu Sharma",
-            email: "priyanshusharma1131@gmail.com",
-            phone: "+919352286423",
-            role: "customer",
-            gender: "Male",
-            servo_coins: 150,
-            wallet_balance: 0,
-            is_verified: true,
-          };
-          setUser(defaultCust);
-          localStorage.setItem("servo_user", JSON.stringify(defaultCust));
+          setUser(null);
         }
 
         const savedCart = localStorage.getItem("servo_cart");
@@ -567,10 +547,10 @@ function AccountContent() {
               {/* Phone / User Identifier at top matching exact screenshot */}
               <div className="px-6 py-4 border-b border-gray-100">
                 <p className="text-xs font-bold text-gray-800">
-                  {user?.phone || "+919352286423"}
+                  {user?.phone || user?.email || "My Account"}
                 </p>
                 <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                  {user?.name || "Priyanshu Sharma"}
+                  {user?.name || "Customer"}
                 </p>
               </div>
 
@@ -939,27 +919,31 @@ function AccountContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] text-gray-500 font-medium">Full Name</span>
-                    <p className="text-sm font-bold text-[#171717]">{user?.name || "Priyanshu Sharma"}</p>
+                    <p className="text-sm font-bold text-[#171717]">{user?.name || "Not specified"}</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] text-gray-500 font-medium">Mobile Number</span>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-[#171717] font-mono">{user?.phone || "+91 9352286423"}</p>
-                      <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
-                        Verified
-                      </span>
+                      <p className="text-sm font-bold text-[#171717] font-mono">{user?.phone || "Not linked"}</p>
+                      {user?.phone && (
+                        <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
+                          Verified
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] text-gray-500 font-medium">Email Address</span>
-                    <p className="text-sm font-bold text-[#171717]">{user?.email || "priyanshusharma1131@gmail.com"}</p>
-                    <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
-                      Verified via OTP
-                    </span>
+                    <p className="text-sm font-bold text-[#171717]">{user?.email || "Not linked"}</p>
+                    {user?.email && (
+                      <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
+                        Verified via OTP
+                      </span>
+                    )}
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">

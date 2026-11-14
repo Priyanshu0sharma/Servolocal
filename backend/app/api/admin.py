@@ -16,6 +16,9 @@ from app.db.models import (
     MasterCatalogItem,
     OrderEvent,
     WalletLedger,
+    AppVersionConfig,
+    PlatformSetting,
+    PromoBanner,
 )
 from app.api.auth import decode_token
 
@@ -431,5 +434,196 @@ async def get_admin_audits(
         }
         for e in events
     ]
+
+
+# ── 10. OTA Dynamic App Config & Promo Banners (Server-Driven UI) ─────────────
+
+class AppConfigUpdatePayload(BaseModel):
+    latest_version: Optional[str] = "1.0.0"
+    min_required_version: Optional[str] = "1.0.0"
+    force_update: Optional[bool] = False
+    update_message: Optional[str] = "ServoLocal is running the latest version."
+    playstore_url: Optional[str] = "https://play.google.com/store/apps"
+    maintenance_mode: Optional[bool] = False
+    maintenance_message: Optional[str] = None
+    ticker_text: Optional[str] = None
+
+
+class PromoBannerPayload(BaseModel):
+    id: Optional[int] = None
+    title: str
+    image_url: str
+    target_route: str = "/"
+    badge_text: Optional[str] = None
+    is_active: bool = True
+    display_order: int = 0
+
+
+@router.get("/app-config")
+async def get_admin_app_config(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get full dynamic app configuration, platform settings, and promo banners for OTA admin management.
+    """
+    config_res = await db.execute(select(AppVersionConfig).limit(1))
+    config = config_res.scalar_one_or_none()
+
+    banners_res = await db.execute(
+        select(PromoBanner).order_by(PromoBanner.display_order.asc(), PromoBanner.id.desc())
+    )
+    banners = banners_res.scalars().all()
+
+    ticker_res = await db.execute(select(PlatformSetting).where(PlatformSetting.key == "ticker_text"))
+    ticker_setting = ticker_res.scalar_one_or_none()
+    ticker_text = (
+        ticker_setting.value.get("text")
+        if ticker_setting and isinstance(ticker_setting.value, dict)
+        else "🎉 Grand Launch Offer! Up to 50% OFF on Local Shops | Free Delivery on Selected Stores"
+    )
+
+    return {
+        "latest_version": config.latest_version if config else "1.0.0",
+        "min_required_version": config.min_required_version if config else "1.0.0",
+        "force_update": config.force_update if config else False,
+        "update_message": config.update_message if config else "Please update ServoLocal.",
+        "playstore_url": config.playstore_url if config else "https://play.google.com/store/apps",
+        "maintenance_mode": config.maintenance_mode if config else False,
+        "maintenance_message": config.maintenance_message if config else None,
+        "ticker_text": ticker_text,
+        "banners": [
+            {
+                "id": b.id,
+                "title": b.title,
+                "image_url": b.image_url,
+                "target_route": b.target_route,
+                "badge_text": b.badge_text,
+                "is_active": b.is_active,
+                "display_order": b.display_order,
+            }
+            for b in banners
+        ],
+    }
+
+
+@router.post("/app-config")
+async def update_admin_app_config(
+    payload: AppConfigUpdatePayload,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Update OTA dynamic app configuration without requiring app releases or rebuilds.
+    """
+    config_res = await db.execute(select(AppVersionConfig).limit(1))
+    config = config_res.scalar_one_or_none()
+
+    if not config:
+        config = AppVersionConfig(
+            latest_version=payload.latest_version or "1.0.0",
+            min_required_version=payload.min_required_version or "1.0.0",
+            force_update=bool(payload.force_update),
+            update_message=payload.update_message or "Please update ServoLocal.",
+            playstore_url=payload.playstore_url or "https://play.google.com/store/apps",
+            maintenance_mode=bool(payload.maintenance_mode),
+            maintenance_message=payload.maintenance_message,
+        )
+        db.add(config)
+    else:
+        if payload.latest_version is not None:
+            config.latest_version = payload.latest_version
+        if payload.min_required_version is not None:
+            config.min_required_version = payload.min_required_version
+        if payload.force_update is not None:
+            config.force_update = payload.force_update
+        if payload.update_message is not None:
+            config.update_message = payload.update_message
+        if payload.playstore_url is not None:
+            config.playstore_url = payload.playstore_url
+        if payload.maintenance_mode is not None:
+            config.maintenance_mode = payload.maintenance_mode
+        config.maintenance_message = payload.maintenance_message
+
+    if payload.ticker_text is not None:
+        ticker_res = await db.execute(select(PlatformSetting).where(PlatformSetting.key == "ticker_text"))
+        ticker_setting = ticker_res.scalar_one_or_none()
+        if not ticker_setting:
+            ticker_setting = PlatformSetting(key="ticker_text", value={"text": payload.ticker_text})
+            db.add(ticker_setting)
+        else:
+            ticker_setting.value = {"text": payload.ticker_text}
+
+    await db.commit()
+    return {"success": True, "message": "App configuration updated successfully!"}
+
+
+@router.get("/banners")
+async def get_admin_banners(
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    banners_res = await db.execute(select(PromoBanner).order_by(PromoBanner.display_order.asc(), PromoBanner.id.desc()))
+    banners = banners_res.scalars().all()
+    return [
+        {
+            "id": b.id,
+            "title": b.title,
+            "image_url": b.image_url,
+            "target_route": b.target_route,
+            "badge_text": b.badge_text,
+            "is_active": b.is_active,
+            "display_order": b.display_order,
+        }
+        for b in banners
+    ]
+
+
+@router.post("/banners")
+async def save_admin_banner(
+    payload: PromoBannerPayload,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if payload.id:
+        b_res = await db.execute(select(PromoBanner).where(PromoBanner.id == payload.id))
+        banner = b_res.scalar_one_or_none()
+        if not banner:
+            raise HTTPException(status_code=404, detail="Banner not found")
+        banner.title = payload.title
+        banner.image_url = payload.image_url
+        banner.target_route = payload.target_route
+        banner.badge_text = payload.badge_text
+        banner.is_active = payload.is_active
+        banner.display_order = payload.display_order
+    else:
+        banner = PromoBanner(
+            title=payload.title,
+            image_url=payload.image_url,
+            target_route=payload.target_route,
+            badge_text=payload.badge_text,
+            is_active=payload.is_active,
+            display_order=payload.display_order,
+        )
+        db.add(banner)
+
+    await db.commit()
+    return {"success": True, "message": "Banner saved successfully!"}
+
+
+@router.delete("/banners/{banner_id}")
+async def delete_admin_banner(
+    banner_id: int,
+    user: dict = Depends(verify_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    b_res = await db.execute(select(PromoBanner).where(PromoBanner.id == banner_id))
+    banner = b_res.scalar_one_or_none()
+    if not banner:
+        raise HTTPException(status_code=404, detail="Banner not found")
+    await db.delete(banner)
+    await db.commit()
+    return {"success": True, "message": f"Banner {banner_id} removed"}
+
 
 

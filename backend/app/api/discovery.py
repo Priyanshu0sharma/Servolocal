@@ -80,7 +80,7 @@ async def get_discovery_feed(
                 if s.delivery_scope not in ("PAN_INDIA", "BOTH"):
                     continue
             elif mode_clean in ("IN_MINUTES", "LOCAL"):
-                if not is_serviceable and dist > 15.0:
+                if not is_serviceable:
                     continue
 
             shop_entry = {
@@ -119,24 +119,32 @@ async def get_discovery_feed(
         inv_res = await db.execute(inv_query)
         db_inventory = inv_res.scalars().all()
 
-        seen_product_names = set()
+        seen_shop_items = set()
         products_data = []
         for p in db_inventory:
+            shop = shop_map.get(p.shop_id)
+            if not shop:
+                continue
+
             # Mode-specific perishable safety check
             cat_lower = (p.category or "").lower()
             if mode_clean in ("PAN_INDIA", "PANINDIA"):
                 if any(perishable in cat_lower for perishable in PERISHABLE_CATEGORIES):
                     continue
 
-            norm_name = p.name.strip().lower()
-            if norm_name in seen_product_names:
+            # De-duplicate per shop: Prevents duplicate listings from the SAME shop,
+            # while allowing different local shops selling the same product to BOTH be displayed
+            item_key = (p.shop_id, p.name.strip().lower())
+            if item_key in seen_shop_items:
                 continue
-            seen_product_names.add(norm_name)
+            seen_shop_items.add(item_key)
 
-            shop = shop_map.get(p.shop_id)
+            dist_to_shop = round(calculate_haversine_distance(lat, lng, shop.lat, shop.lng), 1)
+
             products_data.append({
-                "id": p.master_item_id or p.id,
+                "id": p.id,
                 "inventory_id": p.id,
+                "master_item_id": p.master_item_id,
                 "name": p.name,
                 "category": p.category,
                 "sub_category": p.sub_category,
@@ -149,8 +157,10 @@ async def get_discovery_feed(
                 "in_stock": p.in_stock and p.available_stock > 0,
                 "available_stock": p.available_stock,
                 "shop_id": p.shop_id,
-                "shop_name": shop.name if shop else "Local Merchant",
-                "local_eta_mins": p.fulfillment_time_slot or (shop.local_eta_mins if shop else "⚡ 10 mins"),
+                "shop_name": shop.name,
+                "shop_is_open": shop.is_open,
+                "shop_distance_km": dist_to_shop,
+                "local_eta_mins": p.fulfillment_time_slot or shop.local_eta_mins or "⚡ 10-15 mins",
                 "delivery_mode": p.delivery_mode or "IN_MINUTES",
             })
 

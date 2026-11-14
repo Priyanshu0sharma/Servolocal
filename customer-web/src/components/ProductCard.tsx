@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Star, Heart, Plus, Minus } from "lucide-react";
+import { Star, Heart, Plus, Minus, Store } from "lucide-react";
 import { ProductItem } from "@/types";
 
 interface ProductCardProps {
@@ -25,6 +25,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   const displayPrice = product.selling_price;
   const ratingValue = product.rating || 4.6;
+  const isShopClosed = product.shop_is_open === false;
 
   return (
     <div
@@ -40,10 +41,16 @@ export default function ProductCard({
       onClick={() => {
         if (onClickProduct) onClickProduct(product);
       }}
-      className="bg-white rounded-2xl border border-[#EFECE6] p-3 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group relative select-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#078B35] focus-visible:outline-none"
+      className={`rounded-2xl border p-3 shadow-2xs transition-all flex flex-col justify-between group relative select-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#078B35] focus-visible:outline-none ${
+        isShopClosed
+          ? "bg-gray-50/80 border-gray-200/90 opacity-75"
+          : "bg-white border-[#EFECE6] hover:shadow-md"
+      }`}
     >
       {/* Top Image Container & Floating Wishlist Heart */}
-      <div className="relative w-full aspect-square rounded-xl bg-white overflow-hidden flex items-center justify-center p-2 border border-gray-100">
+      <div className={`relative w-full aspect-square rounded-xl overflow-hidden flex items-center justify-center p-2 border transition-all ${
+        isShopClosed ? "bg-gray-100/70 border-gray-200 grayscale-[35%]" : "bg-white border-gray-100"
+      }`}>
         <button
           type="button"
           onClick={(e) => {
@@ -81,11 +88,34 @@ export default function ProductCard({
             {product.unit}
           </span>
         )}
+
+        {/* Local Shop Info (Zomato-style Store Tag: Green when Open, Transparent Grey when Closed) */}
+        <div className="pt-1.5 flex items-center justify-between text-[11px] gap-1">
+          <div
+            className={`flex items-center gap-1 min-w-0 px-1.5 py-0.5 rounded-md border transition-colors ${
+              isShopClosed
+                ? "bg-gray-100/70 border-gray-200/60 text-gray-400"
+                : "bg-emerald-50/70 border-emerald-100/80 text-emerald-800 font-semibold"
+            }`}
+          >
+            <Store className={`w-3 h-3 shrink-0 ${isShopClosed ? "text-gray-400" : "text-[#078B35]"}`} />
+            <span className="truncate">{product.shop_name || "Local Shop"}</span>
+          </div>
+          {isShopClosed ? (
+            <span className="text-[10px] text-gray-400 shrink-0 font-medium">
+              {product.shop_distance_km ? `${product.shop_distance_km} km` : ""}
+            </span>
+          ) : (
+            <span className="text-[10px] text-gray-500 shrink-0 font-medium">
+              {product.local_eta_mins || "⚡ 10-15m"}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Price & Discount Row */}
       <div className="pt-2 flex items-baseline gap-1.5 flex-wrap">
-        <span className="text-[15px] font-extrabold text-[#2D2319]">
+        <span className={`text-[15px] font-extrabold ${isShopClosed ? "text-gray-400" : "text-[#2D2319]"}`}>
           ₹{displayPrice.toLocaleString("en-IN")}
         </span>
         {product.mrp && product.mrp > displayPrice ? (
@@ -93,7 +123,7 @@ export default function ProductCard({
             <span className="text-[11px] text-gray-400 line-through">
               ₹{product.mrp}
             </span>
-            <span className="text-[10px] font-bold text-[#078B35]">
+            <span className={`text-[10px] font-bold ${isShopClosed ? "text-gray-400" : "text-[#078B35]"}`}>
               ({Math.round(((product.mrp - displayPrice) / product.mrp) * 100)}% OFF)
             </span>
           </>
@@ -107,7 +137,15 @@ export default function ProductCard({
 
       {/* Add To Cart Controller */}
       <div className="pt-2.5">
-        {cartQuantity > 0 ? (
+        {isShopClosed ? (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full py-1.5 rounded-xl bg-gray-100/80 border border-gray-200/60 text-gray-400 text-xs font-semibold text-center select-none cursor-not-allowed flex items-center justify-center gap-1"
+          >
+            <Store className="w-3 h-3 text-gray-400" />
+            <span>Unavailable</span>
+          </div>
+        ) : cartQuantity > 0 ? (
           <div
             onClick={(e) => e.stopPropagation()}
             className="flex items-center justify-between bg-[#078B35] text-white rounded-xl py-1.5 px-3 text-xs font-bold shadow-2xs"

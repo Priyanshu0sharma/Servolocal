@@ -17,7 +17,8 @@ def get_role_template_config(role: str, otp_code: str):
     
     if clean_role in ("seller", "merchant", "partner", "shopkeeper"):
         return {
-            "brand_title": "🏪 ServoLocal Partner",
+            "brand_title": "ServoLocal Partner",
+            "logo_url": "https://servopartner.vercel.app/servolocal_partner_logo.jpeg",
             "service_name": "Merchant Store Portal",
             "badge_text": "Store Partner",
             "badge_bg": "#1E3A8A",
@@ -32,7 +33,8 @@ def get_role_template_config(role: str, otp_code: str):
         }
     elif clean_role in ("rider", "delivery", "delivery_partner"):
         return {
-            "brand_title": "🛵 ServoLocal Fleet",
+            "brand_title": "ServoLocal Fleet",
+            "logo_url": "https://servopartner.vercel.app/servolocal_partner_logo.jpeg",
             "service_name": "Delivery Fleet App",
             "badge_text": "Fleet Partner",
             "badge_bg": "#78350F",
@@ -47,7 +49,8 @@ def get_role_template_config(role: str, otp_code: str):
         }
     elif clean_role in ("admin", "superadmin"):
         return {
-            "brand_title": "🔒 ServoLocal Security",
+            "brand_title": "ServoLocal Security",
+            "logo_url": "https://servolocal.vercel.app/servolocallogo.jpeg",
             "service_name": "Master Admin Console",
             "badge_text": "Master Security",
             "badge_bg": "#7F1D1D",
@@ -62,7 +65,8 @@ def get_role_template_config(role: str, otp_code: str):
         }
     else:  # Default: customer
         return {
-            "brand_title": "⚡ ServoLocal",
+            "brand_title": "ServoLocal",
+            "logo_url": "https://servolocal.vercel.app/servolocallogo.jpeg",
             "service_name": "ServoLocal Customer Account",
             "badge_text": "10-15 Min Delivery",
             "badge_bg": "#064E3B",
@@ -132,13 +136,22 @@ The ServoLocal Team
   <table role="presentation" style="max-width: 500px; margin: 0 auto; background-color: #161b22; border: 1px solid #30363d; border-radius: 12px; border-collapse: separate; overflow: hidden; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
     <!-- Brand Header -->
     <tr>
-      <td style="padding: 24px 28px 20px 28px; text-align: left; border-bottom: 1px solid #21262d;">
+      <td style="padding: 22px 28px 18px 28px; text-align: left; border-bottom: 1px solid #21262d;">
         <table role="presentation" style="width: 100%;">
           <tr>
-            <td>
-              <span style="font-size: 24px; font-weight: 900; color: {accent}; letter-spacing: -0.5px;">{cfg["brand_title"]}</span>
+            <td style="vertical-align: middle;">
+              <table role="presentation" style="border-collapse: collapse;">
+                <tr>
+                  <td style="vertical-align: middle; padding-right: 12px;">
+                    <img src="{cfg['logo_url']}" alt="{cfg['brand_title']}" width="38" height="38" style="width: 38px; height: 38px; border-radius: 9px; display: block; border: 1px solid rgba(255,255,255,0.15); object-fit: cover;" />
+                  </td>
+                  <td style="vertical-align: middle;">
+                    <span style="font-size: 20px; font-weight: 800; color: {accent}; letter-spacing: -0.5px; display: block;">{cfg["brand_title"]}</span>
+                  </td>
+                </tr>
+              </table>
             </td>
-            <td style="text-align: right;">
+            <td style="text-align: right; vertical-align: middle;">
               <span style="font-size: 11px; font-weight: 700; color: {cfg["badge_color"]}; background: {cfg["badge_bg"]}; padding: 4px 10px; border-radius: 20px; border: 1px solid {cfg["badge_border"]}; text-transform: uppercase; letter-spacing: 0.5px;">{cfg["badge_text"]}</span>
             </td>
           </tr>

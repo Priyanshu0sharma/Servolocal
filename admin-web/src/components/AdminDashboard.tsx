@@ -30,7 +30,8 @@ import {
   Plus,
   ArrowRight,
   Filter,
-  CheckCircle
+  CheckCircle,
+  X
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import {
@@ -54,7 +55,12 @@ import {
   getAdminCatalog,
   createAdminCatalogItem,
   getAdminSettlements,
-  getAdminAudits
+  getAdminAudits,
+  getAdminAppConfig,
+  updateAdminAppConfig,
+  saveAdminBanner,
+  deleteAdminBanner,
+  AdminAppConfigData
 } from "@/lib/api";
 
 interface AdminDashboardProps {
@@ -64,7 +70,7 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    "OVERVIEW" | "ORDERS" | "SHOPS" | "CATALOG" | "USERS" | "SETTLEMENTS" | "AUDITS" | "COMMISSIONS" | "HEALTH"
+    "OVERVIEW" | "ORDERS" | "SHOPS" | "CATALOG" | "USERS" | "SETTLEMENTS" | "AUDITS" | "COMMISSIONS" | "HEALTH" | "APP_CONFIG"
   >("OVERVIEW");
 
   const [loading, setLoading] = useState(true);
@@ -77,6 +83,26 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [settlements, setSettlements] = useState<AdminSettlementsData | null>(null);
   const [audits, setAudits] = useState<AdminAuditEvent[]>([]);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+
+  // OTA Dynamic App Config & Promo Banners State
+  const [appConfig, setAppConfig] = useState<AdminAppConfigData | null>(null);
+  const [latestVersion, setLatestVersion] = useState("1.0.0");
+  const [minRequiredVersion, setMinRequiredVersion] = useState("1.0.0");
+  const [forceUpdate, setForceUpdate] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState("Please update to the latest ServoLocal version.");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMsg, setMaintenanceMsg] = useState("ServoLocal is undergoing scheduled maintenance.");
+  const [tickerText, setTickerText] = useState("🎉 Grand Launch Offer! Up to 50% OFF on Local Shops | Free Delivery on Selected Stores");
+  const [savingAppConfig, setSavingAppConfig] = useState(false);
+
+  // Promo Banners State
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [bannerImage, setBannerImage] = useState("");
+  const [bannerRoute, setBannerRoute] = useState("/grocery");
+  const [bannerBadge, setBannerBadge] = useState("🔥 Flat 50% OFF");
+  const [bannerActive, setBannerActive] = useState(true);
+  const [bannerOrder, setBannerOrder] = useState(0);
+  const [savingBanner, setSavingBanner] = useState(false);
 
   const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -102,7 +128,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const fetchData = async () => {
     setRefreshing(true);
     try {
-      const [overviewData, shopsData, health, ordersData, usersData, catalogData, settlementsData, auditsData] =
+      const [overviewData, shopsData, health, ordersData, usersData, catalogData, settlementsData, auditsData, configData] =
         await Promise.all([
           getAdminOverview().catch(() => null),
           getAdminShops().catch(() => []),
@@ -112,6 +138,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           getAdminCatalog().catch(() => []),
           getAdminSettlements().catch(() => null),
           getAdminAudits().catch(() => []),
+          getAdminAppConfig().catch(() => null),
         ]);
 
       if (overviewData) setOverview(overviewData);
@@ -122,12 +149,82 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
       setCatalog(catalogData);
       setSettlements(settlementsData);
       setAudits(auditsData);
+      if (configData) {
+        setAppConfig(configData);
+        setLatestVersion(configData.latest_version || "1.0.0");
+        setMinRequiredVersion(configData.min_required_version || "1.0.0");
+        setForceUpdate(Boolean(configData.force_update));
+        setUpdateMsg(configData.update_message || "Please update to latest ServoLocal version.");
+        setMaintenanceMode(Boolean(configData.maintenance_mode));
+        setMaintenanceMsg(configData.maintenance_message || "ServoLocal is undergoing scheduled maintenance.");
+        if (configData.ticker_text) setTickerText(configData.ticker_text);
+      }
       setErrorMsg("");
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to synchronize admin telemetry");
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleSaveAppConfig = async () => {
+    setSavingAppConfig(true);
+    try {
+      await updateAdminAppConfig({
+        latest_version: latestVersion,
+        min_required_version: minRequiredVersion,
+        force_update: forceUpdate,
+        update_message: updateMsg,
+        maintenance_mode: maintenanceMode,
+        maintenance_message: maintenanceMsg,
+        ticker_text: tickerText,
+      });
+      setStatusMsg("OTA Dynamic App Config saved & published live across all apps!");
+      setTimeout(() => setStatusMsg(""), 4000);
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to update dynamic app config");
+    } finally {
+      setSavingAppConfig(false);
+    }
+  };
+
+  const handleSaveBanner = async () => {
+    if (!bannerTitle || !bannerImage) {
+      setErrorMsg("Please provide both title and image URL for the promo banner.");
+      return;
+    }
+    setSavingBanner(true);
+    try {
+      await saveAdminBanner({
+        title: bannerTitle,
+        image_url: bannerImage,
+        target_route: bannerRoute,
+        badge_text: bannerBadge,
+        is_active: bannerActive,
+        display_order: bannerOrder,
+      });
+      setStatusMsg("Promo banner created & pushed live to customer app!");
+      setTimeout(() => setStatusMsg(""), 4000);
+      setBannerTitle("");
+      setBannerImage("");
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save promo banner");
+    } finally {
+      setSavingBanner(false);
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId: number) => {
+    try {
+      await deleteAdminBanner(bannerId);
+      setStatusMsg(`Promo banner #${bannerId} removed.`);
+      setTimeout(() => setStatusMsg(""), 4000);
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to remove banner");
     }
   };
 
@@ -290,6 +387,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             { id: "SETTLEMENTS", label: "Settlements & Finance", icon: DollarSign },
             { id: "AUDITS", label: "Audit Trail", icon: FileText },
             { id: "COMMISSIONS", label: "Take Rates", icon: Sliders },
+            { id: "APP_CONFIG", label: "App & Offers (OTA)", icon: Sparkles },
             { id: "HEALTH", label: "Infrastructure", icon: Server },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -949,6 +1047,280 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 8.5: OTA DYNAMIC APP CONFIG & PROMO BANNERS (Server-Driven UI) */}
+        {activeTab === "APP_CONFIG" && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-rose-500" />
+                <span>Over-The-Air (OTA) Dynamic App Config & Offers</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Update customer banners, announcement tickers, festive deals, and app version requirements dynamically in real-time. Changes apply instantly without requiring mobile app updates or store releases.
+              </p>
+            </div>
+
+            {/* Section 1: Live Ticker & Maintenance Controls */}
+            <div className="p-6 rounded-2xl bg-[#0D1527] border border-slate-800 shadow-xl space-y-5">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-rose-400" />
+                <span>Announcement Ticker & Maintenance Gate</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-xs font-bold text-slate-300">
+                    Live Announcement Ticker Text (Top Header Bar)
+                  </label>
+                  <input
+                    type="text"
+                    value={tickerText}
+                    onChange={(e) => setTickerText(e.target.value)}
+                    placeholder="e.g. 🎉 Grand Launch Offer! Up to 50% OFF on Local Shops"
+                    className="w-full bg-[#080E1C] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                  />
+                  <span className="text-[10px] text-slate-500">
+                    Displayed at the very top of Customer Web & Mobile App instantly.
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300">Minimum Required App Version</label>
+                  <input
+                    type="text"
+                    value={minRequiredVersion}
+                    onChange={(e) => setMinRequiredVersion(e.target.value)}
+                    placeholder="1.0.0"
+                    className="w-full bg-[#080E1C] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300">Latest App Version</label>
+                  <input
+                    type="text"
+                    value={latestVersion}
+                    onChange={(e) => setLatestVersion(e.target.value)}
+                    placeholder="1.0.1"
+                    className="w-full bg-[#080E1C] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-xs font-bold text-slate-300">Force Update Notification Message</label>
+                  <input
+                    type="text"
+                    value={updateMsg}
+                    onChange={(e) => setUpdateMsg(e.target.value)}
+                    placeholder="Please update ServoLocal to enjoy lightning fast 10-minute grocery delivery."
+                    className="w-full bg-[#080E1C] border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                {/* Toggles */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#080E1C] border border-slate-800">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Force App Update</span>
+                    <span className="text-[10px] text-slate-400">Block older versions until user updates app</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={forceUpdate}
+                    onChange={(e) => setForceUpdate(e.target.checked)}
+                    className="w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#080E1C] border border-slate-800">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Emergency Maintenance Mode</span>
+                    <span className="text-[10px] text-slate-400">Temporarily pause checkout for server upgrades</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={maintenanceMode}
+                    onChange={(e) => setMaintenanceMode(e.target.checked)}
+                    className="w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                  />
+                </div>
+
+                {maintenanceMode && (
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-rose-400">Maintenance Notice Message</label>
+                    <input
+                      type="text"
+                      value={maintenanceMsg}
+                      onChange={(e) => setMaintenanceMsg(e.target.value)}
+                      className="w-full bg-[#080E1C] border border-rose-500/50 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveAppConfig}
+                  disabled={savingAppConfig}
+                  className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/30 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{savingAppConfig ? "Publishing Live..." : "Publish OTA Config"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Promo Banners Management */}
+            <div className="p-6 rounded-2xl bg-[#0D1527] border border-slate-800 shadow-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Dynamic Carousel & Promo Banners</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Live advertising cards, flash sales, and festive banners displayed on customer home feed.
+                  </p>
+                </div>
+              </div>
+
+              {/* Add Banner Form */}
+              <div className="p-4 rounded-xl bg-[#080E1C] border border-slate-800/80 space-y-4">
+                <span className="text-xs font-bold text-slate-300 block">Create New Promo Banner</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] text-slate-400 font-medium">Banner Title / Headline</label>
+                    <input
+                      type="text"
+                      value={bannerTitle}
+                      onChange={(e) => setBannerTitle(e.target.value)}
+                      placeholder="e.g. Fresh Milk, Veggies & Daily Essentials"
+                      className="w-full bg-[#0D1527] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-slate-400 font-medium">Badge Text</label>
+                    <input
+                      type="text"
+                      value={bannerBadge}
+                      onChange={(e) => setBannerBadge(e.target.value)}
+                      placeholder="e.g. ⚡ 10-15 Min Instant Delivery"
+                      className="w-full bg-[#0D1527] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] text-slate-400 font-medium">Image URL</label>
+                    <input
+                      type="text"
+                      value={bannerImage}
+                      onChange={(e) => setBannerImage(e.target.value)}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full bg-[#0D1527] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-slate-400 font-medium">Target Category / Route</label>
+                    <input
+                      type="text"
+                      value={bannerRoute}
+                      onChange={(e) => setBannerRoute(e.target.value)}
+                      placeholder="/grocery or /food"
+                      className="w-full bg-[#0D1527] border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-4 text-xs">
+                    <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bannerActive}
+                        onChange={(e) => setBannerActive(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-rose-600 rounded"
+                      />
+                      <span>Active Immediately</span>
+                    </label>
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <span>Order:</span>
+                      <input
+                        type="number"
+                        value={bannerOrder}
+                        onChange={(e) => setBannerOrder(Number(e.target.value))}
+                        className="w-12 bg-[#0D1527] border border-slate-700 px-1.5 py-0.5 rounded text-xs text-center text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveBanner}
+                    disabled={savingBanner}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{savingBanner ? "Saving..." : "Add Live Banner"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Banners Grid */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Active Banners in Rotation ({appConfig?.banners?.length || 0})
+                </span>
+
+                {appConfig?.banners && appConfig.banners.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {appConfig.banners.map((b) => (
+                      <div
+                        key={b.id}
+                        className="rounded-2xl bg-[#080E1C] border border-slate-800 overflow-hidden flex flex-col justify-between group shadow-lg"
+                      >
+                        <div className="relative h-32 w-full bg-slate-900 overflow-hidden">
+                          <img
+                            src={b.image_url}
+                            alt={b.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          {b.badge_text && (
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-600/90 text-white text-[10px] font-bold shadow-xs">
+                              {b.badge_text}
+                            </span>
+                          )}
+                          <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono">
+                            #{b.display_order}
+                          </span>
+                        </div>
+                        <div className="p-3.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-white truncate">{b.title}</h4>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              Target: {b.target_route}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBanner(b.id)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+                            title="Delete banner"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-[#080E1C] rounded-2xl border border-slate-800 text-slate-500 text-xs">
+                    No promo banners currently configured. Add one above to display dynamic hero promotions.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

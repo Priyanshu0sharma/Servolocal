@@ -233,4 +233,50 @@ export async function getAdminAudits(): Promise<AdminAuditEvent[]> {
   return res.data;
 }
 
+export interface AdminAppConfigData {
+  latest_version: string;
+  min_required_version: string;
+  force_update: boolean;
+  update_message: string;
+  playstore_url: string;
+  maintenance_mode: boolean;
+  maintenance_message?: string;
+  ticker_text?: string;
+  banners: Array<{
+    id: number;
+    title: string;
+    image_url: string;
+    target_route: string;
+    badge_text?: string;
+    is_active: boolean;
+    display_order: number;
+  }>;
+}
+
+export async function getAdminAppConfig(): Promise<AdminAppConfigData> {
+  const res = await api.get("/api/admin/app-config");
+  return res.data;
+}
+
+export async function updateAdminAppConfig(payload: Partial<AdminAppConfigData>) {
+  const res = await api.post("/api/admin/app-config", payload);
+  return res.data;
+}
+
+export async function getAdminBanners() {
+  const res = await api.get("/api/admin/banners");
+  return res.data;
+}
+
+export async function saveAdminBanner(payload: any) {
+  const res = await api.post("/api/admin/banners", payload);
+  return res.data;
+}
+
+export async function deleteAdminBanner(bannerId: number) {
+  const res = await api.delete(`/api/admin/banners/${bannerId}`);
+  return res.data;
+}
+
+
 

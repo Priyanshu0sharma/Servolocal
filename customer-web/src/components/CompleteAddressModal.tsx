@@ -82,8 +82,8 @@ export default function CompleteAddressModal({
   const [floor, setFloor] = useState("");
   const [localityText, setLocalityText] = useState("");
   const [landmark, setLandmark] = useState("");
-  const [recipientName, setRecipientName] = useState(user?.name || "Priyanshu Sharma");
-  const [recipientPhone, setRecipientPhone] = useState(user?.phone || "+919352286423");
+  const [recipientName, setRecipientName] = useState(user?.name || "");
+  const [recipientPhone, setRecipientPhone] = useState(user?.phone || "");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -676,7 +676,7 @@ export default function CompleteAddressModal({
                       autoComplete="name"
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
-                      placeholder="e.g. Priyanshu Sharma"
+                      placeholder="e.g. Rahul Sharma"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F] transition-all"
                       required
                     />
@@ -695,7 +695,7 @@ export default function CompleteAddressModal({
                       autoComplete="tel"
                       value={recipientPhone}
                       onChange={(e) => setRecipientPhone(e.target.value)}
-                      placeholder="e.g. +91 9352286423"
+                      placeholder="e.g. 9876543210"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F] transition-all"
                     />
                   </div>
