@@ -180,11 +180,50 @@ The ServoLocal Team
 
 def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tuple[bool, str]:
     """
-    Sends a real 6-digit verification code to the recipient's email inbox using DIRECT SMTP ONLY.
-    No third-party sandbox APIs (Resend removed completely).
-    Supports port 587 (STARTTLS) and port 465 (SSL).
+    Sends a real 6-digit verification code to the recipient's email inbox.
+    Uses Brevo REST API (HTTPS Port 443 - zero cloud port blocking) when BREVO_API_KEY is set,
+    with direct SMTP delivery as backup.
     """
     text_content, html_content, subject = render_email_templates(otp_code, to_email, role)
+
+    # --- 1. Brevo REST API (HTTPS Port 443 — Unblocked on all cloud providers) ---
+    brevo_api_key = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", None)
+    if brevo_api_key and brevo_api_key.strip():
+        sender_email = (
+            os.getenv("BREVO_SENDER_EMAIL")
+            or os.getenv("SMTP_USER")
+            or "priyanshusharma1131@gmail.com"
+        )
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "api-key": brevo_api_key.strip(),
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "sender": {"name": "ServoLocal", "email": sender_email},
+                        "to": [{"email": to_email}],
+                        "subject": subject,
+                        "htmlContent": html_content,
+                        "textContent": text_content,
+                    },
+                )
+                if resp.status_code in (200, 201):
+                    return (True, f"Verification code successfully sent to {to_email}")
+                else:
+                    err_msg = resp.text
+                    try:
+                        err_json = resp.json()
+                        err_msg = err_json.get("message", resp.text)
+                    except Exception:
+                        pass
+                    return (False, f"Brevo API error ({resp.status_code}): {err_msg}")
+        except Exception as e:
+            return (False, f"Failed to send email via Brevo: {str(e)}")
+
+    # --- 2. Direct SMTP Delivery ---
 
     smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL") or getattr(settings, "SMTP_USER", None)
     smtp_pass = os.getenv("SMTP_PASSWORD") or getattr(settings, "SMTP_PASSWORD", None)
