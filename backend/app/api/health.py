@@ -49,12 +49,27 @@ async def check_smtp():
 
     conn_result = {}
     for p in [587, 465]:
+        # Test default
         try:
             s = socket.create_connection((smtp_host, p), timeout=3)
             s.close()
-            conn_result[p] = "OPEN"
+            conn_result[f"{p}_default"] = "OPEN"
         except Exception as e:
-            conn_result[p] = f"BLOCKED: {e}"
+            conn_result[f"{p}_default"] = f"BLOCKED: {e}"
+
+        # Test IPv4 forced
+        try:
+            # Resolve IPv4
+            addrinfo = socket.getaddrinfo(smtp_host, p, socket.AF_INET, socket.SOCK_STREAM)
+            if addrinfo:
+                ip, port = addrinfo[0][4][:2]
+                s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s2.settimeout(3)
+                s2.connect((ip, port))
+                s2.close()
+                conn_result[f"{p}_ipv4_{ip}"] = "OPEN"
+        except Exception as e:
+            conn_result[f"{p}_ipv4"] = f"BLOCKED: {e}"
 
     return {
         "smtp_host": smtp_host,
