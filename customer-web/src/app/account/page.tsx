@@ -26,6 +26,14 @@ import {
   Phone,
   Mail,
   Lock,
+  CreditCard,
+  QrCode,
+  ArrowDownLeft,
+  ArrowUpRight,
+  AlertCircle,
+  Loader2,
+  Check,
+  X,
 } from "lucide-react";
 
 import Header from "@/components/Header";
@@ -48,6 +56,9 @@ import {
   deleteSavedAddress,
   setDefaultAddress,
   getWalletOverview,
+  createWalletTopupOrder,
+  verifyWalletTopup,
+  loadRazorpayScript,
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
@@ -117,10 +128,108 @@ function AccountContent() {
     transactions: any[];
   } | null>(null);
 
+  // ── Wallet Top-Up State (Live Razorpay UPI QR / Cards) ────────────────────
+  const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState<number>(250);
+  const [customAmountInput, setCustomAmountInput] = useState<string>("250");
+  const [isProcessingTopup, setIsProcessingTopup] = useState(false);
+  const [topupSuccessMsg, setTopupSuccessMsg] = useState("");
+  const [topupErrorMsg, setTopupErrorMsg] = useState("");
+
   // Show transient toast
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleInitiateWalletTopup = async (amountToAdd: number) => {
+    if (!amountToAdd || amountToAdd < 1) {
+      setTopupErrorMsg("Please enter an amount of at least ₹1.");
+      return;
+    }
+    setIsProcessingTopup(true);
+    setTopupErrorMsg("");
+    setTopupSuccessMsg("");
+
+    try {
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !(window as any).Razorpay) {
+        throw new Error("Unable to load Razorpay payment gateway SDK.");
+      }
+
+      const res = await createWalletTopupOrder(amountToAdd);
+      if (!res?.payment_order) {
+        throw new Error("Failed to create payment order on gateway.");
+      }
+
+      const keyId =
+        res.key_id ||
+        process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+        "rzp_test_1DP5mmOlF5G5ag";
+
+      const options = {
+        key: keyId,
+        amount: res.payment_order.amount,
+        currency: "INR",
+        name: "ServoLocal",
+        description: `Add ₹${amountToAdd} to Wallet Cash & Tokens`,
+        order_id: res.payment_order.id || res.payment_order.order_id,
+        prefill: {
+          name: user?.name || "Customer",
+          email: user?.email || "customer@servolocal.in",
+          contact: user?.phone || "+919352286423",
+        },
+        theme: {
+          color: "#0C831F",
+        },
+        handler: async (resp: any) => {
+          try {
+            const verifyRes = await verifyWalletTopup({
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+              amount: amountToAdd,
+            });
+
+            // Update user balance locally
+            if (user) {
+              const updatedUser = {
+                ...user,
+                wallet_balance: verifyRes.new_balance,
+                servo_coins: verifyRes.new_coins,
+              };
+              setUser(updatedUser);
+              localStorage.setItem("servo_user", JSON.stringify(updatedUser));
+            }
+
+            // Refresh wallet data from Neon DB
+            const freshWallet = await getWalletOverview();
+            if (freshWallet) setWalletData(freshWallet);
+
+            setTopupSuccessMsg(
+              `🎉 ₹${amountToAdd} successfully added to your wallet! (Ref: ${resp.razorpay_payment_id})`
+            );
+            setIsTopupModalOpen(false);
+            setTimeout(() => setTopupSuccessMsg(""), 6000);
+          } catch (err: any) {
+            setTopupErrorMsg(err.message || "Payment verification failed.");
+          } finally {
+            setIsProcessingTopup(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingTopup(false);
+          },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err: any) {
+      setTopupErrorMsg(err.message || "Failed to initialize payment gateway.");
+      setIsProcessingTopup(false);
+    }
   };
 
   // Load state on mount
@@ -792,51 +901,381 @@ function AccountContent() {
               </div>
             )}
 
-            {/* ── VIEW 4: WALLET & SERVOCOINS ─────────────────────── */}
+            {/* ── VIEW 4: WALLET & SERVOCOINS (LIVE RAZORPAY UPI/CARDS) ── */}
             {activeTab === "wallet" && (
               <div className="space-y-6 animate-in fade-in duration-150">
-                <div>
-                  <h1 className="text-xl font-bold text-[#171717]">Wallet &amp; ServoCoins</h1>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Your cashback points and instant store credits
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <span className="text-xs text-amber-800 font-bold uppercase tracking-wider">
-                      Available Balance
-                    </span>
-                    <p className="text-3xl font-black text-[#171717]">
-                      {walletData?.servo_coins ?? user?.servo_coins ?? 0} <span className="text-sm font-medium text-gray-600">Coins</span>
-                    </p>
-                    <p className="text-xs text-emerald-700 font-semibold">
-                      ₹{((walletData?.servo_coins ?? user?.servo_coins ?? 0) * 0.5).toFixed(0)} instant discount value · Wallet Balance: ₹{(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(2)}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-xl font-bold text-[#171717]">Wallet &amp; ServoCoins</h1>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Manage your real wallet cash balance, reward tokens, and transaction history
                     </p>
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-amber-400/30 text-amber-800 flex items-center justify-center text-2xl font-bold">
-                    🪙
-                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTopupErrorMsg("");
+                      setIsTopupModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Money to Wallet</span>
+                  </button>
                 </div>
 
-                {walletData?.transactions && walletData.transactions.length > 0 && (
-                  <div className="space-y-3 pt-2">
-                    <h3 className="text-sm font-bold text-gray-800">Recent Transactions</h3>
-                    <div className="space-y-2">
-                      {walletData.transactions.map((t: any) => (
-                        <div key={t.id} className="p-3 rounded-xl border border-gray-100 bg-white flex items-center justify-between text-xs">
-                          <div>
-                            <p className="font-bold text-gray-800">{t.note || t.entry_type}</p>
-                            <p className="text-[10px] text-gray-400">{t.created_at ? new Date(t.created_at).toLocaleDateString() : ""}</p>
-                          </div>
-                          <span className={`font-bold ${t.entry_type === "CREDIT" ? "text-emerald-600" : "text-gray-800"}`}>
-                            {t.entry_type === "CREDIT" ? "+" : "-"}₹{Math.abs(t.amount).toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                {/* Topup Success Alert */}
+                {topupSuccessMsg && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>{topupSuccessMsg}</span>
                   </div>
                 )}
+
+                {/* Topup Error Alert */}
+                {topupErrorMsg && (
+                  <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    <span>{topupErrorMsg}</span>
+                  </div>
+                )}
+
+                {/* Balance Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card 1: Cash Wallet Balance */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 border border-emerald-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                          Wallet Cash Balance
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                        1-Click Checkout
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-3xl font-black text-[#171717] font-mono">
+                        ₹{(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(2)}
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Usable across 100% of local shops with zero transaction fees
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-emerald-100 flex items-center justify-between">
+                      <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        Real Neon DB Pooled
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTopupErrorMsg("");
+                          setIsTopupModalOpen(true);
+                        }}
+                        className="text-xs font-bold text-[#0C831F] hover:underline flex items-center gap-1"
+                      >
+                        <span>Top Up</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 2: ServoCoins (Reward Tokens) */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-orange-50/30 border border-amber-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg">
+                          🪙
+                        </div>
+                        <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                          ServoCoins Rewards
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                        2 Coins = ₹1
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-3xl font-black text-[#171717] font-mono">
+                        {walletData?.servo_coins ?? user?.servo_coins ?? 0}{" "}
+                        <span className="text-sm font-medium text-gray-600">Coins</span>
+                      </p>
+                      <p className="text-[11px] text-amber-800 font-semibold mt-1">
+                        ₹{(((walletData?.servo_coins ?? user?.servo_coins ?? 0) * 0.5)).toFixed(0)} instant discount value on checkout
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-amber-100 flex items-center justify-between">
+                      <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                        +10% Bonus coins on wallet top-up
+                      </span>
+                      <span className="text-xs font-bold text-amber-800 font-mono">
+                        Active
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Transactions History (Real Neon DB) */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span>Wallet Transaction History</span>
+                    </h3>
+                    <span className="text-xs text-gray-400">
+                      {walletData?.transactions?.length || 0} recorded
+                    </span>
+                  </div>
+
+                  {walletData?.transactions && walletData.transactions.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {walletData.transactions.map((t: any) => {
+                        const isCredit = t.entry_type === "CREDIT" || t.amount > 0;
+                        return (
+                          <div
+                            key={t.id}
+                            className="p-3.5 rounded-2xl border border-gray-100 bg-white hover:border-gray-200 transition-all flex items-center justify-between text-xs shadow-2xs"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                                  isCredit
+                                    ? "bg-emerald-50 text-emerald-600"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {isCredit ? (
+                                  <ArrowDownLeft className="w-4 h-4" />
+                                ) : (
+                                  <ArrowUpRight className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-bold text-gray-900 line-clamp-1">
+                                  {t.note || (isCredit ? "Wallet Credit" : "Order Payment")}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  {t.created_at
+                                    ? new Date(t.created_at).toLocaleString("en-IN", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "Recent"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <span
+                                className={`font-mono font-black text-sm block ${
+                                  isCredit ? "text-[#0C831F]" : "text-gray-900"
+                                }`}
+                              >
+                                {isCredit ? "+" : "-"}₹{Math.abs(t.amount).toFixed(2)}
+                              </span>
+                              {t.balance_after !== undefined && (
+                                <span className="text-[10px] text-gray-400 font-mono">
+                                  Bal: ₹{Number(t.balance_after).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-400 flex items-center justify-center mx-auto shadow-2xs">
+                        <Wallet className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-800">No Transactions Yet</h4>
+                        <p className="text-[11px] text-gray-500 max-w-xs mx-auto mt-0.5">
+                          Top up your wallet to enjoy 1-click lightning checkout with UPI QR, cards, or netbanking.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTopupErrorMsg("");
+                          setIsTopupModalOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[#0C831F] text-white text-xs font-bold hover:bg-[#075C2A] transition-colors cursor-pointer"
+                      >
+                        Add Money Now
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── TOP-UP MODAL (RAZORPAY UPI QR, CARDS, NETBANKING) ─────── */}
+            {isTopupModalOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-150"
+                onClick={() => !isProcessingTopup && setIsTopupModalOpen(false)}
+                role="dialog"
+                aria-modal="true"
+              >
+                <div
+                  className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-100 text-left animate-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-bold">
+                        <Wallet className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900 leading-tight">
+                          Add Money to Wallet
+                        </h3>
+                        <p className="text-xs text-gray-500 leading-tight mt-0.5">
+                          Instant UPI QR, Credit/Debit Cards, Netbanking
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isProcessingTopup}
+                      onClick={() => setIsTopupModalOpen(false)}
+                      className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    {/* Amount Input */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-700 block">
+                        Enter Amount (₹)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-3 text-base font-black text-gray-400 select-none">
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50000}
+                          value={customAmountInput}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setCustomAmountInput(val);
+                            setTopupAmount(Number(val) || 0);
+                            if (topupErrorMsg) setTopupErrorMsg("");
+                          }}
+                          placeholder="250"
+                          autoFocus
+                          disabled={isProcessingTopup}
+                          className="w-full pl-9 pr-4 py-3 text-lg font-black text-gray-900 bg-white border border-gray-300 rounded-2xl focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F] font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick Amount Pills */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-gray-500 block">
+                        Recommended Top-Up Amounts
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { val: 100, label: "+₹100" },
+                          { val: 250, label: "+₹250" },
+                          { val: 500, label: "+₹500", highlight: "Popular" },
+                          { val: 1000, label: "+₹1000", badge: "+100 🪙" },
+                        ].map((p) => {
+                          const isSelected = topupAmount === p.val;
+                          return (
+                            <button
+                              key={p.val}
+                              type="button"
+                              onClick={() => {
+                                setTopupAmount(p.val);
+                                setCustomAmountInput(String(p.val));
+                                if (topupErrorMsg) setTopupErrorMsg("");
+                              }}
+                              className={`py-2 px-1 text-center rounded-xl border text-xs font-bold transition-all cursor-pointer relative ${
+                                isSelected
+                                  ? "bg-[#EAF7EE] border-[#0C831F] text-[#075C2A] shadow-2xs"
+                                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              {p.label}
+                              {p.highlight && (
+                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[8px] font-black px-1.5 rounded-full uppercase">
+                                  {p.highlight}
+                                </span>
+                              )}
+                              {p.badge && (
+                                <span className="block text-[9px] text-amber-600 font-normal">
+                                  {p.badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Payment Options Preview */}
+                    <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-2 text-xs">
+                      <div className="flex items-center gap-2 text-gray-800 font-bold">
+                        <QrCode className="w-4 h-4 text-[#0C831F]" />
+                        <span>Instant UPI QR &amp; Cards Supported</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Razorpay will generate a live dynamic UPI QR code on screen for GPay, PhonePe, Paytm, or BHIM. Credit/Debit cards &amp; Netbanking are fully accepted.
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 pt-1 border-t border-gray-200">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#0C831F]" />
+                        <span>100% RBI Compliant &amp; 256-bit SSL Encrypted by Razorpay</span>
+                      </div>
+                    </div>
+
+                    {/* Error message */}
+                    {topupErrorMsg && (
+                      <p className="text-xs text-red-500 font-medium bg-red-50 p-2.5 rounded-xl border border-red-100">
+                        {topupErrorMsg}
+                      </p>
+                    )}
+
+                    {/* Pay Button */}
+                    <button
+                      type="button"
+                      disabled={isProcessingTopup || topupAmount < 1}
+                      onClick={() => handleInitiateWalletTopup(topupAmount)}
+                      className="w-full py-3.5 bg-[#0C831F] hover:bg-[#075C2A] text-white text-sm font-black rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isProcessingTopup ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Connecting to Razorpay...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          <span>Proceed to Pay ₹{topupAmount || 0}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

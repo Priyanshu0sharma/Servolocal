@@ -311,3 +311,21 @@ async def test_admin_extended_endpoints():
         assert audits_res.status_code == 200
         assert isinstance(audits_res.json(), list)
 
+
+@pytest.mark.asyncio
+async def test_wallet_topup_endpoints():
+    token = create_access_token({"id": 1, "email": "customer@servolocal.in", "role": "customer"})
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
+        topup_res = await ac.post(
+            "/api/payments/wallet/topup/create-order",
+            headers=headers,
+            json={"amount": 100.0},
+        )
+        assert topup_res.status_code == 200
+        data = topup_res.json()
+        assert data["success"] is True
+        assert "payment_order" in data
+        assert "key_id" in data
+
+

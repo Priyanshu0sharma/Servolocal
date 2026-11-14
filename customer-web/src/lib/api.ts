@@ -448,6 +448,58 @@ export async function getWalletOverview() {
   return res.json();
 }
 
+export async function createWalletTopupOrder(amount: number) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/payments/wallet/topup/create-order`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ amount }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create wallet top-up order");
+  }
+  return res.json();
+}
+
+export async function verifyWalletTopup(payload: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+  amount: number;
+}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  const res = await fetch(`${API_BASE_URL}/api/payments/wallet/topup/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to verify wallet top-up payment");
+  }
+  return res.json();
+}
+
+export function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export async function getNotifications() {
   const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
   if (!token) return { unread_count: 0, notifications: [] };
