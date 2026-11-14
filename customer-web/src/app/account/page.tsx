@@ -727,6 +727,30 @@ function AccountContent() {
                   </button>
                 </div>
 
+                {/* Mobile Missing Alert Banner (Blinkit style) */}
+                {(!user?.phone || user.phone.trim() === "") && (
+                  <div className="p-4 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#FEF3C7] text-[#D97706] flex items-center justify-center font-bold shrink-0">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-[#92400E]">Mobile Number Missing</h4>
+                        <p className="text-[11px] text-[#B45309]">
+                          Please add your mobile number to receive live delivery OTP, rider calls, and tracking updates.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileEditOpen(true)}
+                      className="px-4 py-2 rounded-xl bg-[#0C831F] text-white text-xs font-bold hover:bg-[#075C2A] transition-colors shrink-0 shadow-xs cursor-pointer text-center"
+                    >
+                      Add Mobile Number
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] text-gray-500 font-medium">Full Name</span>
@@ -734,20 +758,33 @@ function AccountContent() {
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <span className="text-[11px] text-gray-500 font-medium">Mobile Number</span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#171717] font-mono">{user?.phone || "+91 9352286423"}</p>
+                      <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
                     <span className="text-[11px] text-gray-500 font-medium">Email Address</span>
                     <p className="text-sm font-bold text-[#171717]">{user?.email || "priyanshusharma1131@gmail.com"}</p>
                     <span className="text-[10px] text-[#0C831F] font-semibold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 fill-[#0C831F] text-white" />
-                      Verified
+                      Verified via OTP
                     </span>
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                    <span className="text-[11px] text-gray-500 font-medium">Mobile Number</span>
-                    <p className="text-sm font-bold text-[#171717]">{user?.phone || "+919352286423"}</p>
+                    <span className="text-[11px] text-gray-500 font-medium">Date of Birth</span>
+                    <p className="text-sm font-bold text-[#171717]">
+                      {user?.date_of_birth ? user.date_of_birth : "Not specified (Add for birthday rewards)"}
+                    </p>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1 sm:col-span-2">
                     <span className="text-[11px] text-gray-500 font-medium">Gender</span>
                     <p className="text-sm font-bold text-[#171717]">{user?.gender || "Male"}</p>
                   </div>

@@ -85,7 +85,13 @@ export default function CustomerProfileView({
     setIsSaving(true);
     setErrorMsg("");
     try {
-      const updated = await updateUserProfile(nameInput.trim(), genderInput);
+      const cleanPhoneDigits = phoneInput.replace(/\D/g, "").slice(-10);
+      const formattedPhone = cleanPhoneDigits ? `+91${cleanPhoneDigits}` : undefined;
+      const updated = await updateUserProfile({
+        name: nameInput.trim(),
+        gender: genderInput,
+        phone: formattedPhone,
+      });
       if (updated) {
         onUpdateUser(updated);
         setSaveSuccess(true);

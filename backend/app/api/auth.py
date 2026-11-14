@@ -32,7 +32,9 @@ class VerifyOtpRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
+    phone: Optional[str] = None
     gender: Optional[str] = None
+    date_of_birth: Optional[str] = None
 
 
 class PartnerRegisterRequest(BaseModel):
@@ -276,6 +278,9 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
             "email": user.email,
             "name": user.name,
             "role": user.role,
+            "phone": user.phone or "",
+            "gender": user.gender or "",
+            "date_of_birth": user.date_of_birth or "",
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
             "upi_id": user.upi_id,
@@ -316,6 +321,9 @@ async def get_current_user_profile(
         "email": user.email,
         "name": user.name,
         "role": user.role,
+        "phone": user.phone or "",
+        "gender": user.gender or "",
+        "date_of_birth": user.date_of_birth or "",
         "servo_coins": user.servo_coins,
         "wallet_balance": user.wallet_balance,
         "upi_id": user.upi_id,
@@ -352,6 +360,12 @@ async def update_user_profile(
 
     if payload.name and payload.name.strip():
         user.name = payload.name.strip()
+    if payload.phone is not None:
+        user.phone = payload.phone.strip()
+    if payload.gender is not None:
+        user.gender = payload.gender.strip()
+    if payload.date_of_birth is not None:
+        user.date_of_birth = payload.date_of_birth.strip()
 
     await db.commit()
     await db.refresh(user)
@@ -364,6 +378,9 @@ async def update_user_profile(
             "email": user.email,
             "name": user.name,
             "role": user.role,
+            "phone": user.phone or "",
+            "gender": user.gender or "",
+            "date_of_birth": user.date_of_birth or "",
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
             "upi_id": user.upi_id,

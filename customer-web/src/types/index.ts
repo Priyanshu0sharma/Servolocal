@@ -53,6 +53,7 @@ export interface UserProfile {
   role: string;
   gender?: string;
   phone?: string;
+  date_of_birth?: string;
   wallet_balance?: number;
   servo_coins?: number;
   upi_id?: string;

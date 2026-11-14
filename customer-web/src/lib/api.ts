@@ -55,7 +55,31 @@ export async function verifyOtp(email: string, otp_code: string, role: string = 
   return data;
 }
 
-export async function updateUserProfile(name: string, gender?: string) {
+export interface UpdateProfilePayload {
+  name: string;
+  phone?: string;
+  gender?: string;
+  date_of_birth?: string;
+}
+
+export async function updateUserProfile(
+  nameOrPayload: string | UpdateProfilePayload,
+  genderArg?: string,
+  phoneArg?: string,
+  dobArg?: string
+) {
+  let payload: UpdateProfilePayload;
+  if (typeof nameOrPayload === "string") {
+    payload = {
+      name: nameOrPayload,
+      gender: genderArg,
+      phone: phoneArg,
+      date_of_birth: dobArg,
+    };
+  } else {
+    payload = nameOrPayload;
+  }
+
   const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
   const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
     method: "PUT",
@@ -63,7 +87,7 @@ export async function updateUserProfile(name: string, gender?: string) {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ name, gender }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -73,7 +97,13 @@ export async function updateUserProfile(name: string, gender?: string) {
   if (typeof window !== "undefined" && data.user) {
     const saved = localStorage.getItem("servo_user");
     const existing = saved ? JSON.parse(saved) : {};
-    const updated = { ...existing, ...data.user, gender: gender || existing.gender };
+    const updated = {
+      ...existing,
+      ...data.user,
+      gender: payload.gender !== undefined ? payload.gender : (data.user.gender || existing.gender),
+      phone: payload.phone !== undefined ? payload.phone : (data.user.phone || existing.phone),
+      date_of_birth: payload.date_of_birth !== undefined ? payload.date_of_birth : (data.user.date_of_birth || existing.date_of_birth),
+    };
     localStorage.setItem("servo_user", JSON.stringify(updated));
     return updated;
   }

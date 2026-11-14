@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { X, AlertCircle, Loader2, ArrowLeft, Mail, RefreshCw, Check } from "lucide-react";
+import { X, AlertCircle, Loader2, ArrowLeft, Mail, RefreshCw, Check, Phone, Sparkles } from "lucide-react";
 import { UserProfile } from "@/types";
 import { sendOtp, verifyOtp, updateUserProfile } from "@/lib/api";
 
@@ -21,6 +21,8 @@ export default function SignInModal({
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [nameInput, setNameInput] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [dobInput, setDobInput] = useState("");
   const [genderInput, setGenderInput] = useState("Male");
   const [verifiedUser, setVerifiedUser] = useState<UserProfile | null>(null);
   const [error, setError] = useState("");
@@ -130,6 +132,9 @@ export default function SignInModal({
           ? "Priyanshu Sharma"
           : (data.user.name || "").replace(/[0-9]/g, "").trim() || "Priyanshu Sharma";
         setNameInput(cleanDefault);
+        const initialPhone = (data.user.phone || "").replace("+91", "").replace(/\D/g, "").slice(-10);
+        setPhoneInput(initialPhone || (email.trim().toLowerCase().includes("priyanshu") ? "9352286423" : ""));
+        if (data.user.date_of_birth) setDobInput(data.user.date_of_birth);
         setGenderInput(data.user.gender || "Male");
         setStep("PROFILE");
         setLoading(false);
@@ -146,17 +151,44 @@ export default function SignInModal({
     e.preventDefault();
     const cleanName = nameInput.trim();
     if (!cleanName) {
-      setError("Please enter your name");
+      setError("Please enter your full name");
       return;
     }
 
+    const cleanPhoneDigits = phoneInput.replace(/\D/g, "");
+    if (!cleanPhoneDigits || cleanPhoneDigits.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    const formattedPhone = `+91${cleanPhoneDigits}`;
     setLoading(true);
+
     let finalUser: UserProfile = verifiedUser
-      ? { ...verifiedUser, name: cleanName, gender: genderInput }
-      : { id: Date.now(), email, name: cleanName, role: "customer", gender: genderInput };
+      ? {
+          ...verifiedUser,
+          name: cleanName,
+          phone: formattedPhone,
+          gender: genderInput,
+          date_of_birth: dobInput.trim() || undefined,
+        }
+      : {
+          id: Date.now(),
+          email,
+          name: cleanName,
+          role: "customer",
+          phone: formattedPhone,
+          gender: genderInput,
+          date_of_birth: dobInput.trim() || undefined,
+        };
 
     try {
-      const updated = await updateUserProfile(cleanName, genderInput);
+      const updated = await updateUserProfile({
+        name: cleanName,
+        phone: formattedPhone,
+        gender: genderInput,
+        date_of_birth: dobInput.trim() || undefined,
+      });
       if (updated && updated.name) {
         finalUser = updated;
       }
@@ -409,20 +441,21 @@ export default function SignInModal({
           </>
         )}
 
-        {/* STEP 3: Enter Name & Gender (Personal Details) */}
+        {/* STEP 3: Enter Name, Mobile & Personal Details (Blinkit Flow) */}
         {step === "PROFILE" && (
           <>
             <h2
               id="modal-heading"
               className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight mb-1"
             >
-              Personal Details
+              Complete Your Profile
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mb-6">
-              Enter your Name &amp; Gender to personalize your account
+            <p className="text-xs sm:text-sm text-gray-500 mb-5">
+              Enter your mobile number &amp; details to enable instant doorstep delivery
             </p>
 
             <form onSubmit={handleProfileSubmit} className="w-full space-y-4 text-left" noValidate>
+              {/* Full Name */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-700 block">
                   Your Full Name <span className="text-red-500">*</span>
@@ -438,17 +471,61 @@ export default function SignInModal({
                   autoFocus
                   disabled={loading}
                   className={`w-full px-4 py-3 text-sm text-gray-900 bg-white border rounded-xl placeholder:text-gray-400 transition-all outline-none ${
-                    error
+                    error && !nameInput.trim()
                       ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                       : "border-gray-300 focus:border-[#078B35] focus:ring-2 focus:ring-[#078B35]/20"
                   }`}
                 />
-                {error && (
-                  <div className="flex items-start gap-1.5 text-xs text-red-500 mt-2 pl-1 leading-snug">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{error}</span>
-                  </div>
-                )}
+              </div>
+
+              {/* Mobile Number Input */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700 block">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="px-3.5 py-3 bg-gray-100 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 select-none">
+                    🇮🇳 +91
+                  </span>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={phoneInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setPhoneInput(val);
+                      if (error) setError("");
+                    }}
+                    placeholder="10-digit mobile number"
+                    disabled={loading}
+                    className={`flex-1 px-4 py-3 text-sm text-gray-900 bg-white border rounded-xl placeholder:text-gray-400 transition-all outline-none ${
+                      error && phoneInput.replace(/\D/g, "").length !== 10
+                        ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                        : "border-gray-300 focus:border-[#078B35] focus:ring-2 focus:ring-[#078B35]/20"
+                    }`}
+                  />
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Required for delivery PIN verification &amp; order tracking
+                </p>
+              </div>
+
+              {/* Date of Birth (Optional) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700">Date of Birth</label>
+                  <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    Birthday Treats
+                  </span>
+                </div>
+                <input
+                  type="date"
+                  value={dobInput}
+                  onChange={(e) => setDobInput(e.target.value)}
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 text-xs text-gray-900 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#078B35] focus:ring-2 focus:ring-[#078B35]/20"
+                />
               </div>
 
               {/* Gender Selection */}
@@ -481,11 +558,18 @@ export default function SignInModal({
                 </div>
               </div>
 
+              {error && (
+                <div className="flex items-start gap-1.5 text-xs text-red-500 mt-2 pl-1 leading-snug">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={!nameInput.trim() || loading}
+                disabled={!nameInput.trim() || phoneInput.replace(/\D/g, "").length !== 10 || loading}
                 className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-150 flex items-center justify-center gap-2 mt-2 ${
-                  nameInput.trim() && !loading
+                  nameInput.trim() && phoneInput.replace(/\D/g, "").length === 10 && !loading
                     ? "bg-[#078B35] hover:bg-[#075C2A] text-white shadow-sm cursor-pointer active:scale-[0.99]"
                     : "bg-gray-100 text-gray-400 cursor-not-allowed"
                 }`}
@@ -493,7 +577,7 @@ export default function SignInModal({
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving...</span>
+                    <span>Saving Profile...</span>
                   </>
                 ) : (
                   <span>Save &amp; Continue →</span>
