@@ -92,10 +92,34 @@ export default function PopularShopsSection({
       </div>
 
       {/* Horizontal Scrollable Row */}
-      <div
-        ref={scrollRef}
-        className="flex items-stretch gap-4 overflow-x-auto pb-2 scrollbar-none scroll-smooth"
-      >
+      {shops.length === 0 ? (
+        <div className="bg-gradient-to-r from-emerald-50/60 via-white to-amber-50/40 rounded-2xl border border-emerald-100 p-6 sm:p-8 text-center my-2">
+          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-[#078B35] flex items-center justify-center text-xl mx-auto mb-2 shadow-2xs">
+            🏪
+          </div>
+          <h4 className="text-sm sm:text-base font-extrabold text-[#2D2319]">
+            No 10-Minute Local Stores Active Near {currentLocality || "You"} Yet
+          </h4>
+          <p className="text-xs text-[#8C7663] max-w-md mx-auto mt-1 leading-relaxed">
+            Own a local store (Kirana, Dairy, Street Food, Bakery, Medical)? Register in 2 minutes on ServoPartner and start receiving delivery orders!
+          </p>
+          <div className="mt-3.5 flex items-center justify-center gap-2.5">
+            <a
+              href="https://servopartner.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-[#078B35] hover:bg-[#06732B] text-white font-bold text-xs px-4 py-2 rounded-full shadow-2xs transition-all active:scale-95"
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Register on ServoPartner</span>
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={scrollRef}
+          className="flex items-stretch gap-4 overflow-x-auto pb-2 scrollbar-none scroll-smooth"
+        >
         {shops.map((shop, idx) => {
           const badge = getBadgeForIndex(idx);
           const ratingVal = shop.rating || 4.8;
@@ -176,6 +200,7 @@ export default function PopularShopsSection({
           );
         })}
       </div>
+      )}
     </section>
   );
 }

@@ -25,6 +25,18 @@ interface BlinkitSplitViewStorefrontProps {
   onSelectProduct?: (product: ProductItem) => void;
 }
 
+
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  "grocery": ["dairy", "staples", "snacks", "drinks", "breakfast", "bakery", "sweets", "produce", "hygiene", "grocery", "atta", "rice", "dal", "milk", "bread", "eggs", "oil"],
+  "food & drinks": ["street", "drinks", "pizza", "sweets", "bakery", "food & drinks", "samosa", "kachori", "chaat", "chai", "fast food"],
+  "food": ["street", "drinks", "pizza", "sweets", "bakery", "food & drinks", "samosa", "kachori", "chaat", "chai", "fast food"],
+  "electronics": ["electronics", "audio", "chargers", "cables", "powerbanks", "headphones", "earphones", "power bank"],
+  "fashion": ["fashion", "mens", "tees", "3d", "clothes & 3d prints (pan-india)", "apparel", "shirt", "hoodie", "t-shirt"],
+  "pharmacy": ["pharmacy", "pain", "antiseptic", "oral", "wellness", "medicine", "first aid", "health"],
+  "home & kitchen": ["kitchen", "home & kitchen", "detergent", "dishwash", "surface", "cleaning", "household"],
+  "beauty & care": ["beauty", "beauty & care", "soaps", "oral", "skin", "hygiene", "personal care"],
+};
+
 export default function BlinkitSplitViewStorefront({
   categoryName,
   shopName,
@@ -85,9 +97,16 @@ export default function BlinkitSplitViewStorefront({
 
       // 2. Category filter if active and not shop-specific
       if (categoryName && !shopName) {
-        const catMatch =
-          p.category.toLowerCase().includes(categoryName.toLowerCase()) ||
-          categoryName.toLowerCase().includes(p.category.toLowerCase());
+        const catLower = categoryName.toLowerCase().trim();
+        const pCatLower = p.category.toLowerCase().trim();
+        const pSubLower = (p.sub_category || "").toLowerCase().trim();
+
+        let catMatch = pCatLower.includes(catLower) || catLower.includes(pCatLower);
+        if (!catMatch && CATEGORY_ALIASES[catLower]) {
+          catMatch = CATEGORY_ALIASES[catLower].some(
+            (alias) => pCatLower.includes(alias) || pSubLower.includes(alias)
+          );
+        }
         if (!catMatch) return false;
       }
 
@@ -119,9 +138,8 @@ export default function BlinkitSplitViewStorefront({
     });
   }, [allProducts, shopName, shopId, categoryName, selectedSubCatId, searchQuery, subCategories]);
 
-  // Safe fallback if 0 items so user never sees a blank screen
-  const displayProducts =
-    filteredProducts.length > 0 ? filteredProducts : allProducts.slice(0, 12);
+  // Do not fallback to random products across departments; show authentic aisle items
+  const displayProducts = filteredProducts;
 
   const getCartQuantity = (inventoryId: number) => {
     const item = cart.find((c) => c.inventory_id === inventoryId);
@@ -235,7 +253,29 @@ export default function BlinkitSplitViewStorefront({
 
         {/* Right Column: Blinkit Product Grid */}
         <div className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[750px] bg-white">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
+          {displayProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center my-8 bg-[#FAF7F2] rounded-3xl border border-dashed border-[#E8ECE9]">
+              <div className="w-16 h-16 rounded-2xl bg-white shadow-xs flex items-center justify-center text-3xl mb-3 text-[#078B35]">
+                📦
+              </div>
+              <h3 className="text-base font-bold text-[#2D2319]">
+                No products found in this aisle right now
+              </h3>
+              <p className="text-xs text-[#8C7663] max-w-sm mt-1 leading-relaxed">
+                Local merchants in your area haven&apos;t added inventory to this category yet. Registered merchants can list these items on ServoPartner.
+              </p>
+              <a
+                href="https://servopartner.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#078B35] bg-[#EAF7EE] hover:bg-[#D4EEDC] px-4 py-2 rounded-full transition-all"
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Register a store on ServoPartner</span>
+              </a>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
             {displayProducts.map((product) => {
               const qty = getCartQuantity(product.id);
               const displayPrice = product.selling_price;
@@ -367,6 +407,7 @@ export default function BlinkitSplitViewStorefront({
               );
             })}
           </div>
+          )}
         </div>
       </div>
     </div>

@@ -228,9 +228,7 @@ async def add_inventory_from_master(
     shop = shop_res.scalar_one_or_none()
 
     if not shop:
-        shop = (await db.execute(select(Shop).order_by(Shop.id.asc()).limit(1))).scalar_one_or_none()
-    if not shop:
-        raise HTTPException(status_code=400, detail="Please set up your shop before adding inventory.")
+        raise HTTPException(status_code=400, detail="Please register and set up your shop before adding inventory.")
 
     master_res = await db.execute(
         select(MasterCatalogItem).where(MasterCatalogItem.id == payload.master_item_id)

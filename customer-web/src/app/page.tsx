@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Home,
   ArrowRight,
@@ -52,6 +53,19 @@ import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
 import { getDiscoveryFeed, getAppConfig } from "@/lib/api";
 
 export default function CustomerHomePage() {
+  const router = useRouter();
+
+  const navigateToProduct = (product: ProductItem) => {
+    if (!product || !product.id) return;
+    const slug = encodeURIComponent(
+      (product.name || "item")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+    );
+    router.push(`/product/${slug}/${product.id}`);
+  };
+
   // ── 1. Locality & GPS State ───────────────────────────────────────────────
   const [currentLocality, setCurrentLocality] = useState<string>("");
   const [tickerText, setTickerText] = useState<string>("");
@@ -372,20 +386,7 @@ export default function CustomerHomePage() {
         timing_info: s.timing_info || (s.is_open ? "Open Now • Closes 10:30 PM" : "Closed Now • Opens 7:00 AM"),
       }));
     }
-    return MASTER_SHOPS.map((s) => ({
-      id: s.id,
-      name: s.name,
-      category: s.category,
-      image_url: s.image_url,
-      is_open: s.is_open,
-      rating: s.rating,
-      locality_name: s.locality_name,
-      distance_km: s.distance_km,
-      local_eta_mins: s.local_eta_mins,
-      free_delivery_enabled: s.free_delivery_enabled,
-      is_verified: s.is_verified,
-      timing_info: s.timing_info || (s.is_open ? "Open Now • Closes 10:30 PM" : "Closed Now • Opens 7:00 AM"),
-    }));
+    return [];
   }, [dbShops]);
 
   // Filtered Stores (Open, Closed, Search)
@@ -537,7 +538,7 @@ export default function CustomerHomePage() {
         cart={cart}
         onOpenCart={() => setIsCartOpen(true)}
         onAddToCart={handleAddToCart}
-        onSelectProduct={(p) => setSelectedProductForModal(p)}
+        onSelectProduct={(p) => navigateToProduct(p)}
         user={user}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
@@ -625,7 +626,7 @@ export default function CustomerHomePage() {
                 setActiveStorefrontShop({ name, id });
                 setSelectedCategory(null);
               }}
-              onSelectProduct={(prod) => setSelectedProductForModal(prod as ProductItem)}
+              onSelectProduct={(prod) => navigateToProduct(prod as ProductItem)}
             />
           )}
 
@@ -676,7 +677,7 @@ export default function CustomerHomePage() {
                 cart={cart}
                 onAddToCart={handleAddToCart}
                 onUpdateCartQuantity={handleUpdateCartQuantity}
-                onClickProduct={(product) => setSelectedProductForModal(product)}
+                onClickProduct={(product) => navigateToProduct(product)}
                 onViewAll={() => setActiveTab("grocery")}
                 limit={12}
               />
@@ -692,7 +693,7 @@ export default function CustomerHomePage() {
                   cart={cart}
                   onAddToCart={handleAddToCart}
                   onUpdateCartQuantity={handleUpdateCartQuantity}
-                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onClickProduct={(product) => navigateToProduct(product)}
                   onViewAll={() => setSelectedCategory("Cold Drinks & Juices")}
                   limit={12}
                 />
@@ -709,7 +710,7 @@ export default function CustomerHomePage() {
                   cart={cart}
                   onAddToCart={handleAddToCart}
                   onUpdateCartQuantity={handleUpdateCartQuantity}
-                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onClickProduct={(product) => navigateToProduct(product)}
                   onViewAll={() => setSelectedCategory("Dairy, Bread & Eggs")}
                   limit={12}
                 />
@@ -726,7 +727,7 @@ export default function CustomerHomePage() {
                   cart={cart}
                   onAddToCart={handleAddToCart}
                   onUpdateCartQuantity={handleUpdateCartQuantity}
-                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onClickProduct={(product) => navigateToProduct(product)}
                   onViewAll={() => setSelectedCategory("Snacks & Munchies")}
                   limit={12}
                 />
@@ -743,7 +744,7 @@ export default function CustomerHomePage() {
                   cart={cart}
                   onAddToCart={handleAddToCart}
                   onUpdateCartQuantity={handleUpdateCartQuantity}
-                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onClickProduct={(product) => navigateToProduct(product)}
                   onViewAll={() => setSelectedCategory("Atta, Rice & Staples")}
                   limit={12}
                 />
@@ -760,7 +761,7 @@ export default function CustomerHomePage() {
                   cart={cart}
                   onAddToCart={handleAddToCart}
                   onUpdateCartQuantity={handleUpdateCartQuantity}
-                  onClickProduct={(product) => setSelectedProductForModal(product)}
+                  onClickProduct={(product) => navigateToProduct(product)}
                   onViewAll={() => setSelectedCategory("Pharmacy")}
                   limit={12}
                 />
@@ -809,7 +810,7 @@ export default function CustomerHomePage() {
                       cartQuantity={cartItem ? cartItem.quantity : 0}
                       onAddToCart={handleAddToCart}
                       onUpdateCartQuantity={handleUpdateCartQuantity}
-                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                      onClickProduct={(p) => navigateToProduct(p)}
                     />
                   );
                 })}
@@ -849,7 +850,7 @@ export default function CustomerHomePage() {
                       cartQuantity={cartItem ? cartItem.quantity : 0}
                       onAddToCart={handleAddToCart}
                       onUpdateCartQuantity={handleUpdateCartQuantity}
-                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                      onClickProduct={(p) => navigateToProduct(p)}
                     />
                   );
                 })}
@@ -889,7 +890,7 @@ export default function CustomerHomePage() {
                       cartQuantity={cartItem ? cartItem.quantity : 0}
                       onAddToCart={handleAddToCart}
                       onUpdateCartQuantity={handleUpdateCartQuantity}
-                      onClickProduct={(p) => setSelectedProductForModal(p)}
+                      onClickProduct={(p) => navigateToProduct(p)}
                     />
                   );
                 })}
