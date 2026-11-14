@@ -129,6 +129,7 @@ function AccountContent() {
     servo_coins: number;
     transactions: any[];
   } | null>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState<boolean>(true);
 
   // ── Wallet Top-Up State (Live Razorpay UPI QR / Cards) ────────────────────
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
@@ -284,6 +285,18 @@ function AccountContent() {
             setIsLoadingOrders(false);
           }
         }
+
+        // Instant Cache for Wallet (SWR 0ms Render)
+        const savedWallet = localStorage.getItem("servo_cached_wallet");
+        if (savedWallet) {
+          try {
+            const parsed = JSON.parse(savedWallet);
+            if (parsed && typeof parsed === "object") {
+              setWalletData(parsed);
+              setIsLoadingWallet(false);
+            }
+          } catch {}
+        }
       } catch {}
     }
   }, []);
@@ -364,15 +377,27 @@ function AccountContent() {
     };
   }, [activeTab]);
 
-  // Fetch wallet overview from Neon PostgreSQL
+  // Fetch wallet overview from Neon PostgreSQL with cache sync
   useEffect(() => {
-    if (activeTab === "wallet") {
-      getWalletOverview()
-        .then((data) => {
-          if (data) setWalletData(data);
-        })
-        .catch(() => {});
+    let isMounted = true;
+    async function fetchWallet() {
+      try {
+        const data = await getWalletOverview();
+        if (isMounted && data) {
+          setWalletData(data);
+          try {
+            localStorage.setItem("servo_cached_wallet", JSON.stringify(data));
+          } catch {}
+        }
+      } catch {
+      } finally {
+        if (isMounted) setIsLoadingWallet(false);
+      }
     }
+    fetchWallet();
+    return () => {
+      isMounted = false;
+    };
   }, [activeTab]);
 
   const handleLogout = () => {
@@ -599,7 +624,7 @@ function AccountContent() {
                   <span>My Profile</span>
                 </button>
 
-                {/* 4. Wallet & ServoCoins */}
+                {/* 4. Wallet */}
                 <button
                   type="button"
                   onClick={() => switchTab("wallet")}
@@ -614,7 +639,7 @@ function AccountContent() {
                       activeTab === "wallet" ? "text-[#0C831F]" : "text-gray-500"
                     }`}
                   />
-                  <span>Wallet &amp; Rewards</span>
+                  <span>Wallet</span>
                 </button>
 
                 {/* 5. My Wishlist */}
@@ -946,14 +971,14 @@ function AccountContent() {
               </div>
             )}
 
-            {/* ── VIEW 4: WALLET & SERVOCOINS (LIVE RAZORPAY UPI/CARDS) ── */}
+            {/* ── VIEW 4: WALLET (LIVE RAZORPAY UPI/CARDS & 1 COIN = ₹1) ── */}
             {activeTab === "wallet" && (
               <div className="space-y-6 animate-in fade-in duration-150">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h1 className="text-xl font-bold text-[#171717]">Wallet &amp; ServoCoins</h1>
+                    <h1 className="text-xl font-bold text-[#171717]">Servo Wallet</h1>
                     <p className="text-xs text-gray-500 mt-1">
-                      Manage your real wallet cash balance, reward tokens, and transaction history
+                      Real wallet cash balance for instant 1-click checkout on local stores (1 Coin = ₹1)
                     </p>
                   </div>
 
@@ -986,87 +1011,61 @@ function AccountContent() {
                   </div>
                 )}
 
-                {/* Balance Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Card 1: Cash Wallet Balance */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 border border-emerald-200/80 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                          <Wallet className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                          Wallet Cash Balance
+                {/* Unified Clean Wallet Card (1 Coin = ₹1) */}
+                <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 border border-emerald-200/90 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg shadow-2xs">
+                        🪙
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider block">
+                          Wallet Balance
+                        </span>
+                        <span className="text-[11px] text-emerald-700 font-semibold">
+                          1 Coin = ₹1 Rupee • Real Cash
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                        1-Click Checkout
-                      </span>
                     </div>
-
-                    <div>
-                      <p className="text-3xl font-black text-[#171717] font-mono">
-                        ₹{(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(2)}
-                      </p>
-                      <p className="text-[11px] text-gray-500 mt-1">
-                        Usable across 100% of local shops with zero transaction fees
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-emerald-100 flex items-center justify-between">
-                      <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
-                        Real Neon DB Pooled
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTopupErrorMsg("");
-                          setIsTopupModalOpen(true);
-                        }}
-                        className="text-xs font-bold text-[#0C831F] hover:underline flex items-center gap-1"
-                      >
-                        <span>Top Up</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ⚡ 1-Click Checkout
+                    </span>
                   </div>
 
-                  {/* Card 2: ServoCoins (Reward Tokens) */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-orange-50/30 border border-amber-200/80 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg">
-                          🪙
-                        </div>
-                        <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                          ServoCoins Rewards
+                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 pt-1">
+                    <div>
+                      <div className="flex items-baseline gap-2 font-mono">
+                        <span className="text-3xl sm:text-4xl font-black text-[#171717]">
+                          ₹{(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(2)}
+                        </span>
+                        <span className="text-sm font-bold text-emerald-700 font-sans">
+                          ({(walletData?.wallet_balance ?? user?.wallet_balance ?? 0.0).toFixed(0)} Coins)
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                        2 Coins = ₹1
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="text-3xl font-black text-[#171717] font-mono">
-                        {walletData?.servo_coins ?? user?.servo_coins ?? 0}{" "}
-                        <span className="text-sm font-medium text-gray-600">Coins</span>
-                      </p>
-                      <p className="text-[11px] text-amber-800 font-semibold mt-1">
-                        ₹{(((walletData?.servo_coins ?? user?.servo_coins ?? 0) * 0.5)).toFixed(0)} instant discount value on checkout
+                      <p className="text-xs text-gray-500 mt-1">
+                        Usable across 100% of local kirana, dairy &amp; street vendors with zero transaction fees
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-amber-100 flex items-center justify-between">
-                      <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        +10% Bonus coins on wallet top-up
-                      </span>
-                      <span className="text-xs font-bold text-amber-800 font-mono">
-                        Active
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTopupErrorMsg("");
+                        setIsTopupModalOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Top Up</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-emerald-100 flex items-center justify-between text-[11px] text-emerald-700 font-semibold">
+                    <span className="flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" />
+                      Real Neon DB Pooled
+                    </span>
+                    <span>Direct UPI QR &amp; Cards Supported</span>
                   </div>
                 </div>
 
@@ -1082,7 +1081,25 @@ function AccountContent() {
                     </span>
                   </div>
 
-                  {walletData?.transactions && walletData.transactions.length > 0 ? (
+                  {isLoadingWallet && !walletData ? (
+                    <div className="space-y-2.5">
+                      {[1, 2, 3].map((n) => (
+                        <div
+                          key={n}
+                          className="p-3.5 rounded-2xl border border-gray-100 bg-white flex items-center justify-between shadow-2xs animate-pulse"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gray-200"></div>
+                            <div className="space-y-1.5">
+                              <div className="h-3.5 bg-gray-200 rounded w-44"></div>
+                              <div className="h-2.5 bg-gray-100 rounded w-24"></div>
+                            </div>
+                          </div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : walletData?.transactions && walletData.transactions.length > 0 ? (
                     <div className="space-y-2.5">
                       {walletData.transactions.map((t: any) => {
                         const isCredit = t.entry_type === "CREDIT" || t.amount > 0;

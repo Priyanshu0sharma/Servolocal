@@ -196,15 +196,18 @@ export default function CustomerProfileView({
           className="p-4 rounded-2xl bg-white border border-gray-200 hover:border-[#078B35] text-left transition-all shadow-2xs hover:shadow-xs group cursor-pointer"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500 font-medium">ServoCoins</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+            <span className="text-xs text-gray-500 font-medium">Wallet Balance</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              🪙
             </div>
           </div>
           <p className="text-xl font-black text-[#171717]">
-            {user?.servo_coins || 150} <span className="text-xs font-medium text-gray-500">Coins</span>
+            ₹{(user?.wallet_balance ?? 250.0).toFixed(0)}{" "}
+            <span className="text-xs font-bold text-emerald-700">
+              ({(user?.wallet_balance ?? 250.0).toFixed(0)} Coins)
+            </span>
           </p>
-          <p className="text-[11px] text-[#078B35] font-semibold mt-1">₹150 Discount value</p>
+          <p className="text-[11px] text-[#078B35] font-semibold mt-1">1 Coin = ₹1 Real Cash</p>
         </button>
 
         <button

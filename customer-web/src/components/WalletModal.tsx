@@ -88,7 +88,7 @@ export default function WalletModal({ isOpen, onClose, user }: WalletModalProps)
 
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold tracking-tight">₹{walletBalance}</span>
-            <span className="text-sm font-semibold text-emerald-100">({servoCoins} ServoCoins)</span>
+            <span className="text-sm font-semibold text-emerald-100">({walletBalance} Coins)</span>
           </div>
 
           <p className="text-[11px] text-emerald-100/90 leading-relaxed">

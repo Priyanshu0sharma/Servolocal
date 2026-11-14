@@ -286,10 +286,11 @@ async def get_wallet_overview(
     )
     ledgers = ledger_res.scalars().all()
 
+    bal = round(user.wallet_balance or 0.0, 2)
     return {
-        "wallet_balance": round(user.wallet_balance or 0.0, 2),
-        "servo_coins": user.servo_coins or 0,
-        "coin_value_rupees": round((user.servo_coins or 0) * 0.5, 2),  # 2 Coins = ₹1
+        "wallet_balance": bal,
+        "servo_coins": int(bal),
+        "coin_value_rupees": bal,  # 1 Coin = ₹1 Rs
         "dues_limit": user.dues_limit or 500.0,
         "is_locked": (user.wallet_balance or 0.0) < -200.0,
         "transactions": [
