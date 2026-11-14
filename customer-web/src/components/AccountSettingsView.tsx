@@ -159,6 +159,42 @@ export default function AccountSettingsView({
         </div>
       </div>
 
+      {/* ── Privacy & Account Policy (Exact Blinkit Style) ─────────────── */}
+      <div className="p-6 rounded-3xl bg-white border border-gray-200 shadow-2xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-[#171717]">Account privacy and policy</h3>
+          <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+            We i.e. &ldquo;ServoLocal Technologies Private Limited&rdquo;, are committed to protecting the privacy and security of your personal information. Your privacy is important to us and maintaining your trust is paramount.
+          </p>
+        </div>
+
+        {/* Request to delete account card (Exact Blinkit Style) */}
+        <div
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.location.href = "/account?tab=privacy";
+            }
+          }}
+          className="p-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-white shadow-2xs hover:shadow-xs transition-all flex items-center justify-between cursor-pointer group"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-700 shrink-0 group-hover:bg-rose-50 group-hover:border-rose-200 group-hover:text-rose-600 transition-colors">
+              <Trash2 className="w-5 h-5 stroke-[1.8]" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-[#171717] group-hover:text-rose-600 transition-colors">
+                Request to delete account
+              </h4>
+              <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
+                Request to closure of your account
+              </p>
+            </div>
+          </div>
+
+          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+        </div>
+      </div>
+
       {/* ── Security & Session Management ───────────────────────── */}
       <div className="p-6 rounded-3xl bg-white border border-gray-200 shadow-2xs space-y-4">
         <div className="flex items-center gap-2.5 pb-3 border-b border-gray-100">
