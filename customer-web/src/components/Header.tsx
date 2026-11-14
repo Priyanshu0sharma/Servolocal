@@ -57,6 +57,8 @@ interface HeaderProps {
   onOpenNotifications?: () => void;
   onOpenSupport?: () => void;
   onNavigateSettings?: () => void;
+  onNavigateAddresses?: () => void;
+  activeAccountTab?: string;
 }
 
 export default function Header({
@@ -88,6 +90,8 @@ export default function Header({
   onOpenNotifications,
   onOpenSupport,
   onNavigateSettings,
+  onNavigateAddresses,
+  activeAccountTab,
 }: HeaderProps) {
   const [internalLocationOpen, setInternalLocationOpen] = useState(false);
   const isLocationOpen = propLocationOpen !== undefined ? propLocationOpen : internalLocationOpen;
@@ -100,6 +104,23 @@ export default function Header({
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // Sync active account tab dynamically from prop or URL
+  const [urlTab, setUrlTab] = useState<string>("");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setUrlTab(params.get("tab") || "");
+    }
+  }, [isAccountOpen]);
+
+  const currentActiveTab = activeAccountTab || urlTab;
+  const isProfileActive = currentActiveTab === "profile";
+  const isOrdersActive = currentActiveTab === "orders";
+  const isAddressesActive = currentActiveTab === "addresses";
+  const isWishlistActive = currentActiveTab === "wishlist";
+  const isWalletActive = currentActiveTab === "wallet";
+  const isSettingsActive = currentActiveTab === "privacy";
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -278,7 +299,7 @@ export default function Header({
                       </div>
                     </div>
 
-                    {/* Menu Items (9 Clickable Items matching exact mockup) */}
+                    {/* Menu Items (9 Clickable Items with Dynamic Active Tab Selection) */}
                     <div className="py-1">
                       {/* 1. My Profile */}
                       <button
@@ -288,13 +309,17 @@ export default function Header({
                           if (onNavigateProfile) onNavigateProfile();
                           else if (typeof window !== "undefined") window.location.href = "/account?tab=profile";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isProfileActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <User className="w-4 h-4 text-[#078B35]" />
+                          <User className={`w-4 h-4 ${isProfileActive ? "text-[#078B35]" : "text-gray-700"}`} />
                           <span>My Profile</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-[#078B35] group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isProfileActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
                       {/* 2. My Orders */}
@@ -305,13 +330,17 @@ export default function Header({
                           if (onNavigateOrders) onNavigateOrders();
                           else if (typeof window !== "undefined") window.location.href = "/account?tab=orders";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isOrdersActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Package className="w-4 h-4 text-gray-700" />
+                          <Package className={`w-4 h-4 ${isOrdersActive ? "text-[#078B35]" : "text-gray-700"}`} />
                           <span>My Orders</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isOrdersActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
                       {/* 3. Saved Addresses */}
@@ -319,15 +348,20 @@ export default function Header({
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
-                          if (typeof window !== "undefined") window.location.href = "/account?tab=addresses";
+                          if (onNavigateAddresses) onNavigateAddresses();
+                          else if (typeof window !== "undefined") window.location.href = "/account?tab=addresses";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isAddressesActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <MapPin className="w-4 h-4 text-gray-700" />
+                          <MapPin className={`w-4 h-4 ${isAddressesActive ? "text-[#078B35]" : "text-gray-700"}`} />
                           <span>Saved Addresses</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isAddressesActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
                       {/* 4. My Wishlist */}
@@ -338,16 +372,20 @@ export default function Header({
                           if (onOpenWishlist) onOpenWishlist();
                           else if (typeof window !== "undefined") window.location.href = "/account?tab=wishlist";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isWishlistActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Heart className="w-4 h-4 text-gray-700" />
+                          <Heart className={`w-4 h-4 ${isWishlistActive ? "text-[#078B35]" : "text-gray-700"}`} />
                           <span>My Wishlist</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isWishlistActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 5. Wallet & Rewards */}
+                      {/* 5. Wallet */}
                       <button
                         type="button"
                         onClick={() => {
@@ -355,13 +393,17 @@ export default function Header({
                           if (onOpenWallet) onOpenWallet();
                           else if (typeof window !== "undefined") window.location.href = "/account?tab=wallet";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isWalletActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Wallet className="w-4 h-4 text-gray-700" />
-                          <span>Wallet &amp; Rewards</span>
+                          <Wallet className={`w-4 h-4 ${isWalletActive ? "text-[#078B35]" : "text-gray-700"}`} />
+                          <span>Wallet</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isWalletActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
                       {/* 6. Notifications */}
@@ -408,13 +450,17 @@ export default function Header({
                           if (onNavigateSettings) onNavigateSettings();
                           else if (typeof window !== "undefined") window.location.href = "/account?tab=privacy";
                         }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
+                        className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between transition-colors cursor-pointer group ${
+                          isSettingsActive
+                            ? "font-bold text-[#078B35] bg-[#EAF7EE] hover:bg-[#d8f2df]"
+                            : "font-semibold text-[#171717] hover:bg-[#F9FAFB]"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Settings className="w-4 h-4 text-gray-700" />
+                          <Settings className={`w-4 h-4 ${isSettingsActive ? "text-[#078B35]" : "text-gray-700"}`} />
                           <span>Account Settings</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight className={`w-3.5 h-3.5 ${isSettingsActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
                       <div className="my-1 border-t border-gray-100" />

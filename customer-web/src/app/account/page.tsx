@@ -538,8 +538,11 @@ function AccountContent() {
         onNavigateStores={() => router.push("/?tab=stores")}
         onNavigateProfile={() => switchTab("profile")}
         onNavigateOrders={() => switchTab("orders")}
+        onNavigateAddresses={() => switchTab("addresses")}
+        onOpenWishlist={() => switchTab("wishlist")}
         onOpenWallet={() => switchTab("wallet")}
         onNavigateSettings={() => switchTab("privacy")}
+        activeAccountTab={activeTab}
       />
 
       {/* ── Main Body: Blinkit Centered Account View ─────────────────── */}
