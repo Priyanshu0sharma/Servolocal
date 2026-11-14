@@ -155,13 +155,6 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(new_otp_record)
 
-    # Cache OTP hash and 60-second cooldown in Upstash Redis
-    try:
-        await redis_client.set(f"otp:{email_clean}", otp_hash_val, expire_seconds=300)
-        await redis_client.set(cooldown_key, "1", expire_seconds=60)
-    except Exception:
-        pass
-
     # 4. Deliver through real configured email provider with role-tailored template
     success, message = send_otp_email(email_clean, raw_otp_code, role=clean_role)
 
@@ -169,10 +162,22 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
         # Invalidate OTP record if email could not be delivered
         await db.delete(new_otp_record)
         await db.commit()
+        try:
+            await redis_client.delete(cooldown_key)
+            await redis_client.delete(f"otp:{email_clean}")
+        except Exception:
+            pass
         raise HTTPException(
             status_code=503,
             detail=f"Unable to send verification email. {message}",
         )
+
+    # 5. On successful delivery, cache OTP hash and activate 60s cooldown in Upstash Redis
+    try:
+        await redis_client.set(f"otp:{email_clean}", otp_hash_val, expire_seconds=300)
+        await redis_client.set(cooldown_key, "1", expire_seconds=60)
+    except Exception:
+        pass
 
     return {
         "success": True,
