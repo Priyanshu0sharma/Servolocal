@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import os
 import secrets
@@ -155,8 +156,8 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(new_otp_record)
 
-    # 4. Deliver through real configured email provider with role-tailored template
-    success, message = send_otp_email(email_clean, raw_otp_code, role=clean_role)
+    # 4. Deliver through real configured email provider with role-tailored template (non-blocking thread)
+    success, message = await asyncio.to_thread(send_otp_email, email_clean, raw_otp_code, clean_role)
 
     if not success:
         # Invalidate OTP record if email could not be delivered

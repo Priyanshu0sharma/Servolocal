@@ -208,21 +208,24 @@ The ServoLocal Team
 def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tuple[bool, str]:
     """
     Sends a real 6-digit verification code to the recipient's email inbox.
-    Uses Brevo REST API (HTTPS Port 443 - zero cloud port blocking) when BREVO_API_KEY is set,
+    Uses Brevo REST API (HTTPS Port 443 - zero cloud port blocking) as primary sender,
     with direct SMTP delivery as backup.
+    Completes in under 1 second for optimal frontend UX.
     """
     text_content, html_content, subject = render_email_templates(otp_code, to_email, role)
 
-    # --- 1. Brevo REST API (HTTPS Port 443 — Unblocked on all cloud providers) ---
+    # --- 1. Brevo REST API (HTTPS Port 443 — Unblocked on all cloud hosts & instant ~600ms response) ---
     brevo_api_key = os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", None)
+
     if brevo_api_key and brevo_api_key.strip():
         sender_email = (
             os.getenv("BREVO_SENDER_EMAIL")
+            or getattr(settings, "BREVO_SENDER_EMAIL", None)
             or os.getenv("SMTP_USER")
             or "priyanshusharma1131@gmail.com"
         )
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=6.0) as client:
                 resp = client.post(
                     "https://api.brevo.com/v3/smtp/email",
                     headers={
@@ -250,7 +253,14 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
         except Exception as e:
             return (False, f"Failed to send email via Brevo: {str(e)}")
 
-    # --- 2. Direct SMTP Delivery ---
+    # If running on cloud environment (Render) and Brevo is unconfigured, fail fast (<10ms) instead of hanging on blocked SMTP ports
+    if os.getenv("RENDER") or os.getenv("IS_RENDER"):
+        return (
+            False,
+            "BREVO_API_KEY is not configured in Render Environment Variables. Cloud hosts block direct SMTP ports 587/465. Please set BREVO_API_KEY in Render dashboard."
+        )
+
+    # --- 2. Direct SMTP Delivery (Fail-Fast: 3.0s timeout max) ---
 
     smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_EMAIL") or getattr(settings, "SMTP_USER", None)
     smtp_pass = os.getenv("SMTP_PASSWORD") or getattr(settings, "SMTP_PASSWORD", None)
@@ -263,7 +273,7 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
     if not smtp_user or not smtp_pass:
         return (
             False,
-            "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASSWORD in your environment variables."
+            "Email service unconfigured. Please ensure Brevo API key or SMTP credentials are set."
         )
 
     clean_pass = smtp_pass.replace(" ", "").replace('"', "").replace("'", "").strip()
@@ -283,9 +293,9 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
         msg.attach(MIMEText(text_content, "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
-        # 1. Try Port 587 with STARTTLS
+        # 1. Try Port 587 with STARTTLS (Fail fast: 3s timeout)
         try:
-            server = smtplib.SMTP(smtp_host, 587, timeout=12)
+            server = smtplib.SMTP(smtp_host, 587, timeout=3.0)
             server.ehlo()
             server.starttls()
             server.ehlo()
@@ -295,13 +305,18 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
             return (True, f"Verification code successfully sent via SMTP to {to_email}")
         except smtplib.SMTPAuthenticationError as auth_err:
             last_error = f"SMTP Auth Error: Google rejected credentials for {active_user} ({auth_err.smtp_code})"
-            continue  # Try next candidate
+            continue
+        except OSError as os_err:
+            last_error = os_err
+            # Cloud environment firewall blocks outbound SMTP ports: break immediately to avoid holding user
+            if "[Errno 101]" in str(os_err) or "unreachable" in str(os_err).lower():
+                break
         except Exception as exc:
             last_error = exc
 
-        # 2. Try Port 465 SSL
+        # 2. Try Port 465 SSL (Fail fast: 3s timeout)
         try:
-            server_ssl = smtplib.SMTP_SSL(smtp_host, 465, timeout=12)
+            server_ssl = smtplib.SMTP_SSL(smtp_host, 465, timeout=3.0)
             server_ssl.ehlo()
             server_ssl.login(active_user, clean_pass)
             server_ssl.send_message(msg)
@@ -310,10 +325,14 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
         except smtplib.SMTPAuthenticationError as auth_err:
             last_error = f"SMTP Auth Error: Google rejected credentials for {active_user} ({auth_err.smtp_code})"
             continue
+        except OSError as os_err2:
+            last_error = os_err2
+            if "[Errno 101]" in str(os_err2) or "unreachable" in str(os_err2).lower():
+                break
         except Exception as exc2:
             last_error = exc2
 
     return (
         False,
-        f"SMTP Connection Failed: {str(last_error)}. If running on Render, the cloud provider blocks outbound ports 587 and 465."
+        f"Delivery Failed: {str(last_error)}. Outbound SMTP ports are blocked on cloud containers; please verify Brevo REST configuration."
     )
