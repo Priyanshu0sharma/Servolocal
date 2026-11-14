@@ -136,6 +136,16 @@ export default function CustomerHomePage() {
 
         const savedOrder = localStorage.getItem("servo_active_order");
         if (savedOrder) setActiveOrder(JSON.parse(savedOrder));
+
+        // Instant Feed Cache (SWR 0ms Render)
+        const cachedShops = localStorage.getItem("servo_feed_shops");
+        if (cachedShops) {
+          try { setDbShops(JSON.parse(cachedShops)); } catch {}
+        }
+        const cachedProducts = localStorage.getItem("servo_feed_products");
+        if (cachedProducts) {
+          try { setDbProducts(JSON.parse(cachedProducts)); } catch {}
+        }
       } catch {}
     }
   }, []);
@@ -156,9 +166,11 @@ export default function CustomerHomePage() {
         if (isMounted && data) {
           if (data.shops && data.shops.length > 0) {
             setDbShops(data.shops);
+            try { localStorage.setItem("servo_feed_shops", JSON.stringify(data.shops)); } catch {}
           }
           if (data.all_products && data.all_products.length > 0) {
             setDbProducts(data.all_products);
+            try { localStorage.setItem("servo_feed_products", JSON.stringify(data.all_products)); } catch {}
           }
         }
       } catch (err) {

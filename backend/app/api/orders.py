@@ -446,34 +446,45 @@ async def get_my_orders(
 ):
     """
     Fetch all past orders for the authenticated customer from Neon PostgreSQL.
+    Optimized: 2 queries total instead of N+1 sequential round-trips.
     """
     customer_id = user_payload.get("id")
-    res = await db.execute(
-        select(Order)
+    stmt = (
+        select(Order, Shop)
+        .outerjoin(Shop, Order.shop_id == Shop.id)
         .where(Order.customer_id == customer_id)
         .order_by(Order.created_at.desc())
         .limit(30)
     )
-    orders = res.scalars().all()
+    res = await db.execute(stmt)
+    rows = res.all()
+
+    if not rows:
+        return []
+
+    order_ids = [order.id for order, _ in rows]
+    items_stmt = select(OrderItem).where(OrderItem.order_id.in_(order_ids))
+    items_res = await db.execute(items_stmt)
+    all_items = items_res.scalars().all()
+
+    items_by_order: dict[int, list] = {}
+    for item in all_items:
+        items_by_order.setdefault(item.order_id, []).append(item)
 
     out = []
-    for o in orders:
-        shop_res = await db.execute(select(Shop).where(Shop.id == o.shop_id))
-        shop = shop_res.scalar_one_or_none()
-        items_res = await db.execute(select(OrderItem).where(OrderItem.order_id == o.id))
-        items = items_res.scalars().all()
-
+    for order, shop in rows:
+        items = items_by_order.get(order.id, [])
         out.append({
-            "id": o.id,
-            "order_code": o.order_code,
+            "id": order.id,
+            "order_code": order.order_code,
             "shop_name": shop.name if shop else "Local Merchant",
-            "status": o.status,
-            "grand_total": o.grand_total,
-            "delivery_address": o.delivery_address,
-            "payment_method": o.payment_method,
-            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "status": order.status,
+            "grand_total": order.grand_total,
+            "delivery_address": order.delivery_address,
+            "payment_method": order.payment_method,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
             "items_count": len(items),
-            "items_summary": ", ".join(i.item_name for i in items[:2]) + (f" + {len(items)-2} more" if len(items) > 2 else ""),
+            "items_summary": ", ".join(i.item_name for i in items[:2]) + (f" + {len(items)-2} more" if len(items) > 2 else "") if items else "Order package",
         })
 
     return out

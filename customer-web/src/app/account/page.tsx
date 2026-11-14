@@ -113,6 +113,7 @@ function AccountContent() {
 
   // ── Saved Addresses State (Neon DB Exact) ───────────────────────────────
   const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>([]);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState<boolean>(true);
   const [isAddAddressModalOpen, setIsAddAddressModalOpen] = useState(false);
   const [newAddrType, setNewAddrType] = useState<"Home" | "Work" | "Other">("Home");
   const [newAddrText, setNewAddrText] = useState("");
@@ -122,6 +123,7 @@ function AccountContent() {
 
   // ── Orders & Wallet State (Live from Neon DB) ─────────────────────────────
   const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(true);
   const [walletData, setWalletData] = useState<{
     wallet_balance: number;
     servo_coins: number;
@@ -272,6 +274,16 @@ function AccountContent() {
 
         const savedWish = localStorage.getItem("servo_wishlist");
         if (savedWish) setWishlist(JSON.parse(savedWish));
+
+        // Instant Cache for Orders & Addresses (SWR 0ms Render)
+        const savedOrders = localStorage.getItem("servo_cached_orders");
+        if (savedOrders) {
+          const parsed = JSON.parse(savedOrders);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setOrdersList(parsed);
+            setIsLoadingOrders(false);
+          }
+        }
       } catch {}
     }
   }, []);
@@ -307,32 +319,45 @@ function AccountContent() {
         }
       } catch {
         setSavedAddresses([]);
+      } finally {
+        setIsLoadingAddresses(false);
       }
     }
     loadAddresses();
   }, [currentLocality]);
 
-  // Fetch orders from Neon PostgreSQL
+  // Fetch orders from Neon PostgreSQL with cache sync
   useEffect(() => {
-    if (activeTab === "orders") {
-      getMyOrders()
-        .then((orders) => {
-          if (Array.isArray(orders)) {
-            setOrdersList(orders.map((o: any) => ({
-              id: o.id,
-              orderCode: o.order_code,
-              shopName: o.shop_name,
-              status: o.status,
-              grandTotal: o.grand_total,
-              deliveryAddress: o.delivery_address,
-              createdAt: o.created_at,
-              itemsCount: o.items_count,
-              itemsSummary: o.items_summary,
-            })));
-          }
-        })
-        .catch(() => {});
+    let isMounted = true;
+    async function fetchOrders() {
+      try {
+        const orders = await getMyOrders();
+        if (isMounted && Array.isArray(orders)) {
+          const mapped = orders.map((o: any) => ({
+            id: o.id,
+            orderCode: o.order_code,
+            shopName: o.shop_name,
+            status: o.status,
+            grandTotal: o.grand_total,
+            deliveryAddress: o.delivery_address,
+            createdAt: o.created_at,
+            itemsCount: o.items_count,
+            itemsSummary: o.items_summary,
+          }));
+          setOrdersList(mapped);
+          try {
+            localStorage.setItem("servo_cached_orders", JSON.stringify(mapped));
+          } catch {}
+        }
+      } catch {
+      } finally {
+        if (isMounted) setIsLoadingOrders(false);
+      }
     }
+    fetchOrders();
+    return () => {
+      isMounted = false;
+    };
   }, [activeTab]);
 
   // Fetch wallet overview from Neon PostgreSQL
@@ -773,12 +798,28 @@ function AccountContent() {
                   </p>
                 </div>
 
-                {ordersList.length > 0 ? (
+                {isLoadingOrders && ordersList.length === 0 ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((n) => (
+                      <div
+                        key={n}
+                        className="p-4 rounded-xl border border-gray-100 bg-white space-y-2.5 shadow-2xs animate-pulse"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="h-4 bg-gray-200 rounded w-28"></div>
+                          <div className="h-4 bg-gray-100 rounded-full w-20"></div>
+                        </div>
+                        <div className="h-4 bg-gray-200 rounded w-48"></div>
+                        <div className="h-3 bg-gray-100 rounded w-64"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : ordersList.length > 0 ? (
                   <div className="space-y-3">
                     {ordersList.map((order, idx) => (
                       <div
                         key={idx}
-                        className="p-4 rounded-xl border border-gray-200 bg-white space-y-2 shadow-2xs"
+                        className="p-4 rounded-xl border border-gray-200 bg-white space-y-2 shadow-2xs hover:border-[#0C831F]/30 transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-[#0C831F]">
