@@ -202,9 +202,9 @@ export default function CustomerProfileView({
             </div>
           </div>
           <p className="text-xl font-black text-[#171717]">
-            ₹{(user?.wallet_balance ?? 250.0).toFixed(0)}{" "}
+            ₹{(user?.wallet_balance ?? 0).toFixed(0)}{" "}
             <span className="text-xs font-bold text-emerald-700">
-              ({(user?.wallet_balance ?? 250.0).toFixed(0)} Coins)
+              ({(user?.servo_coins ?? user?.wallet_balance ?? 0).toFixed(0)} Coins)
             </span>
           </p>
           <p className="text-[11px] text-[#078B35] font-semibold mt-1">1 Coin = ₹1 Real Cash</p>

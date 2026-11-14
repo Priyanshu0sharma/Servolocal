@@ -231,6 +231,33 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - Gitleaks scan -> 0 leaks found.
 - **Final Status**: ✅ COMPLETED, CODIFIED & VERIFIED
 
+---
+
+### TASK-008: Elimination of Demo Mock Data, Production Realignment & Blinkit Standard Enforcement
+- **Date / Timestamp**: 2026-11-14T21:48:00+05:30
+- **Goal**: Eliminate all remaining demo mock data, fake phone numbers, fake transactions, and simulated actions across customer-web, synchronizing active tab highlight state in the account dropdown and ensuring 100% authentic live production features.
+- **Actions Executed**:
+  1. `customer-web/src/components/AccountSettingsView.tsx`: Completely replaced generic checkbox demo toggles with Blinkit-authentic "Account privacy and policy" layout + interactive "Request to delete account" closure modal with 30-day grace period notice and uppercase DELETE confirmation.
+  2. `customer-web/src/components/WalletModal.tsx`: Removed fake `mockTransactions` array; connected directly to live `getWalletOverview()` API with authentic fallback to `user?.wallet_balance ?? 0` and empty state.
+  3. `customer-web/src/components/SupportModal.tsx`: Connected complaint form to live backend `createSupportTicket` API with loading/error handling; replaced fake 1800/dummy phone numbers with real `support@servolocal.in` and `+91 93522 86423` direct support channels.
+  4. `customer-web/src/components/CustomerProfileView.tsx`: Removed fake fallback `250.0` coin balance; accurately displays real `user?.wallet_balance ?? 0` and `user?.servo_coins`.
+  5. `customer-web/src/app/page.tsx`: Explicitly bound `onNavigateAddresses` and `onOpenWishlist` handlers, and passed `activeAccountTab={activeTab === "settings" ? "privacy" : activeTab}` to ensure dropdown tabs highlight accurately on all homepage views.
+- **Changed Files**:
+  - `customer-web/src/app/page.tsx`
+  - `customer-web/src/components/AccountSettingsView.tsx`
+  - `customer-web/src/components/CustomerProfileView.tsx`
+  - `customer-web/src/components/SupportModal.tsx`
+  - `customer-web/src/components/WalletModal.tsx`
+  - `AGENT_USAGE_LOG.md`
+- **Verification Proof**:
+  - `npm --prefix customer-web run type-check`: Exit code 0 (TypeScript 0 errors).
+  - `npm --prefix customer-web run build`: Exit code 0 (8/8 static routes compiled).
+  - `npm --prefix partner-web run type-check`: Exit code 0 (TypeScript 0 errors).
+  - `npm --prefix partner-web run build`: Exit code 0 (7/7 static routes compiled).
+  - `pytest backend/tests`: Exit code 0 (25/25 passed in 35.77s).
+  - `gitleaks protect --staged --verbose`: Exit code 0 (0 leaks found).
+- **Final Status**: ✅ COMPLETED & VERIFIED
+
 
 
 

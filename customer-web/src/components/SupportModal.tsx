@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, HelpCircle, Phone, MessageCircle, AlertCircle, ChevronDown, CheckCircle2 } from "lucide-react";
+import { X, HelpCircle, Phone, MessageCircle, Mail, AlertCircle, ChevronDown, CheckCircle2, Loader2 } from "lucide-react";
+import { createSupportTicket } from "@/lib/api";
 
 interface SupportModalProps {
   isOpen: boolean;
@@ -11,7 +12,9 @@ interface SupportModalProps {
 export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   if (!isOpen) return null;
@@ -35,16 +38,30 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     },
   ];
 
-  const handleSubmitTicket = (e: React.FormEvent) => {
+  const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
-    setTicketSubmitted(true);
-    setTimeout(() => {
-      setTicketSubject("");
-      setTicketMessage("");
-      setTicketSubmitted(false);
-      onClose();
-    }, 2000);
+    if (!ticketSubject.trim() || !ticketMessage.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await createSupportTicket({
+        subject: ticketSubject.trim(),
+        message: ticketMessage.trim(),
+      });
+      setTicketSubmitted(true);
+      setTimeout(() => {
+        setTicketSubject("");
+        setTicketMessage("");
+        setTicketSubmitted(false);
+        onClose();
+      }, 2500);
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit support ticket. Please try WhatsApp support.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -81,20 +98,20 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
         {/* Quick Contact Buttons */}
         <div className="grid grid-cols-2 gap-3">
           <a
-            href="tel:+911800123456"
+            href="mailto:support@servolocal.in"
             className="p-3.5 rounded-2xl border border-gray-200 hover:border-[#078B35] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors text-left"
           >
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#078B35] flex items-center justify-center shrink-0">
-              <Phone className="w-4 h-4" />
+              <Mail className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-xs font-bold text-gray-800 block">Call Helpline</span>
-              <span className="text-[11px] text-gray-500">Toll-free 1800-123-456</span>
+              <span className="text-xs font-bold text-gray-800 block">Email Desk</span>
+              <span className="text-[11px] text-gray-500">support@servolocal.in</span>
             </div>
           </a>
 
           <a
-            href="https://wa.me/919876543210?text=Hello%20ServoLocal%20Support"
+            href="https://wa.me/919352286423?text=Hello%20ServoLocal%20Support"
             target="_blank"
             rel="noopener noreferrer"
             className="p-3.5 rounded-2xl border border-gray-200 hover:border-[#078B35] hover:bg-[#F9FAFB] flex items-center gap-3 transition-colors text-left"
@@ -103,8 +120,8 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
               <MessageCircle className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-xs font-bold text-gray-800 block">WhatsApp Chat</span>
-              <span className="text-[11px] text-gray-500">Instant agent replies</span>
+              <span className="text-xs font-bold text-gray-800 block">WhatsApp Support</span>
+              <span className="text-[11px] text-gray-500">+91 93522 86423</span>
             </div>
           </a>
         </div>
@@ -118,11 +135,17 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
           {ticketSubmitted ? (
             <div className="p-4 rounded-2xl bg-[#EAF7EE] border border-[#078B35]/30 text-center space-y-1">
               <CheckCircle2 className="w-6 h-6 text-[#078B35] mx-auto" />
-              <p className="text-xs font-bold text-[#075C2A]">Ticket Submitted Successfully!</p>
-              <p className="text-[11px] text-gray-600">Our support specialist will review and respond shortly.</p>
+              <p className="text-xs font-bold text-[#075C2A]">Ticket Submitted to Live Support!</p>
+              <p className="text-[11px] text-gray-600">Your ticket is logged in our database. Our specialist will respond shortly.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmitTicket} className="space-y-2.5">
+              {submitError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{submitError}</span>
+                </div>
+              )}
               <input
                 type="text"
                 value={ticketSubject}
@@ -141,10 +164,17 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
               />
               <button
                 type="submit"
-                disabled={!ticketSubject.trim() || !ticketMessage.trim()}
-                className="w-full py-2.5 bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                disabled={!ticketSubject.trim() || !ticketMessage.trim() || isSubmitting}
+                className="w-full py-2.5 bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Submit Ticket
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Submitting Ticket...</span>
+                  </>
+                ) : (
+                  <span>Submit Ticket</span>
+                )}
               </button>
             </form>
           )}

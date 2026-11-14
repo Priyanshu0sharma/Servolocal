@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
-import { X, Coins, ArrowUpRight, ArrowDownLeft, ShieldCheck, Gift } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { X, Coins, ArrowUpRight, ArrowDownLeft, Gift, ShoppingBag } from "lucide-react";
 import { UserProfile } from "@/types";
+import { getWalletOverview } from "@/lib/api";
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -11,34 +12,36 @@ interface WalletModalProps {
 }
 
 export default function WalletModal({ isOpen, onClose, user }: WalletModalProps) {
+  const [balance, setBalance] = useState<number>(user?.wallet_balance ?? 0);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    getWalletOverview()
+      .then((res: any) => {
+        if (isMounted && res) {
+          if (typeof res.wallet_balance === "number") {
+            setBalance(res.wallet_balance);
+          }
+          if (Array.isArray(res.transactions)) {
+            setTransactions(res.transactions);
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback to local user prop
+        if (typeof user?.wallet_balance === "number") {
+          setBalance(user.wallet_balance);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, user]);
+
   if (!isOpen) return null;
-
-  const servoCoins = user?.servo_coins || 150;
-  const walletBalance = user?.wallet_balance || servoCoins;
-
-  const mockTransactions = [
-    {
-      id: "TXN-902",
-      title: "Cashback on Order #SL-849201",
-      amount: "+₹35",
-      type: "CREDIT",
-      date: "Today, 10:30 AM",
-    },
-    {
-      id: "TXN-881",
-      title: "Welcome Bonus ServoCoins",
-      amount: "+₹100",
-      type: "CREDIT",
-      date: "Yesterday",
-    },
-    {
-      id: "TXN-764",
-      title: "Used on Pizza Margherita Order",
-      amount: "-₹20",
-      type: "DEBIT",
-      date: "10 Nov 2026",
-    },
-  ];
 
   return (
     <div
@@ -87,8 +90,8 @@ export default function WalletModal({ isOpen, onClose, user }: WalletModalProps)
           </div>
 
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight">₹{walletBalance}</span>
-            <span className="text-sm font-semibold text-emerald-100">({walletBalance} Coins)</span>
+            <span className="text-3xl font-extrabold tracking-tight">₹{balance.toFixed(2)}</span>
+            <span className="text-sm font-semibold text-emerald-100">({balance.toFixed(0)} Coins)</span>
           </div>
 
           <p className="text-[11px] text-emerald-100/90 leading-relaxed">
@@ -110,49 +113,49 @@ export default function WalletModal({ isOpen, onClose, user }: WalletModalProps)
             Recent Activity
           </h4>
           <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
-            {mockTransactions.map((tx) => (
-              <div key={tx.id} className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center ${
-                      tx.type === "CREDIT"
-                        ? "bg-[#EAF7EE] text-[#078B35]"
-                        : "bg-rose-50 text-rose-600"
+            {transactions.length > 0 ? (
+              transactions.map((tx: any, idx: number) => (
+                <div key={tx.id || idx} className="py-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                        tx.type === "CREDIT"
+                          ? "bg-[#EAF7EE] text-[#078B35]"
+                          : "bg-rose-50 text-rose-600"
+                      }`}
+                    >
+                      {tx.type === "CREDIT" ? (
+                        <ArrowDownLeft className="w-4 h-4" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-gray-800 leading-tight">{tx.title || "Wallet Transaction"}</h5>
+                      <span className="text-[10px] text-gray-400">{tx.date || tx.created_at || "Recent"}</span>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-bold ${
+                      tx.type === "CREDIT" ? "text-[#078B35]" : "text-rose-600"
                     }`}
                   >
-                    {tx.type === "CREDIT" ? (
-                      <ArrowDownLeft className="w-4 h-4" />
-                    ) : (
-                      <ArrowUpRight className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-gray-800 leading-tight">{tx.title}</h5>
-                    <span className="text-[10px] text-gray-400">{tx.date}</span>
-                  </div>
+                    {tx.amount}
+                  </span>
                 </div>
-                <span
-                  className={`text-xs font-bold ${
-                    tx.type === "CREDIT" ? "text-[#078B35]" : "text-rose-600"
-                  }`}
-                >
-                  {tx.amount}
-                </span>
+              ))
+            ) : (
+              <div className="py-8 text-center space-y-2">
+                <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto" />
+                <p className="text-xs font-semibold text-gray-600">No transactions yet</p>
+                <p className="text-[11px] text-gray-400">
+                  Complete your first order to earn and redeem ServoCoins!
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
-
-        {/* Action Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-colors cursor-pointer"
-        >
-          Close Wallet
-        </button>
       </div>
     </div>
   );
 }
-

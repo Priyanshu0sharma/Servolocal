@@ -558,6 +558,12 @@ export default function CustomerHomePage() {
         onNavigateProfile={() => {
           if (typeof window !== "undefined") window.location.href = "/account?tab=profile";
         }}
+        onNavigateAddresses={() => {
+          if (typeof window !== "undefined") window.location.href = "/account?tab=addresses";
+        }}
+        onOpenWishlist={() => {
+          if (typeof window !== "undefined") window.location.href = "/account?tab=wishlist";
+        }}
         onOpenWallet={() => {
           if (typeof window !== "undefined") window.location.href = "/account?tab=wallet";
         }}
@@ -565,6 +571,7 @@ export default function CustomerHomePage() {
         onNavigateSettings={() => {
           if (typeof window !== "undefined") window.location.href = "/account?tab=privacy";
         }}
+        activeAccountTab={activeTab === "settings" ? "privacy" : activeTab}
       />
 
       {/* ── Body: Sidebar + Main Content ──────────────────────────── */}
