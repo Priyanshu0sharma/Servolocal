@@ -44,6 +44,7 @@
 | **Full-Stack Commerce**| [`ixartz/SaaS-Boilerplate`](https://github.com/ixartz/SaaS-Boilerplate) | **Reference Architecture** | Architectural reference | Next.js App Router layout and error boundaries |
 | **Full-Stack Commerce**| [`dyad-sh/dyad`](https://github.com/dyad-sh/dyad) | **External Sandbox Reference** | External prototyping tool | Rapid isolated UI concept validation |
 | **Full-Stack Commerce**| [`stackblitz-labs/bolt.diy`](https://github.com/stackblitz-labs/bolt.diy) | **External Sandbox Reference** | External prototyping sandbox | In-browser prototype validation |
+| **Technical Learning** | [`codecrafters-io/build-your-own-x`](https://github.com/codecrafters-io/build-your-own-x) | **Reference (CC0 Public Domain)** | Reference Knowledgebase | In-depth engineering tutorials for systems, databases, web protocols, and runtimes |
 
 ---
 
@@ -64,8 +65,10 @@ Security Audit & Hardening   ➜ security-audit (Cloudflare), semgrep (p/python)
 Browser & E2E Testing        ➜ microsoft/playwright, chrome-devtools
 Codebase Understanding       ➜ repomix, graphify, gather-context, codebase-investigation
 Marketplace Business Logic   ➜ Medusa/Vendure state machine references
+Systems & Low-Level Learning ➜ build-your-own-x (reference tutorials; study first, use production libraries)
 Pre-Commit Verification      ➜ validate-commit, verification-before-completion, gitleaks
 ```
+
 
 ---
 
@@ -82,3 +85,28 @@ Local MCP servers configured in [`.agents/mcp_config.json`](file:///c:/Users/Pri
 2. **Repomix Context Packager**: Use `npx repomix` with `repomix.config.json` to generate token-compressed, comment-stripped context.
 3. **Loop Intervention**: Immediately halt any failing execution loop; diagnose root causes via logs before re-running commands.
 4. **Local Tools First**: Rely strictly on local CLI tools (`pytest`, `npm`, `semgrep`, `gitleaks`) without requiring paid third-party APIs.
+
+---
+
+## 5. Technical Learning Reference — Build Your Own X (`codecrafters-io/build-your-own-x`)
+
+- **Repository**: [`codecrafters-io/build-your-own-x`](https://github.com/codecrafters-io/build-your-own-x)
+- **License**: CC0 1.0 Universal (Public Domain Dedication)
+- **Purpose**: Permanent technical learning and architectural reference for engineering depth.
+
+### Usage Triggers:
+Consult this repository whenever a task involves:
+- Building an AI model, LLM, or RAG pipeline.
+- Understanding database internals, connection pooling, key-value stores (Redis), or storage engines.
+- Implementing low-level backend protocols, HTTP/WebSocket servers, or streaming transports.
+- Understanding React internals, virtual DOM, JSX compilation, or frontend architecture.
+- Networking protocols, distributed consensus, or operating systems concepts.
+- Building domain-specific parsers, AST compilers, or interpreters.
+
+### Operational Guardrails:
+1. **Search Before Implementing**: Search the repository for relevant tutorials and inspect the original source material.
+2. **Concept Mastery vs. Toy Code**: Use its architectural concepts to improve understanding, correctness, and implementation quality.
+3. **Never Replace Production Libraries**: Do **not** reproduce an entire tutorial or swap out production dependencies (e.g., replace FastAPI with a toy socket server, or Neon PostgreSQL with a toy flat-file DB).
+4. **Production Standard**: Always prefer hardened, production-ready libraries and secure architecture for real application code.
+5. **Usage Transparency**: Log each consultation of this reference in [`AGENT_USAGE_LOG.md`](file:///c:/Users/Priyanshuu/Desktop/ServoLocal/AGENT_USAGE_LOG.md).
+

@@ -192,9 +192,11 @@ To maintain maximum token economy and avoid context-window bloat:
 
 ## 14. Developer Catalogs & Free Cloud Infrastructure References
 
+- **Build Your Own X** (`codecrafters-io/build-your-own-x`): CC0 public-domain repository used as a permanent technical learning and architectural reference for databases, networking, runtimes, React internals, and distributed systems. Read tutorials before implementation; never replace production dependencies with toy code.
 - **Free-For-Dev** (`ripienaar/free-for-dev`): Informs Servolocal's zero-cost/low-cost production cloud topology (Neon PostgreSQL, Vercel Edge, Render, Firebase Auth, Cloudinary, Sentry).
 - **Public APIs** (`public-apis/public-apis`): Reference catalog for geocoding, pincode validation, and external open-data feeds.
 - **Free LLM API Hub** (`SidSharma010/free-llm-api-hub`, `devanasolver/awesome-free-llm-apis`): Reference for selecting optimal models for auxiliary tasks.
+
 
 ---
 

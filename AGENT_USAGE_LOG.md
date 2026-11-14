@@ -189,6 +189,26 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `AGENT_USAGE_LOG.md` (This entry)
 - **Final Status**: ✅ COMPLETED, FULLY CONFIGURED & PERMANENTLY ACTIVE
 
+---
+
+### TASK-006: Integration of Build-Your-Own-X as Technical Learning Reference
+- **Date / Timestamp**: 2026-11-14T21:25:00+05:30
+- **Goal**: Register `codecrafters-io/build-your-own-x` as a permanent technical learning and implementation reference across AI/LLM, databases, web protocols, React architecture, and distributed systems.
+- **Repository Audited**:
+  - `codecrafters-io/build-your-own-x`
+  - License: CC0 1.0 Universal (Public Domain Dedication) verified.
+- **Guardrails Established**:
+  - Must search and inspect original tutorials before implementation of deep systems.
+  - Never replace production code or frameworks with toy implementations.
+  - Prefer production-ready, secure libraries.
+- **Changed Files**:
+  - `TOOL_REGISTRY.md` (Added to master classification, routing matrix, and detailed Section 5)
+  - `AGENTS.md` (Added to Section 14)
+  - `.agents/rules/servolocal-rules.md` (Added to Section 1 tool routing)
+  - `AGENT_USAGE_LOG.md` (This entry)
+- **Final Status**: ✅ COMPLETED & REGISTERED
+
+
 
 
 

@@ -18,6 +18,7 @@ Before starting or responding to any user task:
   - **Security Audits & Hardening**: `cloudflare/security-audit`, `semgrep` SAST, `gitleaks`
   - **Testing & Quality Assurance**: `microsoft/playwright`, `pytest backend/tests`
   - **Codebase Understanding**: `yamadashy/repomix`, `graphify`, `gather-context`
+  - **Systems & Architecture Learning**: `codecrafters-io/build-your-own-x` (read tutorials first; never replace production code with toy implementations)
 - Read their actual `SKILL.md` instructions before applying them.
 - Never fabricate tool or skill usage. Show concrete command execution and evidence.
 
