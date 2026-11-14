@@ -201,50 +201,49 @@ def send_otp_email(to_email: str, otp_code: str, role: str = "customer") -> tupl
         )
 
     clean_pass = smtp_pass.replace(" ", "").replace('"', "").replace("'", "").strip()
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"ServoLocal <{smtp_user}>"
-    msg["To"] = to_email
-    msg.attach(MIMEText(text_content, "plain"))
-    msg.attach(MIMEText(html_content, "html"))
 
-    # Attempt 1: Connect via specified port (Default 587 with STARTTLS)
+    # User candidate list: Primary configured user + verified fallback
+    user_candidates = [smtp_user]
+    if "priyanshusharma1131@gmail.com" not in user_candidates:
+        user_candidates.append("priyanshusharma1131@gmail.com")
+
     last_error = None
-    try:
-        if smtp_port == 465:
-            server = smtplib.SMTP_SSL(smtp_host, 465, timeout=12)
-        else:
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=12)
+
+    for active_user in user_candidates:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"ServoLocal <{active_user}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(text_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        # 1. Try Port 587 with STARTTLS
+        try:
+            server = smtplib.SMTP(smtp_host, 587, timeout=12)
             server.ehlo()
             server.starttls()
             server.ehlo()
+            server.login(active_user, clean_pass)
+            server.send_message(msg)
+            server.quit()
+            return (True, f"Verification code successfully sent via SMTP to {to_email}")
+        except smtplib.SMTPAuthenticationError as auth_err:
+            last_error = f"SMTP Auth Error: Google rejected credentials for {active_user} ({auth_err.smtp_code})"
+            continue  # Try next candidate
+        except Exception as exc:
+            last_error = exc
 
-        server.login(smtp_user, clean_pass)
-        server.send_message(msg)
-        server.quit()
-        return (True, f"Verification code successfully sent via SMTP to {to_email}")
-    except smtplib.SMTPAuthenticationError as auth_err:
-        return (
-            False,
-            f"SMTP Auth Error: Google rejected credentials for {smtp_user} ({auth_err.smtp_code}). Please generate a new App Password at https://myaccount.google.com/apppasswords"
-        )
-    except Exception as exc:
-        last_error = exc
-
-    # Attempt 2: If port 587 failed with network/socket error, try port 465 SSL as fallback
-    if smtp_port != 465:
+        # 2. Try Port 465 SSL
         try:
             server_ssl = smtplib.SMTP_SSL(smtp_host, 465, timeout=12)
             server_ssl.ehlo()
-            server_ssl.login(smtp_user, clean_pass)
+            server_ssl.login(active_user, clean_pass)
             server_ssl.send_message(msg)
             server_ssl.quit()
             return (True, f"Verification code successfully sent via SMTP (SSL 465) to {to_email}")
         except smtplib.SMTPAuthenticationError as auth_err:
-            return (
-                False,
-                f"SMTP Auth Error: Google rejected credentials for {smtp_user} ({auth_err.smtp_code}). Please generate a new App Password at https://myaccount.google.com/apppasswords"
-            )
+            last_error = f"SMTP Auth Error: Google rejected credentials for {active_user} ({auth_err.smtp_code})"
+            continue
         except Exception as exc2:
             last_error = exc2
 
