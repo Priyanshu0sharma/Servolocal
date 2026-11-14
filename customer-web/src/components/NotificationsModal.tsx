@@ -17,8 +17,8 @@ export default function NotificationsModal({
   const notifications = [
     {
       id: 1,
-      title: "⚡ 10-Min Fast Delivery in Kukas!",
-      desc: "Local stores around RIICO and Arya campus are now live with lightning-fast delivery.",
+      title: "⚡ 10-Min Fast Delivery Live!",
+      desc: "Local stores around your area are now live with lightning-fast doorstep delivery.",
       time: "Just now",
       icon: Zap,
       color: "text-amber-500 bg-amber-50",

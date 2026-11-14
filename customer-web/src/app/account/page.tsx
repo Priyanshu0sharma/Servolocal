@@ -101,7 +101,7 @@ function AccountContent() {
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
 
   // ── Location & Delivery State ───────────────────────────────────────────
-  const [currentLocality, setCurrentLocality] = useState<string>("Kukas, Jaipur");
+  const [currentLocality, setCurrentLocality] = useState<string>("");
   const [isLocationOpen, setIsLocationOpen] = useState(false);
 
   // ── Cart & Drawer State ─────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function AccountContent() {
   const [isAddAddressModalOpen, setIsAddAddressModalOpen] = useState(false);
   const [newAddrType, setNewAddrType] = useState<"Home" | "Work" | "Other">("Home");
   const [newAddrText, setNewAddrText] = useState("");
-  const [newAddrLocality, setNewAddrLocality] = useState("Kukas, Jaipur");
+  const [newAddrLocality, setNewAddrLocality] = useState("");
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 

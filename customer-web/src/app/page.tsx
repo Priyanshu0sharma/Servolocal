@@ -151,7 +151,7 @@ export default function CustomerHomePage() {
           currentLat,
           currentLng,
           feedMode,
-          currentLocality || "Kukas, Jaipur"
+          currentLocality || "Current Location"
         );
         if (isMounted && data) {
           if (data.shops && data.shops.length > 0) {
@@ -185,12 +185,6 @@ export default function CustomerHomePage() {
 
   const handleCloseLocation = () => {
     setIsLocationOpen(false);
-    if (!currentLocality) {
-      setCurrentLocality("Kukas, Jaipur");
-      if (typeof window !== "undefined") {
-        localStorage.setItem("servo_locality", "Kukas, Jaipur");
-      }
-    }
   };
 
   const toggleWishlist = (productId: number) => {
@@ -635,11 +629,11 @@ export default function CustomerHomePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      handleLocalityChange("Kukas, Jaipur", 27.0544, 75.8942);
+                      setIsLocationOpen(true);
                     }}
                     className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-[#0C831F] text-[#0C831F] text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
                   >
-                    Switch to Kukas / Jaipur (10-Min)
+                    Change Location
                   </button>
                 </div>
               )}
@@ -918,7 +912,7 @@ export default function CustomerHomePage() {
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">🏪</span>
                     <h2 className="text-xl sm:text-2xl font-extrabold text-[#171717]">
-                      Verified Local Stores in {currentLocality || "Kukas, Jaipur"}
+                      Verified Local Stores in {currentLocality || "Your Area"}
                     </h2>
                   </div>
                   <p className="text-xs text-[#666666] max-w-xl">
@@ -1168,7 +1162,7 @@ export default function CustomerHomePage() {
                           Order from Verified Local Stores
                         </h3>
                         <p className="text-xs text-[#666666]">
-                          Check open stores near {currentLocality || "Kukas, Jaipur"} for superfast 10-15 min delivery
+                          Check open stores near {currentLocality || "Your Area"} for superfast 10-15 min delivery
                         </p>
                       </div>
                       <button
@@ -1340,7 +1334,7 @@ export default function CustomerHomePage() {
       <FloatingCartBar
         cart={cart}
         onOpenCart={() => setIsCartOpen(true)}
-        currentLocality={currentLocality || "Kukas, Jaipur"}
+        currentLocality={currentLocality || "Your Area"}
       />
 
       {/* ── Slide-Out Cart Drawer ─────────────────────────────────── */}
@@ -1351,7 +1345,7 @@ export default function CustomerHomePage() {
         onUpdateCartQuantity={handleUpdateCartQuantity}
         onClearCart={handleClearCart}
         onOrderPlaced={handleOrderPlaced}
-        currentLocality={currentLocality || "Kukas, Jaipur"}
+        currentLocality={currentLocality || "Your Area"}
         user={user}
         onOpenSignIn={() => setIsSignInOpen(true)}
       />

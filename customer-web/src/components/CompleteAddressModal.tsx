@@ -46,7 +46,7 @@ export default function CompleteAddressModal({
   onAddressSaved,
   initialLat = 27.0544,
   initialLng = 75.8942,
-  initialLocality = "Kukas, Jaipur",
+  initialLocality = "",
   user,
 }: CompleteAddressModalProps) {
   // Map container and Leaflet instance
@@ -58,8 +58,8 @@ export default function CompleteAddressModal({
     lat: initialLat,
     lng: initialLng,
   });
-  const [addressTitle, setAddressTitle] = useState("Kukas");
-  const [addressSubtitle, setAddressSubtitle] = useState("RIICO Industrial Area, Kukas, Jaipur, Rajasthan");
+  const [addressTitle, setAddressTitle] = useState(initialLocality || "Select Location on Map");
+  const [addressSubtitle, setAddressSubtitle] = useState("Move the pin to your exact delivery doorstep");
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [isLocatingUser, setIsLocatingUser] = useState(false);
 

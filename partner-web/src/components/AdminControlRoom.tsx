@@ -472,7 +472,7 @@ export default function AdminControlRoom({ user, onLogout }: AdminControlRoomPro
                   <span className="font-bold text-amber-400">{overview?.area_requests?.total_requests || 0}</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
-                  Demand recorded from Balwantpura, Nawalgarh, Dundlod, and Kukas outskirts.
+                  Demand recorded from expansion requests and unserviceable pin codes.
                 </p>
               </div>
             </div>

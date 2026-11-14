@@ -68,7 +68,7 @@ def get_role_template_config(role: str, otp_code: str):
             "heading": "Please verify your identity",
             "description": "Here is your ServoLocal customer login code to discover and order from neighbourhood stores:",
             "subject": f"[{otp_code}] Your ServoLocal verification code",
-            "footer_note": "Happy Shopping! • Local Shops at your Doorstep • Kukas, Jaipur",
+            "footer_note": "Happy Shopping! • Local Shops at your Doorstep • ServoLocal India",
             "warning": None,
         }
 

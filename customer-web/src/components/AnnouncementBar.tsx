@@ -35,11 +35,11 @@ export default function AnnouncementBar({
         title="Change delivery location"
       >
         <span className="text-sm">🛵</span>
-        <span className="hidden sm:inline">Delivering in</span>
+        <span className="hidden sm:inline">Delivering to</span>
         <span className="underline underline-offset-2 max-w-[130px] sm:max-w-[180px] truncate">
-          {currentLocality || "Kukas, Jaipur"}
+          {currentLocality || "Select Location"}
         </span>
-        <span>&amp; Beyond</span>
+        {currentLocality ? <span>&amp; Beyond</span> : null}
         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
       </button>
     </div>

@@ -57,7 +57,7 @@ export default function PopularShopsSection({
         <div className="flex items-center gap-2">
           <span className="text-xl">🏪</span>
           <h3 className="text-base sm:text-lg font-extrabold text-[#2D2319]">
-            Popular Local Shops Near {currentLocality || "Kukas"}
+            Popular Local Shops {currentLocality ? `Near ${currentLocality}` : "Near You"}
           </h3>
         </div>
 

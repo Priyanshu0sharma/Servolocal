@@ -7,7 +7,7 @@ export default function HowItWorksSection() {
   const steps = [
     {
       step: "1. Set Your Location",
-      desc: "Choose your area (e.g. Kukas, Jaipur)",
+      desc: "Detect GPS or select your delivery location",
       icon: MapPin,
       color: "bg-emerald-50 text-[#078B35]",
     },

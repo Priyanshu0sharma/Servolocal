@@ -233,7 +233,9 @@ export default function CustomerProfileView({
               <MapPin className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-sm font-bold text-[#171717] truncate">Kukas, Jaipur</p>
+          <p className="text-sm font-bold text-[#171717] truncate">
+            {(typeof window !== "undefined" && localStorage.getItem("servo_locality")) || "Saved Addresses"}
+          </p>
           <p className="text-[11px] text-blue-600 font-semibold mt-1">Change Location →</p>
         </button>
 

@@ -36,6 +36,7 @@ export default function LocationSelectorModal({
     lng: number;
   } | null>(null);
   const [showPanIndiaOption, setShowPanIndiaOption] = useState(false);
+  const [gpsError, setGpsError] = useState("");
   const panIndiaTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Close on Escape key
@@ -120,6 +121,7 @@ export default function LocationSelectorModal({
   };
 
   const handleDetectGPS = () => {
+    setGpsError("");
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       setDetecting(true);
       navigator.geolocation.getCurrentPosition(
@@ -142,21 +144,17 @@ export default function LocationSelectorModal({
             }
           } catch {
             setDetecting(false);
-            onSelectLocation("Kukas, Jaipur", 27.0544, 75.8942);
-            onClose();
+            setGpsError("Unable to resolve GPS address. Please search your locality or select on map.");
           }
         },
         () => {
           setDetecting(false);
-          // Fallback to Kukas, Jaipur
-          onSelectLocation("Kukas, Jaipur", 27.0544, 75.8942);
-          onClose();
+          setGpsError("Location access denied or unavailable. Please search your locality or city above.");
         },
-        { enableHighAccuracy: true, timeout: 6000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
-      onSelectLocation("Kukas, Jaipur", 27.0544, 75.8942);
-      onClose();
+      setGpsError("Geolocation is not supported by your browser. Please search above.");
     }
   };
 
@@ -336,6 +334,12 @@ export default function LocationSelectorModal({
                   ) : null}
                 </div>
               </div>
+
+              {gpsError && (
+                <p className="text-xs text-red-500 mt-2 bg-red-50 p-2 rounded-lg border border-red-100">
+                  {gpsError}
+                </p>
+              )}
 
               {/* Live Autocomplete Results (Only shown when user types 1+ letters) */}
               {searchTerm.trim().length > 0 && (

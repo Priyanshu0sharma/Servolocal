@@ -47,7 +47,7 @@ async def get_discovery_feed(
     lat: float = 27.0544,
     lng: float = 75.8942,
     mode: str = "LOCAL",
-    locality: Optional[str] = "Kukas, Jaipur",
+    locality: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """

@@ -39,7 +39,7 @@ class ShopSetupPayload(BaseModel):
     management_mode: Optional[str] = "DIRECT_MERCHANT"
     lat: float = 27.0544
     lng: float = 75.8942
-    locality_name: str = "Kukas, Jaipur"
+    locality_name: Optional[str] = "Local Area"
     delivery_scope: str = "LOCAL_ONLY"
     delivery_radius_km: float = 5.0
     free_delivery_enabled: bool = True

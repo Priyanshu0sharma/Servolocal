@@ -61,7 +61,7 @@ class OnboardShopPayload(BaseModel):
     category: Optional[str] = "Street Food / Snacks"
     lat: float = 27.0544
     lng: float = 75.8942
-    locality_name: Optional[str] = "Kukas, Jaipur"
+    locality_name: Optional[str] = None
     is_runner_stall: Optional[bool] = True
     delivery_radius_km: Optional[float] = 3.0
     image_url: Optional[str] = None
@@ -178,7 +178,7 @@ async def get_duty_status(
             "id": active_order.id,
             "order_code": active_order.order_code,
             "shop_name": shop.name if shop else "Local Merchant",
-            "shop_locality": shop.locality_name if shop else "Kukas, Jaipur",
+            "shop_locality": shop.locality_name if shop else "Local Area",
             "shop_lat": shop.lat if shop else 27.0544,
             "shop_lng": shop.lng if shop else 75.8942,
             "customer_name": cust.name if cust else "Customer",
@@ -242,7 +242,7 @@ async def get_available_orders(
             "order_code": ord_obj.order_code,
             "status": ord_obj.status,
             "shop_name": shop.name if shop else "Local Store",
-            "shop_locality": shop.locality_name if shop else "Kukas, Jaipur",
+            "shop_locality": shop.locality_name if shop else "Local Area",
             "shop_lat": shop.lat if shop else 27.0544,
             "shop_lng": shop.lng if shop else 75.8942,
             "customer_name": cust.name if cust else "Verified Customer",
@@ -477,7 +477,7 @@ async def onboard_shop_field(
         management_mode="PARTNER_RUNNER_STALL" if payload.is_runner_stall else "DIRECT_MERCHANT",
         lat=payload.lat,
         lng=payload.lng,
-        locality_name=payload.locality_name or "Kukas, Jaipur",
+        locality_name=payload.locality_name or "Local Area",
         delivery_scope="LOCAL_ONLY",
         delivery_radius_km=payload.delivery_radius_km or 3.0,
         free_delivery_enabled=True,

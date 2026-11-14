@@ -98,7 +98,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [isOpen, setIsOpen] = useState(true);
   const [shopLat, setShopLat] = useState(27.0544);
   const [shopLng, setShopLng] = useState(75.8942);
-  const [localityName, setLocalityName] = useState("Kukas, Jaipur");
+  const [localityName, setLocalityName] = useState("");
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(3.0);
   const [deliveryScope, setDeliveryScope] = useState<"LOCAL_ONLY" | "PAN_INDIA" | "BOTH">("LOCAL_ONLY");
   const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
@@ -1250,7 +1250,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                     type="text"
                     value={localityName}
                     onChange={(e) => setLocalityName(e.target.value)}
-                    placeholder="e.g. Near Arya College Main Gate, Kukas"
+                    placeholder="e.g. Main Market, Near Bus Stand, Landmark"
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs"
                   />
                 </div>

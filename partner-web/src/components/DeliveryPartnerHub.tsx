@@ -90,7 +90,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
   const [scoutOwnerEmail, setScoutOwnerEmail] = useState("");
   const [scoutShopName, setScoutShopName] = useState("");
   const [scoutCategory, setScoutCategory] = useState("Street Food / Snacks");
-  const [scoutLocality, setScoutLocality] = useState("Kukas, Jaipur");
+  const [scoutLocality, setScoutLocality] = useState("");
   const [scoutRadius, setScoutRadius] = useState(3.0);
   const [scoutIsRunner, setScoutIsRunner] = useState(true);
   const [scoutUpi, setScoutUpi] = useState("");
@@ -846,7 +846,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                   Radar Scanning for Nearby Orders...
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Keep your GPS on and stay within 3 km of active shops in Kukas, Kunda, or Amer to get instant pings.
+                  Keep your GPS on and stay within 3 km of active partner shops in your area to get instant delivery pings.
                 </p>
                 {!isOnDuty && (
                   <button
@@ -959,7 +959,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                     type="text"
                     value={scoutLocality}
                     onChange={(e) => setScoutLocality(e.target.value)}
-                    placeholder="e.g. Near RIICO Circle, Kukas"
+                    placeholder="e.g. Market Area, Main Road, Pin Code"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>

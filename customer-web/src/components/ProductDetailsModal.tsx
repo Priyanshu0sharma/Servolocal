@@ -73,7 +73,7 @@ export default function ProductDetailsModal({
   product,
   isOpen,
   onClose,
-  currentLocality = "Kukas, Jaipur",
+  currentLocality = "",
   cart,
   onAddToCart,
   onUpdateCartQuantity,
