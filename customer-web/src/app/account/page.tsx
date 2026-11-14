@@ -346,7 +346,11 @@ function AccountContent() {
           }));
           setOrdersList(mapped);
           try {
-            localStorage.setItem("servo_cached_orders", JSON.stringify(mapped));
+            if (mapped.length > 0) {
+              localStorage.setItem("servo_cached_orders", JSON.stringify(mapped));
+            } else {
+              localStorage.removeItem("servo_cached_orders");
+            }
           } catch {}
         }
       } catch {
