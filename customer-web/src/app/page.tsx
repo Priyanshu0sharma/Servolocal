@@ -40,6 +40,7 @@ import SmartCartDrawer from "@/components/SmartCartDrawer";
 import BlinkitSplitViewStorefront from "@/components/BlinkitSplitViewStorefront";
 import LiveOrderTrackerAndReview, { ActiveOrderData } from "@/components/LiveOrderTrackerAndReview";
 import FloatingCartBar from "@/components/FloatingCartBar";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
 import WalletModal from "@/components/WalletModal";
 import SupportModal from "@/components/SupportModal";
@@ -1376,40 +1377,18 @@ export default function CustomerHomePage() {
       />
 
       {/* ── Mobile Responsive Bottom Navigation Bar ────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E8ECE9] flex items-center justify-around py-2 px-1 shadow-lg select-none">
-        {[
-          { id: "home" as SidebarTab, label: "Home", icon: Home },
-          { id: "stores" as SidebarTab, label: "Stores", icon: Store },
-          { id: "grocery" as SidebarTab, label: "Grocery", icon: Zap },
-          { id: "food" as SidebarTab, label: "Food", icon: Utensils },
-          { id: "orders" as SidebarTab, label: "Orders", icon: ShoppingBag, badge: activeOrder ? 1 : 0 },
-        ].map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(item.id);
-                setSelectedCategory(null);
-                setActiveStorefrontShop(null);
-              }}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all relative ${
-                isActive ? "text-[#078B35] font-bold" : "text-gray-500 hover:text-gray-900"
-              }`}
-            >
-              <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? "text-[#078B35]" : "text-gray-500"}`} />
-                {item.badge ? (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
-                ) : null}
-              </div>
-              <span className="text-[10px] mt-0.5 leading-none">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setSelectedCategory(null);
+          setActiveStorefrontShop(null);
+        }}
+        cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+        onOpenCart={() => setIsCartOpen(true)}
+        user={user}
+        onOpenSignIn={() => setIsSignInOpen(true)}
+      />
 
       {/* ── Global Footer ─────────────────────────────────────────── */}
       <Footer

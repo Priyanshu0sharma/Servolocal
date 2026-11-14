@@ -89,6 +89,18 @@ export default function SmartCartDrawer({
     setAddress(`House/Flat 402, Main Road, ${currentLocality}`);
   }, [currentLocality]);
 
+  // Modern Web Guidance: Escape key platform dismiss
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Load real wallet balance & default saved address from Neon DB
   useEffect(() => {
     if (isOpen && user) {
@@ -339,9 +351,20 @@ export default function SmartCartDrawer({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-2xs select-none">
-      <div className="w-full max-w-md h-full bg-[#F5F7F8] shadow-2xl flex flex-col justify-between border-l border-[#E8ECE9] animate-in slide-in-from-right duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Shopping Cart and Checkout Drawer"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-2xs select-none modal-contain-scroll overscroll-contain"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md h-full bg-[#F5F7F8] shadow-2xl flex flex-col justify-between border-l border-[#E8ECE9] animate-in slide-in-from-right duration-200 modal-contain-scroll overscroll-contain"
+      >
         
         {/* ── STEP 1: CART VIEW ────────────────────────────────────── */}
         {drawerStep === "CART" ? (

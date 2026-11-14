@@ -155,12 +155,12 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#FDFBF7] border-b border-[#EFECE6] h-[78px] flex items-center select-none shadow-2xs transition-colors">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between gap-3 sm:gap-6">
+      <header className="sticky top-0 z-40 bg-[#FDFBF7] border-b border-[#EFECE6] select-none shadow-2xs transition-colors">
+        {/* ── Desktop Single-Row Header (sm:flex) ──────────────────── */}
+        <div className="hidden sm:flex h-[78px] w-full px-4 sm:px-6 lg:px-8 xl:px-10 items-center justify-between gap-3 sm:gap-6">
           
-          {/* ── Left: Logo & Location Selector ──────────────────────── */}
+          {/* Left: Logo & Location Selector */}
           <div className="flex items-center gap-4 sm:gap-5 shrink-0">
-            {/* Logo matching exact reference */}
             <div
               onClick={() => {
                 if (typeof window !== "undefined") {
@@ -192,10 +192,10 @@ export default function Header({
               </div>
             </div>
 
-            {/* Deliver to Location Selector (Blinkit Exact Style) */}
+            {/* Deliver to Location Selector */}
             <div
               onClick={handleOpenLocation}
-              className="hidden sm:flex flex-col text-left cursor-pointer group pl-3 border-l border-gray-200 select-none"
+              className="flex flex-col text-left cursor-pointer group pl-3 border-l border-gray-200 select-none"
             >
               <span className="text-[12px] font-black text-[#171717] leading-tight">
                 Delivery in 10 minutes
@@ -209,7 +209,7 @@ export default function Header({
             </div>
           </div>
 
-          {/* ── Center: Search Bar ──────────────────────────────────── */}
+          {/* Center: Search Bar */}
           <div className="flex-1 max-w-[640px] xl:max-w-[760px] mx-2 sm:mx-4">
             <SearchBar
               products={products}
@@ -218,16 +218,16 @@ export default function Header({
             />
           </div>
 
-          {/* ── Right: Stores, Offers, Orders, Cart, Profile ───────── */}
+          {/* Right: Stores, Cart, Profile */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Stores Button (Check Open / Closed) */}
+            {/* Stores Button */}
             <button
               type="button"
               onClick={() => {
                 if (onNavigateStores) onNavigateStores();
               }}
               title="Nearby Stores (Check Open / Closed)"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer group"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#4A3B32] hover:bg-white hover:text-[#078B35] hover:shadow-2xs border border-transparent hover:border-gray-200 transition-all cursor-pointer group"
             >
               <Store className="w-4 h-4 text-[#078B35] group-hover:scale-110 transition-transform" />
               <span>Stores</span>
@@ -256,7 +256,7 @@ export default function Header({
                 className="flex items-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#171717] font-extrabold text-xs transition-all cursor-pointer"
               >
                 <ShoppingBag className="w-4 h-4 text-gray-700 shrink-0" />
-                <span className="hidden sm:inline">My Cart</span>
+                <span>My Cart</span>
               </button>
             )}
 
@@ -277,10 +277,9 @@ export default function Header({
                   />
                 </button>
 
-                {/* Dropdown Menu (Exact Mockup Reference) */}
+                {/* Dropdown Menu */}
                 {isAccountOpen && (
                   <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    {/* User Profile Summary Header */}
                     <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full bg-[#EAF7EE] text-[#078B35] flex items-center justify-center font-black text-xl shrink-0 border border-[#078B35]/20">
                         {(user.name?.trim()?.charAt(0) || "P").toUpperCase()}
@@ -299,9 +298,7 @@ export default function Header({
                       </div>
                     </div>
 
-                    {/* Menu Items (9 Clickable Items with Dynamic Active Tab Selection) */}
                     <div className="py-1">
-                      {/* 1. My Profile */}
                       <button
                         type="button"
                         onClick={() => {
@@ -322,7 +319,6 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isProfileActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 2. My Orders */}
                       <button
                         type="button"
                         onClick={() => {
@@ -343,7 +339,6 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isOrdersActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 3. Saved Addresses */}
                       <button
                         type="button"
                         onClick={() => {
@@ -364,7 +359,6 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isAddressesActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 4. My Wishlist */}
                       <button
                         type="button"
                         onClick={() => {
@@ -385,7 +379,6 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isWishlistActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 5. Wallet */}
                       <button
                         type="button"
                         onClick={() => {
@@ -406,7 +399,6 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isWalletActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      {/* 6. Notifications */}
                       <button
                         type="button"
                         onClick={() => {
@@ -426,7 +418,6 @@ export default function Header({
                         </div>
                       </button>
 
-                      {/* 7. Help & Support */}
                       <button
                         type="button"
                         onClick={() => {
@@ -442,7 +433,6 @@ export default function Header({
                         <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
                       </button>
 
-                      {/* 8. Account Settings */}
                       <button
                         type="button"
                         onClick={() => {
@@ -463,20 +453,19 @@ export default function Header({
                         <ChevronRight className={`w-3.5 h-3.5 ${isSettingsActive ? "text-[#078B35]" : "text-gray-400 group-hover:text-gray-700"} group-hover:translate-x-0.5 transition-transform`} />
                       </button>
 
-                      <div className="my-1 border-t border-gray-100" />
-
-                      {/* 9. Log Out */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAccountOpen(false);
-                          onLogout();
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-600" />
-                        <span>Log Out</span>
-                      </button>
+                      <div className="pt-1 mt-1 border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAccountOpen(false);
+                            onLogout();
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 transition-colors cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4 text-rose-600" />
+                          <span>Log Out</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -485,12 +474,103 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleOpenSignIn}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white font-extrabold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
               >
-                <User className="w-4 h-4" />
-                <span>Sign In</span>
+                Sign In
               </button>
             )}
+          </div>
+        </div>
+
+        {/* ── Mobile 2-Tier Header (<sm) ───────────────────────────── */}
+        <div className="sm:hidden px-3 pt-2.5 pb-2.5 space-y-2">
+          {/* Mobile Tier 1: Logo & Locality + Cart & Account */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    if (window.location.pathname === "/") {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } else {
+                      window.location.href = "/";
+                    }
+                  }
+                }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-2xs border border-gray-200 bg-white cursor-pointer"
+              >
+                <img
+                  src="/servolocallogo.jpeg"
+                  alt="ServoLocal"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Delivery Locality Button */}
+              <button
+                type="button"
+                onClick={handleOpenLocation}
+                className="flex flex-col text-left cursor-pointer group min-w-0"
+              >
+                <span className="text-[11px] font-black text-[#171717] leading-tight">
+                  ⚡ 10 min delivery
+                </span>
+                <div className="flex items-center gap-0.5 text-[10px] text-[#666666] leading-tight mt-0.5">
+                  <span className="max-w-[130px] truncate font-semibold text-[#0C831F]">
+                    {currentLocality || "Select Location"}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-[#171717] shrink-0 stroke-[2.5]" />
+                </div>
+              </button>
+            </div>
+
+            {/* Mobile Right: Cart & Account */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {totalCartItems > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenCart}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#0C831F] text-white font-extrabold text-[11px] shadow-xs active:scale-95"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-white" />
+                  <span>{totalCartItems} | ₹{cartTotal}</span>
+                </button>
+              )}
+
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/account?tab=orders";
+                    }
+                  }}
+                  className="w-8 h-8 rounded-full bg-[#EAF7EE] text-[#078B35] font-black text-xs flex items-center justify-center border border-[#078B35]/30 cursor-pointer"
+                  aria-label="Account and Orders"
+                >
+                  {(user.name?.trim()?.charAt(0) || "P").toUpperCase()}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleOpenSignIn}
+                  className="px-3 py-1.5 rounded-xl bg-[#078B35] text-white font-bold text-xs shadow-xs"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Tier 2: Full-Width SearchBar */}
+          <div className="w-full">
+            <SearchBar
+              products={products}
+              onAddToCart={onAddToCart}
+              onSelectProduct={onSelectProduct}
+            />
           </div>
         </div>
       </header>

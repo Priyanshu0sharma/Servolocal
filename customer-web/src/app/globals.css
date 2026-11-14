@@ -18,3 +18,34 @@ img {
   max-width: 100%;
 }
 
+/* ── Modern Web Guidance: Focus, Scroll Containment & Motion ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid #078B35;
+  outline-offset: 2px;
+}
+
+/* MWG: prevent page scroll chaining behind modal dialogs and slide drawers */
+dialog:modal,
+.modal-contain-scroll {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* MWG: respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

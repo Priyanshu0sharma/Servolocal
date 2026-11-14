@@ -183,11 +183,33 @@ export default function BlinkitSplitViewStorefront({
         </div>
       </div>
 
-      {/* ── Main Split View Body: Left Aisles + Right Products Grid ── */}
+      {/* ── Mobile Horizontal Aisle Chips (<sm) ────────────────── */}
+      <div className="sm:hidden border-b border-[#E8ECE9] bg-[#FBFDFB] px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none select-none">
+        {subCategories.map((sub) => {
+          const isActive = selectedSubCatId === sub.id;
+          return (
+            <button
+              key={sub.id}
+              type="button"
+              onClick={() => setSelectedSubCatId(sub.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isActive
+                  ? "bg-[#078B35] text-white font-bold shadow-2xs"
+                  : "bg-white text-[#4B5563] border border-gray-200 hover:bg-[#F0FAF3]"
+              }`}
+            >
+              <span className="text-xs">{sub.icon}</span>
+              <span className="whitespace-nowrap">{sub.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Main Split View Body: Left Aisles (Desktop) + Right Products Grid ── */}
       <div className="flex flex-1 min-h-[520px]">
         
-        {/* Left Column: Sub-Category / Aisle Sidebar */}
-        <div className="w-40 sm:w-56 shrink-0 border-r border-[#E8ECE9] bg-[#FBFDFB] p-2.5 space-y-1 overflow-y-auto max-h-[750px]">
+        {/* Left Column: Sub-Category / Aisle Sidebar (Desktop Only) */}
+        <div className="hidden sm:block w-56 shrink-0 border-r border-[#E8ECE9] bg-[#FBFDFB] p-2.5 space-y-1 overflow-y-auto max-h-[750px]">
           <span className="text-[10px] font-bold text-[#666666] px-2 py-1 block uppercase tracking-wider">
             Aisles & Categories
           </span>
@@ -225,15 +247,28 @@ export default function BlinkitSplitViewStorefront({
               return (
                 <div
                   key={product.id}
+                  role="article"
+                  aria-label={product.name}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && onSelectProduct) {
+                      e.preventDefault();
+                      onSelectProduct(product as ProductItem);
+                    }
+                  }}
                   onClick={() => onSelectProduct && onSelectProduct(product as ProductItem)}
-                  className="bg-white rounded-2xl border border-[#E8ECE9] p-3 flex flex-col justify-between hover:shadow-md transition-shadow group relative cursor-pointer"
+                  className="bg-white rounded-2xl border border-[#E8ECE9] p-3 flex flex-col justify-between hover:shadow-md transition-shadow group relative cursor-pointer focus-visible:ring-2 focus-visible:ring-[#078B35] focus-visible:outline-none"
                 >
                   <div>
                     {/* Centered Image with Veg & Discount Badge */}
-                    <div className="w-full h-28 sm:h-32 rounded-xl bg-[#F8F9FA] relative mb-2 flex items-center justify-center p-2 border border-[#E8ECE9]/60 overflow-hidden">
+                    <div className="w-full aspect-square rounded-xl bg-[#F8F9FA] relative mb-2 flex items-center justify-center p-2 border border-[#E8ECE9]/60 overflow-hidden">
                       <img
                         src={product.image_url}
                         alt={product.name}
+                        width={130}
+                        height={130}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
 

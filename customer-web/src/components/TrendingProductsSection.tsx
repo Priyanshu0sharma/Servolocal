@@ -3,6 +3,7 @@
 import React from "react";
 import { ArrowRight, Flame } from "lucide-react";
 import ProductCard from "./ProductCard";
+import ProductCardSkeleton from "./ProductCardSkeleton";
 import { ProductItem } from "@/types";
 
 interface TrendingProductsSectionProps {
@@ -18,6 +19,7 @@ interface TrendingProductsSectionProps {
   onClickProduct: (product: ProductItem) => void;
   onViewAll?: () => void;
   limit?: number;
+  isLoading?: boolean;
 }
 
 export default function TrendingProductsSection({
@@ -33,9 +35,10 @@ export default function TrendingProductsSection({
   onClickProduct,
   onViewAll,
   limit = 12,
+  isLoading = false,
 }: TrendingProductsSectionProps) {
   const displayItems = products.slice(0, limit);
-  if (displayItems.length === 0) return null;
+  if (!isLoading && displayItems.length === 0) return null;
 
   return (
     <section className="space-y-3.5 select-none pt-2">
@@ -65,21 +68,25 @@ export default function TrendingProductsSection({
 
       {/* Grid of Products Matching Blinkit/ServoLocal Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-        {displayItems.map((product) => {
-          const cartItem = cart.find((i) => i.inventory_id === product.id);
-          return (
-            <ProductCard
-              key={product.id}
-              product={product}
-              isWishlisted={wishlist.includes(product.id)}
-              onToggleWishlist={onToggleWishlist}
-              cartQuantity={cartItem ? cartItem.quantity : 0}
-              onAddToCart={onAddToCart}
-              onUpdateCartQuantity={onUpdateCartQuantity}
-              onClickProduct={onClickProduct}
-            />
-          );
-        })}
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, idx) => (
+              <ProductCardSkeleton key={idx} />
+            ))
+          : displayItems.map((product) => {
+              const cartItem = cart.find((i) => i.inventory_id === product.id);
+              return (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isWishlisted={wishlist.includes(product.id)}
+                  onToggleWishlist={onToggleWishlist}
+                  cartQuantity={cartItem ? cartItem.quantity : 0}
+                  onAddToCart={onAddToCart}
+                  onUpdateCartQuantity={onUpdateCartQuantity}
+                  onClickProduct={onClickProduct}
+                />
+              );
+            })}
       </div>
     </section>
   );

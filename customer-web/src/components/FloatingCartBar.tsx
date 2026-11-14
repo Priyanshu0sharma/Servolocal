@@ -21,7 +21,7 @@ export default function FloatingCartBar({
   const itemsTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-4 animate-in slide-in-from-bottom-5 duration-200">
+    <div className="fixed bottom-16 md:bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-4 animate-in slide-in-from-bottom-5 duration-200">
       <div
         onClick={onOpenCart}
         className="w-full bg-[#078B35] hover:bg-[#075C2A] text-white p-3.5 sm:px-5 rounded-2xl shadow-xl flex items-center justify-between cursor-pointer transition-all active:scale-[0.99] select-none border border-emerald-500/30"

@@ -129,11 +129,15 @@ export default function HeroBanner({ onShopNow }: HeroBannerProps) {
               </div>
             </div>
 
-            {/* Shop Mockup Image */}
-            <div className="w-32 h-24 sm:w-44 sm:h-32 md:w-56 md:h-40 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 ml-3 shrink-0">
+            {/* Shop Mockup Image (LCP Optimized via Modern Web Guidance) */}
+            <div className="w-32 h-24 sm:w-44 sm:h-32 md:w-56 md:h-40 aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 ml-3 shrink-0 bg-black/20">
               <img
                 src={slide.image}
                 alt="Local Storefront"
+                width={400}
+                height={300}
+                decoding="async"
+                fetchPriority={currentSlide === 0 ? "high" : "low"}
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
             </div>

@@ -370,10 +370,16 @@ export default function CompleteAddressModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="address-modal-title"
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200 modal-contain-scroll overscroll-contain"
+    >
       {/* Modal Dialog Container */}
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-[960px] h-[92vh] sm:h-[620px] max-h-[660px] flex flex-col md:flex-row overflow-hidden relative border border-gray-100"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-[960px] h-[92vh] sm:h-[620px] max-h-[660px] flex flex-col md:flex-row overflow-hidden relative border border-gray-100 modal-contain-scroll overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── LEFT PANEL: INTERACTIVE MAP (52% width on desktop) ── */}
@@ -520,7 +526,7 @@ export default function CompleteAddressModal({
           {/* Header */}
           <div className="px-6 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-[#171717] tracking-tight">
+              <h2 id="address-modal-title" className="text-base sm:text-lg font-bold text-[#171717] tracking-tight">
                 Enter complete address
               </h2>
               <p className="text-[11px] text-gray-500">
@@ -530,6 +536,7 @@ export default function CompleteAddressModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close address modal"
               className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -538,7 +545,7 @@ export default function CompleteAddressModal({
 
           {/* Scrollable Form Body */}
           <form onSubmit={handleSaveAddress} className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 modal-contain-scroll overscroll-contain">
               {/* Form Error Alert */}
               {formError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
@@ -549,9 +556,9 @@ export default function CompleteAddressModal({
 
               {/* Save Address As * (4 Pills with Icons: Home, Work, Hotel, Other) */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-2">
+                <span className="block text-xs font-bold text-gray-700 mb-2">
                   Save address as <span className="text-rose-500">*</span>
-                </label>
+                </span>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     { label: "Home" as AddressType, icon: HomeIcon },
@@ -582,11 +589,14 @@ export default function CompleteAddressModal({
 
               {/* Flat / House no / Building name * */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                <label htmlFor="address-flat" className="block text-[11px] font-bold text-gray-700 mb-1">
                   Flat / House no / Building name <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="address-flat"
+                  name="address-flat"
                   type="text"
+                  autoComplete="address-line1"
                   value={flatBuilding}
                   onChange={(e) => setFlatBuilding(e.target.value)}
                   placeholder="e.g. Flat 402, Sunshine Towers, Block B"
@@ -597,11 +607,14 @@ export default function CompleteAddressModal({
 
               {/* Floor (optional) */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                <label htmlFor="address-floor" className="block text-[11px] font-bold text-gray-700 mb-1">
                   Floor <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
+                  id="address-floor"
+                  name="address-floor"
                   type="text"
+                  autoComplete="address-line2"
                   value={floor}
                   onChange={(e) => setFloor(e.target.value)}
                   placeholder="e.g. 4th Floor"
@@ -611,11 +624,14 @@ export default function CompleteAddressModal({
 
               {/* Area / Sector / Locality * (Pre-filled from map selection, editable) */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                <label htmlFor="address-locality" className="block text-[11px] font-bold text-gray-700 mb-1">
                   Area / Sector / Locality <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="address-locality"
+                  name="address-locality"
                   type="text"
+                  autoComplete="address-level2"
                   value={localityText || `${addressTitle}, ${addressSubtitle}`}
                   onChange={(e) => setLocalityText(e.target.value)}
                   placeholder="e.g. Indra Puri, Vidhayak Nagar, Lalkothi, Jaipur"
@@ -626,11 +642,14 @@ export default function CompleteAddressModal({
 
               {/* Nearby landmark (optional) */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                <label htmlFor="address-landmark" className="block text-[11px] font-bold text-gray-700 mb-1">
                   Nearby landmark <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
+                  id="address-landmark"
+                  name="address-landmark"
                   type="text"
+                  autoComplete="off"
                   value={landmark}
                   onChange={(e) => setLandmark(e.target.value)}
                   placeholder="e.g. Near Hawa Mahal, opposite SBI Bank"
@@ -647,11 +666,14 @@ export default function CompleteAddressModal({
                 <div className="space-y-3">
                   {/* Your name * */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    <label htmlFor="recipient-name" className="block text-[11px] font-bold text-gray-700 mb-1">
                       Your name <span className="text-rose-500">*</span>
                     </label>
                     <input
+                      id="recipient-name"
+                      name="recipient-name"
                       type="text"
+                      autoComplete="name"
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
                       placeholder="e.g. Priyanshu Sharma"
@@ -662,11 +684,15 @@ export default function CompleteAddressModal({
 
                   {/* Your phone number (optional) */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                    <label htmlFor="recipient-phone" className="block text-[11px] font-bold text-gray-700 mb-1">
                       Your phone number <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <input
+                      id="recipient-phone"
+                      name="recipient-phone"
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       value={recipientPhone}
                       onChange={(e) => setRecipientPhone(e.target.value)}
                       placeholder="e.g. +91 9352286423"

@@ -28,21 +28,30 @@ export default function ProductCard({
 
   return (
     <div
+      role="article"
+      aria-label={product.name}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onClickProduct) {
+          e.preventDefault();
+          onClickProduct(product);
+        }
+      }}
       onClick={() => {
         if (onClickProduct) onClickProduct(product);
       }}
-      className="bg-white rounded-2xl border border-[#EFECE6] p-3 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group relative select-none cursor-pointer"
+      className="bg-white rounded-2xl border border-[#EFECE6] p-3 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group relative select-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#078B35] focus-visible:outline-none"
     >
       {/* Top Image Container & Floating Wishlist Heart */}
-      <div className="relative w-full h-[130px] rounded-xl bg-white overflow-hidden flex items-center justify-center p-2 border border-gray-100">
+      <div className="relative w-full aspect-square rounded-xl bg-white overflow-hidden flex items-center justify-center p-2 border border-gray-100">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onToggleWishlist(product.id);
           }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-2xs flex items-center justify-center text-[#2D2319] hover:text-rose-500 hover:scale-110 transition-all cursor-pointer"
+          aria-label={isWishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+          className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white shadow-2xs flex items-center justify-center text-[#2D2319] hover:text-rose-500 hover:scale-110 active:scale-90 transition-all cursor-pointer"
         >
           <Heart
             className={`w-4 h-4 transition-colors ${
@@ -54,6 +63,10 @@ export default function ProductCard({
         <img
           src={product.image_url}
           alt={product.name}
+          width={140}
+          height={140}
+          loading="lazy"
+          decoding="async"
           className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
         />
       </div>
@@ -101,16 +114,18 @@ export default function ProductCard({
           >
             <button
               type="button"
+              aria-label={`Decrease quantity of ${product.name}`}
               onClick={() => onUpdateCartQuantity(product.id, cartQuantity - 1)}
-              className="p-0.5 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform"
+              className="p-0.5 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform cursor-pointer"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            <span className="font-semibold text-xs">{cartQuantity}</span>
+            <span className="font-semibold text-xs" aria-live="polite">{cartQuantity}</span>
             <button
               type="button"
+              aria-label={`Increase quantity of ${product.name}`}
               onClick={() => onAddToCart(product)}
-              className="p-0.5 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform"
+              className="p-0.5 hover:bg-[#075C2A] rounded-md active:scale-90 transition-transform cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -118,11 +133,12 @@ export default function ProductCard({
         ) : (
           <button
             type="button"
+            aria-label={`Add ${product.name} to cart`}
             onClick={(e) => {
               e.stopPropagation();
               onAddToCart(product);
             }}
-            className="w-full py-1.5 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-98 flex items-center justify-center gap-1"
+            className="w-full py-1.5 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center justify-center gap-1"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add</span>
