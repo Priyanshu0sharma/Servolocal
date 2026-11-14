@@ -27,6 +27,7 @@ import SignInModal from "./SignInModal";
 import NotificationsModal from "./NotificationsModal";
 import ProfileEditModal from "./ProfileEditModal";
 import { ProductItem, CartItem, UserProfile } from "@/types";
+import { getNotifications } from "@/lib/api";
 
 interface HeaderProps {
   currentLocality: string;
@@ -101,9 +102,25 @@ export default function Header({
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [internalSignInOpen, setInternalSignInOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch real unread notifications count from backend
+  useEffect(() => {
+    let isMounted = true;
+    getNotifications()
+      .then((res) => {
+        if (isMounted && res && typeof res.unread_count === "number") {
+          setUnreadCount(res.unread_count);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Sync active account tab dynamically from prop or URL
   const [urlTab, setUrlTab] = useState<string>("");
@@ -231,6 +248,22 @@ export default function Header({
             >
               <Store className="w-4 h-4 text-[#078B35] group-hover:scale-110 transition-transform" />
               <span>Stores</span>
+            </button>
+
+            {/* Real Notifications Bell Button */}
+            <button
+              type="button"
+              onClick={() => setIsNotificationsOpen(true)}
+              aria-label="Notifications"
+              title="Notifications"
+              className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 hover:text-[#0C831F] transition-all cursor-pointer shadow-2xs group flex items-center justify-center"
+            >
+              <Bell className="w-4 h-4 text-gray-700 group-hover:text-[#0C831F] transition-colors" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center leading-none ring-2 ring-white animate-in zoom-in-75">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Signature Blinkit Green Cart Pill */}
@@ -403,25 +436,6 @@ export default function Header({
                         type="button"
                         onClick={() => {
                           setIsAccountOpen(false);
-                          if (onOpenNotifications) onOpenNotifications();
-                          else setIsNotificationsOpen(true);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Bell className="w-4 h-4 text-gray-700" />
-                          <span>Notifications</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-rose-500" />
-                          <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsAccountOpen(false);
                           if (onOpenSupport) onOpenSupport();
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] flex items-center justify-between transition-colors cursor-pointer group"
@@ -528,6 +542,19 @@ export default function Header({
 
             {/* Mobile Right: Cart & Account */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Mobile Notification Bell */}
+              <button
+                type="button"
+                onClick={() => setIsNotificationsOpen(true)}
+                aria-label="Notifications"
+                className="relative w-8 h-8 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-gray-700 hover:text-[#0C831F] cursor-pointer shadow-2xs"
+              >
+                <Bell className="w-4 h-4 stroke-[2]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-1 ring-white" />
+                )}
+              </button>
+
               {totalCartItems > 0 && (
                 <button
                   type="button"
@@ -600,6 +627,7 @@ export default function Header({
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
+        onUnreadCountChange={setUnreadCount}
       />
 
       {/* Profile Edit Modal */}

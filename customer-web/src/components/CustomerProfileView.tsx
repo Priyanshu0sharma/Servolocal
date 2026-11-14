@@ -30,7 +30,7 @@ interface CustomerProfileViewProps {
   onOpenAddresses: () => void;
   onOpenWishlist: () => void;
   onOpenWallet: () => void;
-  onOpenNotifications: () => void;
+  onOpenNotifications?: () => void;
   onOpenSupport: () => void;
   onOpenEditModal: () => void;
   wishlistCount?: number;
@@ -472,19 +472,21 @@ export default function CustomerProfileView({
 
           <button
             type="button"
-            onClick={onOpenNotifications}
+            onClick={() => {
+              if (typeof window !== "undefined") window.location.href = "/account?tab=privacy";
+            }}
             className="p-3.5 rounded-2xl bg-[#F9FAFB] hover:bg-[#EAF7EE] border border-gray-100 hover:border-[#078B35]/40 text-left transition-all flex items-center justify-between cursor-pointer group"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-purple-600 flex items-center justify-center">
-                <Bell className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-emerald-600 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-xs font-bold text-[#171717] group-hover:text-purple-600">Notifications</p>
-                <p className="text-[10px] text-gray-500">Order alerts &amp; announcements</p>
+                <p className="text-xs font-bold text-[#171717] group-hover:text-[#0C831F]">Privacy &amp; Policy</p>
+                <p className="text-[10px] text-gray-500">Security &amp; account closure</p>
               </div>
             </div>
-            <ExternalLink className="w-3.5 h-3.5 text-gray-400 group-hover:text-purple-600" />
+            <ExternalLink className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#0C831F]" />
           </button>
 
           <button
