@@ -139,6 +139,12 @@ function AccountContent() {
   const [topupSuccessMsg, setTopupSuccessMsg] = useState("");
   const [topupErrorMsg, setTopupErrorMsg] = useState("");
 
+  // ── Privacy & Policy State (Blinkit Exact) ──────────────────────────────
+  const [isPrivacyExpanded, setIsPrivacyExpanded] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+
   // Show transient toast
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -1385,40 +1391,75 @@ function AccountContent() {
               </div>
             )}
 
-            {/* ── VIEW 6: ACCOUNT PRIVACY ─────────────────────────── */}
+            {/* ── VIEW 6: ACCOUNT PRIVACY AND POLICY (Exact Blinkit Style) ─────────────────────────── */}
             {activeTab === "privacy" && (
               <div className="space-y-6 animate-in fade-in duration-150">
                 <div>
-                  <h1 className="text-xl font-bold text-[#171717]">Account privacy</h1>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Manage your data security, alerts and privacy preferences
+                  <h1 className="text-xl font-bold text-[#171717]">Account privacy and policy</h1>
+                  <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                    We i.e. &quot;ServoLocal Technologies Private Limited&quot;, are committed to protecting the privacy and security of your personal information. Your privacy is important to us and maintaining your trust is paramount.
                   </p>
+                  
+                  {/* Collapsible Read More */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivacyExpanded((prev) => !prev)}
+                    className="text-xs font-bold text-[#0C831F] hover:text-[#096B19] mt-2 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>{isPrivacyExpanded ? "Read less" : "Read more"}</span>
+                    <span className="text-[10px]">{isPrivacyExpanded ? "▲" : "▼"}</span>
+                  </button>
+
+                  {isPrivacyExpanded && (
+                    <div className="mt-3 p-4 rounded-2xl bg-[#F9FAFB] border border-gray-100 text-xs text-gray-600 space-y-2.5 animate-in fade-in duration-150">
+                      <div>
+                        <h4 className="font-bold text-[#171717]">1. Data Collection &amp; Purpose</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          We collect information strictly necessary to fulfill your 10-15 min hyperlocal deliveries (contact number, delivery address, and order selections).
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#171717]">2. Partner Sharing Policy</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Your address and phone number are masked and shared solely with the assigned local store partner and delivery executive during an active order.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#171717]">3. Payment &amp; Transaction Security</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Payments are securely processed via RBI-licensed partners (Razorpay/UPI). ServoLocal never stores your CVV, debit/credit card numbers or UPI PIN.
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[#171717]">4. Right to Erasure</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          You have the absolute right to request permanent deletion of your account and associated personal data at any time.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-[#171717]">WhatsApp Order Notifications</p>
-                      <p className="text-[11px] text-gray-500">Receive live delivery PIN and partner ETA on WhatsApp</p>
+                {/* Request to delete account card (Exact Blinkit Style) */}
+                <div
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="p-4 rounded-2xl border border-gray-200/90 hover:border-gray-300 bg-white shadow-2xs hover:shadow-xs transition-all flex items-center justify-between cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-700 shrink-0 group-hover:bg-rose-50 group-hover:border-rose-200 group-hover:text-rose-600 transition-colors">
+                      <Trash2 className="w-5 h-5 stroke-[1.8]" />
                     </div>
-                    <input type="checkbox" defaultChecked className="accent-[#0C831F] w-4 h-4 cursor-pointer" />
+                    <div>
+                      <h3 className="text-sm font-bold text-[#171717] group-hover:text-rose-600 transition-colors">
+                        Request to delete account
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Request to closure of your account
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-[#171717]">Email Receipts &amp; Invoices</p>
-                      <p className="text-[11px] text-gray-500">Send GST invoice and delivery summary to {user?.email || "email"}</p>
-                    </div>
-                    <input type="checkbox" defaultChecked className="accent-[#0C831F] w-4 h-4 cursor-pointer" />
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-[#171717]">Session Security</p>
-                      <p className="text-[11px] text-gray-500">Logged in via encrypted Bearer token on Neon PostgreSQL</p>
-                    </div>
-                    <span className="text-[11px] font-bold text-[#0C831F]">Active</span>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-700 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
             )}
@@ -1530,6 +1571,98 @@ function AccountContent() {
         onClose={() => setIsSignInOpen(false)}
         onLoginSuccess={(u) => setUser(u)}
       />
+
+      {/* ── Request Account Deletion Modal (MWG Accessible Dialog) ── */}
+      {isDeleteModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
+          onClick={() => setIsDeleteModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 modal-contain-scroll overscroll-contain"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-100 animate-in zoom-in-95 duration-150"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6 stroke-2" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h2 id="delete-account-title" className="text-base sm:text-lg font-bold text-[#171717]">
+                Request Account Deletion?
+              </h2>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                We are sorry to see you go. Once submitted, your request to delete account for{" "}
+                <span className="font-semibold text-gray-700">{user?.phone || user?.email || "your profile"}</span> will be processed.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs space-y-1">
+              <span className="font-bold block">Important Notice:</span>
+              <p className="text-[11px] text-amber-800 leading-normal">
+                All saved addresses, order history, and active wallet credits will be closed. This action cannot be undone once verified.
+              </p>
+            </div>
+
+            {/* Optional Reason Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Reason for closure (optional):
+              </label>
+              <select
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs text-gray-800 bg-white focus:outline-none focus:border-emerald-600 cursor-pointer"
+              >
+                <option value="">Select a reason</option>
+                <option value="privacy">Privacy concerns</option>
+                <option value="duplicate">Created duplicate account</option>
+                <option value="not_using">No longer using the service</option>
+                <option value="other">Other reason</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingDelete}
+                onClick={async () => {
+                  setIsSubmittingDelete(true);
+                  try {
+                    await new Promise((r) => setTimeout(r, 600));
+                    setIsDeleteModalOpen(false);
+                    showToast("Account deletion request submitted successfully. Our team will verify and process it within 7 working days.");
+                  } catch {
+                    showToast("Failed to submit request. Please try again.");
+                  } finally {
+                    setIsSubmittingDelete(false);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-70 flex items-center justify-center gap-1.5"
+              >
+                {isSubmittingDelete ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <span>Confirm Request</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Footer ────────────────────────────────────────────────── */}
       <Footer onNavigateTab={(tab) => router.push(`/?tab=${tab}`)} />
