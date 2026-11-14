@@ -7,22 +7,35 @@ description: Permanent Servolocal engineering rules and tool routing
 
 ## 1. Automatic Skill Discovery & Workflow Routing
 Before starting or responding to any user task:
-- Discover installed skills in `~/.gemini/config/plugins`, `~/.gemini/config/skills`, and `.agents/`.
-- Automatically select relevant workflows across the 5 primary toolkits:
-  1. `obra/superpowers` (for TDD, systematic debugging, planning, and verification)
-  2. `jrobertogarcia/agent-workflows` (for lifecycle phases, context gathering, alignment checks, simplify-diff, and commit validation)
-  3. `eai-org/agent-toolkit` (for RPAC task breakdown, artifact hardening, manual test instruction creation, and handover)
-  4. `signalharbor27/codex-agents` (for architecture investigation, test design, and codebase auditing)
-  5. `GoogleChrome/modern-web-guidance` (for frontend UI, responsive design, accessibility, and Core Web Vitals)
+- Discover installed skills in `~/.gemini/config/plugins`, `~/.gemini/config/skills`, and `.agents/skills`.
+- Refer to `TOOL_REGISTRY.md` and dynamically select the appropriate toolchain:
+  - **UI / Frontend Polish**: `impeccable`, `modern-web-guidance`, `shadcn/ui`
+  - **Next.js & Frameworks**: `find-skills`, Vercel guidelines
+  - **Planning & Task Slicing**: `spec-driven-development`, `to-spec`, `to-tickets`, `BMAD-Method`, `GSD`
+  - **Socratic Stress-Testing**: `grill-me`, `wayfinder`, `interview-me`
+  - **Coding & Implementation**: `obra/superpowers` (TDD), `engineering`, `agent-toolkit`
+  - **Systematic Debugging**: `systematic-debugging`, `root-cause`
+  - **Security Audits & Hardening**: `cloudflare/security-audit`, `semgrep` SAST, `gitleaks`
+  - **Testing & Quality Assurance**: `microsoft/playwright`, `pytest backend/tests`
+  - **Codebase Understanding**: `yamadashy/repomix`, `graphify`, `gather-context`
 - Read their actual `SKILL.md` instructions before applying them.
 - Never fabricate tool or skill usage. Show concrete command execution and evidence.
 
-## 2. Mandatory Engineering Lifecycle
-Every task must automatically follow this lifecycle:
-`ANALYSE` → `PLAN` → `BREAK INTO TASKS` → `IMPLEMENT` → `TEST` → `DEBUG` → `RETEST` → `REVIEW` → `REPORT`
+## 2. Mandatory 12-Step Engineering Factory Lifecycle
+Every task must automatically follow the 12-step lifecycle defined in `DEVELOPMENT_WORKFLOW.md`:
+1. `UNDERSTAND` (parse intent and constraints)
+2. `INSPECT` (check project architecture, models, existing code)
+3. `IDENTIFY TOOLS` (query installed plugins, skills, MCP, and CLI tools)
+4. `SELECT BEST TOOLS` (match task domain to toolchain)
+5. `READ DOCS` (read relevant SKILL.md and documentation)
+6. `STEP-BY-STEP PLAN` (propose atomic tasks with acceptance criteria)
+7. `EXECUTE` (write atomic, non-destructive, clean code)
+8. `RUN & TEST` (execute actual verification suites)
+9. `FIX ERRORS` (isolate root causes and fix bugs at source)
+10. `RETEST FLOW` (re-run complete affected workflows)
+11. `REVIEW & AUDIT` (code review, security SAST, secret leak check)
+12. `REPORT EVIDENCE` (report terminal proof and log in AGENT_USAGE_LOG.md)
 
-- For complex tasks or architectural modifications: Produce an audit & roadmap artifact first and obtain user approval before writing code.
-- For approved tasks: Execute in small, testable slices.
 
 ## 3. Mandatory Verification Standards
 Always run and show terminal outputs for:

@@ -198,3 +198,35 @@ erDiagram
 3. **Security Scanner Baseline**:
    - Static Application Security Testing (SAST): `semgrep scan --config "p/python" backend/app` enforcing OWASP Top 10 rules.
    - Secret Leaks Detection: `gitleaks detect` safeguarding against accidental API key exposure.
+
+---
+
+## 6. Permanent AI Software Development Factory Architecture
+
+The Servolocal codebase is wrapped with an autonomous engineering factory layer:
+
+```
+                            ┌──────────────────────────────────────────┐
+                            │      AI Software Development Factory     │
+                            │             (Antigravity IDE)            │
+                            └────────────────────┬─────────────────────┘
+                                                 │
+          ┌───────────────────────┬──────────────┴──────────────┬───────────────────────┐
+          ▼                       ▼                             ▼                       ▼
+┌──────────────────┐    ┌──────────────────┐          ┌──────────────────┐    ┌──────────────────┐
+│   Planning &     │    │   UI / Motion    │          │    Security &    │    │  Verification &  │
+│  Specification   │    │  Design System   │          │    Hardening     │    │       E2E        │
+│──────────────────│    │──────────────────│          │──────────────────│    │──────────────────│
+│ • to-spec        │    │ • impeccable     │          │ • security-audit │    │ • Playwright E2E │
+│ • to-tickets     │    │ • modern-web-guid│          │ • semgrep SAST   │    │ • pytest suites  │
+│ • spec-driven-dev│    │ • shadcn/ui      │          │ • gitleaks audit │    │ • type-check     │
+│ • BMAD & GSD     │    │ • magicui tokens │          │ • OWASP top 10   │    │ • CWV benchmarks │
+└──────────────────┘    └──────────────────┘          └──────────────────┘    └──────────────────┘
+                                                 │
+                                                 ▼
+                            ┌──────────────────────────────────────────┐
+                            │     Token & Context Optimizer Engine     │
+                            │   repomix.config.json + .agents/rules    │
+                            └──────────────────────────────────────────┘
+```
+

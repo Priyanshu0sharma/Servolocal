@@ -196,3 +196,13 @@ To maintain maximum token economy and avoid context-window bloat:
 - **Public APIs** (`public-apis/public-apis`): Reference catalog for geocoding, pincode validation, and external open-data feeds.
 - **Free LLM API Hub** (`SidSharma010/free-llm-api-hub`, `devanasolver/awesome-free-llm-apis`): Reference for selecting optimal models for auxiliary tasks.
 
+---
+
+## 15. Permanent Factory Operating Protocols
+
+All engineering tasks on Servolocal are governed by the factory protocols:
+1. **[`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md)**: Deterministic 12-step engineering lifecycle (`Understand` ➔ `Inspect` ➔ `Identify Tools` ➔ `Select Best Tools` ➔ `Read Docs` ➔ `Plan` ➔ `Execute` ➔ `Test` ➔ `Fix Errors` ➔ `Retest` ➔ `Review` ➔ `Report Evidence`).
+2. **[`TOOL_REGISTRY.md`](TOOL_REGISTRY.md)**: Master inventory and automatic tool routing index across all installed and reference repositories.
+3. **[`.agents/mcp_config.json`](.agents/mcp_config.json)**: Model Context Protocol configuration for repository tools (e.g. `repomix`).
+
+
