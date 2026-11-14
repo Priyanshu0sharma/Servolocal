@@ -49,3 +49,9 @@ Maintain `AGENT_USAGE_LOG.md` at the workspace root, logging:
 - Errors encountered and fixes applied
 - Changed files
 - Final status
+
+## 6. Master Factory Specifications & Token Optimization
+- Every task must align with `PROJECT_REQUIREMENTS.md`, `PROJECT_ARCHITECTURE.md`, `IMPLEMENTATION_ROADMAP.md`, `TESTING_STRATEGY.md`, and `SECURITY_CHECKLIST.md`.
+- Use `npx repomix` with `repomix.config.json` for token-efficient codebase context serialization.
+- Follow BMAD-Method and GSD principles: atomic, single-turn execution slices with explicit acceptance criteria.
+

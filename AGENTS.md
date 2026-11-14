@@ -155,3 +155,44 @@ Run the applicable command suite for every meaningful change:
 - **Preserve Working Features**: Do not replace the existing tech stack, break working Firebase auth, or delete working payments.
 - **Database Safety**: Do not perform destructive database drops or unapproved schema migrations.
 - **Evidence-Based Done**: Never mark a task as completed without showing the terminal execution output proving it works.
+
+---
+
+## 11. Master Factory Specifications & Specifications Index
+
+Every engineering task must align with the core specification documents maintained at the project root:
+
+| Specification Document | Scope & Purpose |
+| :--- | :--- |
+| **`PROJECT_REQUIREMENTS.md`** | 22-dimension application completeness checklist, user personas (Customer, Merchant, Rider, Admin), and functional requirements. |
+| **`PROJECT_ARCHITECTURE.md`** | System topology, Next.js 15 App Router architecture, FastAPI async internals, and full Mermaid entity-relationship diagrams (ERD). |
+| **`IMPLEMENTATION_ROADMAP.md`** | Phased engineering backlog (Phases 1-4) with atomic, independently verifiable tasks and acceptance criteria. |
+| **`TESTING_STRATEGY.md`** | Testing pyramid, pytest suites, TypeScript type checks, Playwright E2E scenarios, and Core Web Vitals standards. |
+| **`SECURITY_CHECKLIST.md`** | OWASP Top 10 compliance checklist, DPDP Act data privacy standards, Semgrep SAST automation, and Gitleaks detection. |
+
+---
+
+## 12. Token & Context Optimization Engine (`repomix`)
+
+To maintain maximum token economy and avoid context-window bloat:
+- **Repomix Packaging**: Use `npx repomix` with `repomix.config.json` to pack clean, token-counted XML contexts when broad codebase awareness is needed.
+- **Strict Exclusions**: Node modules, `.next`, Python virtualenvs, build artifacts, image binaries, and `.env` secrets are automatically excluded.
+- **Progressive Disclosure**: Read specific submodules and files rather than dumping the entire repository into agent context.
+
+---
+
+## 13. Product Discovery, Planning & Prototype References
+
+- **BMAD Method** (`bmad-code-org/BMAD-METHOD`): Guides specification-first AI development, systematic task breakdown, and acceptance verification.
+- **Spec-Kit** (`github/spec-kit`): Standardizes PRD structures, RFC designs, and API contracts.
+- **GSD Framework** (`gsd-build/get-shit-done`): Enforces small, atomic, single-turn execution slices.
+- **Bolt.diy & Dyad** (`stackblitz-labs/bolt.diy`, `dyad-sh/dyad`): External prototyping environments; code patterns are inspected and cherry-picked without altering Servolocal's core stack.
+
+---
+
+## 14. Developer Catalogs & Free Cloud Infrastructure References
+
+- **Free-For-Dev** (`ripienaar/free-for-dev`): Informs Servolocal's zero-cost/low-cost production cloud topology (Neon PostgreSQL, Vercel Edge, Render, Firebase Auth, Cloudinary, Sentry).
+- **Public APIs** (`public-apis/public-apis`): Reference catalog for geocoding, pincode validation, and external open-data feeds.
+- **Free LLM API Hub** (`SidSharma010/free-llm-api-hub`, `devanasolver/awesome-free-llm-apis`): Reference for selecting optimal models for auxiliary tasks.
+
