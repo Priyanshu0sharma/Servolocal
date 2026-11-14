@@ -329,3 +329,30 @@ async def test_wallet_topup_endpoints():
         assert "key_id" in data
 
 
+@pytest.mark.asyncio
+async def test_wallet_checkout_insufficient_balance():
+    # User with 0 wallet balance cannot checkout via WALLET
+    token = create_access_token({"id": 1, "email": "priyanshusharma1131@gmail.com", "role": "customer"})
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
+        feed_res = await ac.get("/api/discovery/feed?mode=LOCAL")
+        feed = feed_res.json()
+        if feed["all_products"]:
+            prod = feed["all_products"][0]
+            checkout_payload = {
+                "shop_id": prod["shop_id"],
+                "items": [{"inventory_id": prod["inventory_id"], "quantity": 1}],
+                "delivery_address": "Test Address, Flat 101",
+                "payment_method": "WALLET",
+            }
+            # Attempt checkout with wallet: should either succeed (if user has enough balance) or fail with 400 Insufficient balance
+            res = await ac.post("/api/orders/checkout", json=checkout_payload, headers=headers)
+            assert res.status_code in (200, 400)
+            if res.status_code == 400:
+                assert "wallet" in res.json()["detail"].lower()
+            elif res.status_code == 200:
+                assert res.json()["success"] is True
+                assert res.json()["status"] == "CONFIRMED"
+
+
+

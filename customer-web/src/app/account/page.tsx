@@ -1423,6 +1423,16 @@ function AccountContent() {
         currentLocality={currentLocality}
         user={user}
         onOpenSignIn={() => setIsSignInOpen(true)}
+        onWalletUpdated={(newBal) => {
+          if (user) {
+            const upd = { ...user, wallet_balance: newBal };
+            setUser(upd);
+            localStorage.setItem("servo_user", JSON.stringify(upd));
+          }
+          if (walletData) {
+            setWalletData({ ...walletData, wallet_balance: newBal });
+          }
+        }}
       />
 
       {/* ── Profile Edit Modal ────────────────────────────────────── */}

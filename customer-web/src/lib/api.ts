@@ -225,6 +225,8 @@ export async function checkoutOrder(payload: {
   items: Array<{ inventory_id: number; quantity: number }>;
   delivery_address: string;
   payment_method: string;
+  payment_id?: string;
+  customer_notes?: string;
 }) {
   const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
   const res = await fetch(`${API_BASE_URL}/api/orders/checkout`, {
@@ -235,7 +237,10 @@ export async function checkoutOrder(payload: {
     },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Checkout error");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Checkout failed. Please check items and payment.");
+  }
   return res.json();
 }
 

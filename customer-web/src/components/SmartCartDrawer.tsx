@@ -22,6 +22,7 @@ import {
   Check,
   Loader2,
   Edit2,
+  Wallet,
 } from "lucide-react";
 import { CartItem, UserProfile } from "@/types";
 import { ActiveOrderData } from "./LiveOrderTrackerAndReview";
@@ -30,6 +31,7 @@ import {
   createRazorpayOrder,
   verifyRazorpayPayment,
   getSavedAddresses,
+  getWalletOverview,
 } from "@/lib/api";
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -55,6 +57,7 @@ interface SmartCartDrawerProps {
   currentLocality: string;
   user?: UserProfile | null;
   onOpenSignIn?: () => void;
+  onWalletUpdated?: (newBalance: number) => void;
 }
 
 export default function SmartCartDrawer({
@@ -67,9 +70,10 @@ export default function SmartCartDrawer({
   currentLocality,
   user = null,
   onOpenSignIn,
+  onWalletUpdated,
 }: SmartCartDrawerProps) {
   const [drawerStep, setDrawerStep] = useState<"CART" | "CHECKOUT">("CART");
-  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CARD" | "COD">("UPI");
+  const [paymentMethod, setPaymentMethod] = useState<"WALLET" | "UPI" | "CARD" | "COD">("WALLET");
   const [deliveryInstruction, setDeliveryInstruction] = useState<string>("Leave at door");
   const [address, setAddress] = useState(`House/Flat 402, Main Road, ${currentLocality}`);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -77,15 +81,32 @@ export default function SmartCartDrawer({
   const [tipAmount, setTipAmount] = useState<number>(0);
   const [isPlacing, setIsPlacing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(user?.wallet_balance || 0);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Sync address if locality changes
   useEffect(() => {
     setAddress(`House/Flat 402, Main Road, ${currentLocality}`);
   }, [currentLocality]);
 
-  // Load real default saved address from Neon DB
+  // Load real wallet balance & default saved address from Neon DB
   useEffect(() => {
     if (isOpen && user) {
+      if (typeof user.wallet_balance === "number") {
+        setWalletBalance(user.wallet_balance);
+      }
+      getWalletOverview()
+        .then((w) => {
+          if (w && typeof w.wallet_balance === "number") {
+            setWalletBalance(w.wallet_balance);
+            if (user) {
+              user.wallet_balance = w.wallet_balance;
+              localStorage.setItem("servo_user", JSON.stringify(user));
+            }
+          }
+        })
+        .catch(() => {});
+
       getSavedAddresses()
         .then((addrs) => {
           if (Array.isArray(addrs) && addrs.length > 0) {
@@ -104,6 +125,7 @@ export default function SmartCartDrawer({
     if (!isOpen) {
       setDrawerStep("CART");
       setIsEditingAddress(false);
+      setCheckoutError(null);
     }
   }, [isOpen]);
 
@@ -149,12 +171,23 @@ export default function SmartCartDrawer({
       if (onOpenSignIn) onOpenSignIn();
       return;
     }
-    // Transition to Address & Payment Checkout Step
+    setCheckoutError(null);
+    // If user has enough wallet balance, recommend 1-click WALLET checkout!
+    if (walletBalance >= grandTotal) {
+      setPaymentMethod("WALLET");
+    } else {
+      setPaymentMethod("UPI");
+    }
     setDrawerStep("CHECKOUT");
   };
 
-  const executeCheckout = async (payStatus: string = "PAID", paymentRef?: string) => {
+  const executeCheckout = async (
+    methodToUse: "WALLET" | "UPI" | "CARD" | "COD",
+    paymentRef?: string
+  ) => {
     setIsPlacing(true);
+    setCheckoutError(null);
+
     let orderCode = "SL-" + Math.floor(100000 + Math.random() * 900000);
     let deliveryPin = String(Math.floor(1000 + Math.random() * 9000));
     let pickupPin = String(Math.floor(10 + Math.random() * 90));
@@ -169,92 +202,141 @@ export default function SmartCartDrawer({
           quantity: c.quantity,
         })),
         delivery_address: address,
-        payment_method: paymentMethod,
+        payment_method: methodToUse,
+        payment_id: paymentRef,
+        customer_notes: deliveryInstruction,
       });
+
       if (dbRes?.order_code) {
         orderCode = dbRes.order_code;
-        if (dbRes.id) createdOrderId = String(dbRes.id);
+        if (dbRes.id || dbRes.order?.id) createdOrderId = String(dbRes.id || dbRes.order?.id);
         if (dbRes.delivery_pin) deliveryPin = String(dbRes.delivery_pin);
         if (dbRes.pickup_pin) pickupPin = String(dbRes.pickup_pin);
       }
-    } catch {}
 
-    const newOrder: ActiveOrderData = {
-      id: createdOrderId,
-      orderCode,
-      status: "PLACED",
-      shopName: deliveringShop,
-      shopLocality: currentLocality,
-      deliveryAddress: address,
-      grandTotal,
-      deliveryPin,
-      pickupPin,
-      itemsCount: cart.length,
-    };
+      // Update wallet balance if paid via Wallet
+      if (methodToUse === "WALLET" && typeof dbRes?.new_wallet_balance === "number") {
+        setWalletBalance(dbRes.new_wallet_balance);
+        if (user) {
+          user.wallet_balance = dbRes.new_wallet_balance;
+          localStorage.setItem("servo_user", JSON.stringify(user));
+        }
+        if (onWalletUpdated) {
+          onWalletUpdated(dbRes.new_wallet_balance);
+        }
+      }
 
-    setIsPlacing(false);
-    onOrderPlaced(newOrder);
-    onClearCart();
-    setDrawerStep("CART");
-    onClose();
+      const newOrder: ActiveOrderData = {
+        id: createdOrderId,
+        orderCode,
+        status: "PLACED",
+        shopName: deliveringShop,
+        shopLocality: currentLocality,
+        deliveryAddress: address,
+        grandTotal,
+        deliveryPin,
+        pickupPin,
+        itemsCount: cart.length,
+      };
+
+      setIsPlacing(false);
+      onOrderPlaced(newOrder);
+      onClearCart();
+      setDrawerStep("CART");
+      onClose();
+    } catch (err: any) {
+      setIsPlacing(false);
+      setCheckoutError(err.message || "Checkout failed. Please try again.");
+    }
   };
 
   const handleFinalOrderSubmit = async () => {
-    setIsPlacing(true);
+    setCheckoutError(null);
 
-    // Handle online payment via Razorpay if UPI or CARD
+    // 1. Direct Wallet Checkout
+    if (paymentMethod === "WALLET") {
+      if (walletBalance < grandTotal) {
+        setCheckoutError(
+          `Insufficient wallet balance (₹${walletBalance.toFixed(2)} available, order total is ₹${grandTotal.toFixed(2)}). Please select UPI or Card.`
+        );
+        return;
+      }
+      await executeCheckout("WALLET");
+      return;
+    }
+
+    // 2. Real Online Checkout via Razorpay (UPI QR / Card / Netbanking)
     if (paymentMethod === "UPI" || paymentMethod === "CARD") {
+      setIsPlacing(true);
       try {
         const isLoaded = await loadRazorpayScript();
-        if (isLoaded && (window as any).Razorpay) {
-          const razorpayRes = await createRazorpayOrder(
-            grandTotal,
-            "RCP-" + Date.now()
-          );
-
-          if (razorpayRes?.payment_order) {
-            const keyId = razorpayRes.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1DP5mmOlF5G5ag";
-            const options = {
-              key: keyId,
-              amount: razorpayRes.payment_order.amount,
-              currency: "INR",
-              name: "ServoLocal",
-              description: `Instant Delivery Order from ${deliveringShop}`,
-              order_id: razorpayRes.payment_order.id,
-              prefill: {
-                name: user?.name || "Customer",
-                email: user?.email || "customer@servolocal.in",
-                contact: user?.phone || "+919352286423",
-              },
-              theme: { color: "#0C831F" },
-              handler: async (resp: any) => {
-                try {
-                  await verifyRazorpayPayment({
-                    razorpay_order_id: resp.razorpay_order_id,
-                    razorpay_payment_id: resp.razorpay_payment_id,
-                    razorpay_signature: resp.razorpay_signature,
-                  });
-                } catch {}
-                await executeCheckout("PAID", resp.razorpay_payment_id);
-              },
-              modal: {
-                ondismiss: () => {
-                  setIsPlacing(false);
-                },
-              },
-            };
-            const rzp = new (window as any).Razorpay(options);
-            rzp.open();
-            return;
-          }
+        if (!isLoaded || !(window as any).Razorpay) {
+          throw new Error("Unable to load Razorpay payment gateway SDK.");
         }
-      } catch (err) {
-        console.warn("Razorpay flow initialized fallback:", err);
+
+        const razorpayRes = await createRazorpayOrder(
+          grandTotal,
+          "ORD-" + Date.now(),
+          { payment_method: paymentMethod, shop_name: deliveringShop }
+        );
+
+        if (!razorpayRes?.payment_order) {
+          throw new Error("Failed to initialize payment gateway order.");
+        }
+
+        const keyId =
+          razorpayRes.key_id ||
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+          "rzp_test_1DP5mmOlF5G5ag";
+
+        const options = {
+          key: keyId,
+          amount: razorpayRes.payment_order.amount,
+          currency: "INR",
+          name: "ServoLocal",
+          description: `${paymentMethod === "UPI" ? "UPI Payment" : "Card Payment"} for order at ${deliveringShop}`,
+          order_id: razorpayRes.payment_order.id,
+          prefill: {
+            name: user?.name || "Customer",
+            email: user?.email || "customer@servolocal.in",
+            contact: user?.phone || "+919352286423",
+          },
+          theme: { color: "#0C831F" },
+          handler: async (resp: any) => {
+            try {
+              await verifyRazorpayPayment({
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+                razorpay_signature: resp.razorpay_signature,
+              });
+            } catch (vErr: any) {
+              console.warn("Signature verification notice:", vErr);
+            }
+            await executeCheckout(paymentMethod, resp.razorpay_payment_id);
+          },
+          modal: {
+            ondismiss: () => {
+              setIsPlacing(false);
+              setCheckoutError("Payment was cancelled. You can retry or choose another payment method.");
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+        return;
+      } catch (err: any) {
+        setIsPlacing(false);
+        setCheckoutError(err.message || "Failed to initialize payment gateway.");
+        return;
       }
     }
 
-    // COD or fallback checkout
-    await executeCheckout(paymentMethod === "COD" ? "PENDING_COD" : "PAID");
+    // 3. Cash on Delivery (COD) Checkout
+    if (paymentMethod === "COD") {
+      await executeCheckout("COD");
+      return;
+    }
   };
 
   return (
@@ -668,47 +750,213 @@ export default function SmartCartDrawer({
 
               {/* Payment Methods Card */}
               <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2.5 shadow-2xs">
-                <span className="text-xs font-bold text-[#171717] uppercase tracking-wider block">
-                  Payment Method
-                </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#171717] uppercase tracking-wider block">
+                    Payment Method
+                  </span>
+                  {user && (
+                    <span className="text-[11px] font-semibold text-gray-500">
+                      Wallet: <strong className="text-[#0C831F]">₹{walletBalance.toFixed(2)}</strong>
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Option 1: Servo Wallet */}
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("UPI")}
-                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    onClick={() => {
+                      setCheckoutError(null);
+                      setPaymentMethod("WALLET");
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
+                      paymentMethod === "WALLET"
+                        ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
+                        : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          paymentMethod === "WALLET"
+                            ? "bg-[#0C831F] text-white"
+                            : "bg-emerald-50 text-[#0C831F]"
+                        }`}
+                      >
+                        <Wallet className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold block truncate">Servo Wallet</span>
+                          {paymentMethod === "WALLET" && (
+                            <Check className="w-3.5 h-3.5 text-[#0C831F]" />
+                          )}
+                        </div>
+                        <span className="text-[10px] block text-gray-500 truncate">
+                          {walletBalance >= grandTotal
+                            ? `₹${walletBalance.toFixed(2)} • 1-Click Pay`
+                            : `₹${walletBalance.toFixed(2)} • Low Balance`}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Option 2: UPI QR / Apps */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckoutError(null);
+                      setPaymentMethod("UPI");
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
                       paymentMethod === "UPI"
                         ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <QrCode className="w-4 h-4 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[11px] block font-semibold">UPI QR</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          paymentMethod === "UPI"
+                            ? "bg-[#0C831F] text-white"
+                            : "bg-emerald-50 text-[#0C831F]"
+                        }`}
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold block truncate">UPI QR / Apps</span>
+                          {paymentMethod === "UPI" && (
+                            <Check className="w-3.5 h-3.5 text-[#0C831F]" />
+                          )}
+                        </div>
+                        <span className="text-[10px] block text-gray-500 truncate">
+                          GPay, PhonePe, QR
+                        </span>
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Option 3: Card / Netbanking */}
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("CARD")}
-                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    onClick={() => {
+                      setCheckoutError(null);
+                      setPaymentMethod("CARD");
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
                       paymentMethod === "CARD"
                         ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <CreditCard className="w-4 h-4 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[11px] block font-semibold">Card / Net</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          paymentMethod === "CARD"
+                            ? "bg-[#0C831F] text-white"
+                            : "bg-emerald-50 text-[#0C831F]"
+                        }`}
+                      >
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold block truncate">Cards / Net</span>
+                          {paymentMethod === "CARD" && (
+                            <Check className="w-3.5 h-3.5 text-[#0C831F]" />
+                          )}
+                        </div>
+                        <span className="text-[10px] block text-gray-500 truncate">
+                          Visa, MC, Rupay, Net
+                        </span>
+                      </div>
+                    </div>
                   </button>
+
+                  {/* Option 4: Cash on Delivery */}
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("COD")}
-                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    onClick={() => {
+                      setCheckoutError(null);
+                      setPaymentMethod("COD");
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative ${
                       paymentMethod === "COD"
                         ? "border-[#0C831F] bg-[#EAF7EE] text-[#075C2A] font-bold shadow-2xs"
                         : "border-[#E8ECE9] bg-white text-[#666666] hover:bg-[#F9FAFB]"
                     }`}
                   >
-                    <Banknote className="w-4 h-4 mx-auto mb-1 text-[#0C831F]" />
-                    <span className="text-[11px] block font-semibold">COD</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          paymentMethod === "COD"
+                            ? "bg-[#0C831F] text-white"
+                            : "bg-emerald-50 text-[#0C831F]"
+                        }`}
+                      >
+                        <Banknote className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold block truncate">Cash on Delivery</span>
+                          {paymentMethod === "COD" && (
+                            <Check className="w-3.5 h-3.5 text-[#0C831F]" />
+                          )}
+                        </div>
+                        <span className="text-[10px] block text-gray-500 truncate">
+                          Pay cash at door
+                        </span>
+                      </div>
+                    </div>
                   </button>
                 </div>
+
+                {/* Subtext info for selected method */}
+                {paymentMethod === "WALLET" && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                      walletBalance >= grandTotal
+                        ? "bg-emerald-50 text-[#075C2A] border border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border border-amber-200"
+                    }`}
+                  >
+                    <Wallet className="w-4 h-4 shrink-0" />
+                    {walletBalance >= grandTotal ? (
+                      <span>
+                        ₹{grandTotal} will be directly deducted from your wallet balance. Remaining:{" "}
+                        <strong>₹{(walletBalance - grandTotal).toFixed(2)}</strong>.
+                      </span>
+                    ) : (
+                      <span>
+                        Insufficient balance (₹{walletBalance.toFixed(2)} available, ₹{grandTotal} needed).
+                        Please choose UPI / Card or top up wallet.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {paymentMethod === "UPI" && (
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-800 border border-blue-200 text-xs flex items-center gap-2">
+                    <QrCode className="w-4 h-4 shrink-0 text-blue-600" />
+                    <span>Real-time Razorpay UPI QR code &amp; UPI Apps (GPay, PhonePe, Paytm).</span>
+                  </div>
+                )}
+
+                {paymentMethod === "CARD" && (
+                  <div className="p-2.5 rounded-xl bg-purple-50 text-purple-800 border border-purple-200 text-xs flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 shrink-0 text-purple-600" />
+                    <span>Secure Razorpay gateway with Debit/Credit cards and Netbanking.</span>
+                  </div>
+                )}
+
+                {checkoutError && (
+                  <div className="p-2.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs flex items-center gap-2 animate-in fade-in">
+                    <Info className="w-4 h-4 shrink-0 text-red-500" />
+                    <span>{checkoutError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Order Final Summary Mini Card */}
@@ -732,25 +980,31 @@ export default function SmartCartDrawer({
             <div className="p-3 bg-white border-t border-[#E8ECE9]">
               <button
                 type="button"
-                disabled={isPlacing}
+                disabled={isPlacing || (paymentMethod === "WALLET" && walletBalance < grandTotal)}
                 onClick={handleFinalOrderSubmit}
                 className="w-full py-3 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-md flex items-center justify-between px-4 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
               >
                 <div className="text-left">
                   <span className="text-sm font-black">₹{grandTotal}</span>
                   <span className="text-[10px] opacity-90 uppercase tracking-wider block font-bold">
-                    TOTAL • {paymentMethod}
+                    TOTAL • {paymentMethod === "WALLET" ? "SERVO WALLET" : paymentMethod}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 font-bold text-sm">
                   {isPlacing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Placing Order with Store...</span>
+                      <span>Processing Payment &amp; Placing Order...</span>
                     </>
                   ) : (
                     <>
-                      <span>Place Order</span>
+                      <span>
+                        {paymentMethod === "WALLET"
+                          ? "Pay with Wallet & Place Order"
+                          : paymentMethod === "COD"
+                          ? "Place Order (COD)"
+                          : "Pay & Place Order"}
+                      </span>
                       <ChevronRight className="w-4 h-4 stroke-[2.5]" />
                     </>
                   )}

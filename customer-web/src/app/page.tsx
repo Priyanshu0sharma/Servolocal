@@ -1348,6 +1348,13 @@ export default function CustomerHomePage() {
         currentLocality={currentLocality || "Your Area"}
         user={user}
         onOpenSignIn={() => setIsSignInOpen(true)}
+        onWalletUpdated={(newBal) => {
+          if (user) {
+            const upd = { ...user, wallet_balance: newBal };
+            setUser(upd);
+            localStorage.setItem("servo_user", JSON.stringify(upd));
+          }
+        }}
       />
 
       {/* ── Live 10-15 Min Order Tracker Modal ────────────────────── */}

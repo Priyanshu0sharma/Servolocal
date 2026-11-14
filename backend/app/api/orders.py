@@ -65,7 +65,8 @@ class CheckoutRequest(BaseModel):
     delivery_address: str
     delivery_lat: Optional[float] = 27.0544
     delivery_lng: Optional[float] = 75.8942
-    payment_method: str = "DIRECT_SHOP_UPI"  # DIRECT_SHOP_UPI, RAZORPAY, COD
+    payment_method: str = "DIRECT_SHOP_UPI"  # DIRECT_SHOP_UPI, RAZORPAY, WALLET, COD, UPI, CARD
+    payment_id: Optional[str] = None
     customer_notes: Optional[str] = None
     coupon_code: Optional[str] = None
 
@@ -261,8 +262,32 @@ async def checkout_order(
     pickup_pin = str(random.randint(1000, 9999))
     delivery_pin = str(random.randint(1000, 9999))
 
-    is_paid = payload.payment_method in ("DIRECT_SHOP_UPI", "WALLET")
+    # Process WALLET payment deduction atomically
+    if payload.payment_method == "WALLET":
+        current_wallet = float(user.wallet_balance or 0.0)
+        if current_wallet < grand_total:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient wallet balance. You have ₹{current_wallet:.2f}, but order total is ₹{grand_total:.2f}. Please add money to your wallet.",
+            )
+        user.wallet_balance = round(current_wallet - grand_total, 2)
+        ledger = WalletLedger(
+            user_id=user.id,
+            shop_id=shop.id,
+            entry_type="DEBIT",
+            amount=grand_total,
+            balance_after=user.wallet_balance,
+            note=f"Payment for Order #{order_code} at {shop.name}",
+            created_at=now,
+        )
+        db.add(ledger)
+
+    is_paid = payload.payment_method in ("WALLET", "RAZORPAY", "UPI", "CARD", "DIRECT_SHOP_UPI")
     status = "CONFIRMED" if is_paid else "CREATED"
+
+    customer_notes = payload.customer_notes.strip() if payload.customer_notes else ""
+    if payload.payment_id:
+        customer_notes = f"{customer_notes} (PaymentRef: {payload.payment_id})".strip()
 
     new_order = Order(
         order_code=order_code,
@@ -285,7 +310,7 @@ async def checkout_order(
         delivery_address=payload.delivery_address.strip(),
         delivery_lat=payload.delivery_lat,
         delivery_lng=payload.delivery_lng,
-        customer_notes=payload.customer_notes.strip() if payload.customer_notes else None,
+        customer_notes=customer_notes if customer_notes else None,
         created_at=now,
         updated_at=now,
     )
@@ -324,6 +349,7 @@ async def checkout_order(
         "pickup_pin": new_order.pickup_pin,
         "status": new_order.status,
         "grand_total": new_order.grand_total,
+        "new_wallet_balance": round(user.wallet_balance, 2) if user.wallet_balance is not None else None,
         "order": {
             "id": new_order.id,
             "order_code": new_order.order_code,
@@ -332,6 +358,7 @@ async def checkout_order(
             "pickup_pin": new_order.pickup_pin,
             "delivery_pin": new_order.delivery_pin,
             "payment_method": new_order.payment_method,
+            "payment_status": new_order.payment_status,
             "delivery_address": new_order.delivery_address,
             "shop_name": shop.name,
             "shop_locality": shop.locality_name,
