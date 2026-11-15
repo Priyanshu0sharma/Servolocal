@@ -848,3 +848,53 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `partner-web/src/components/AuthModal.tsx`
   - `AGENT_USAGE_LOG.md`
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
+## Task-2026-11-15-006: Native Flutter Customer Mobile App & APK Build with 12-Module Master Marketplace Architecture
+
+- **Task ID**: `TASK-2026-11-15-006`
+- **Description**: 
+  1. **Designed & Built Native Flutter Customer App (`customer_app`)**:
+     - Developed a native, responsive Android Flutter mobile application conforming directly to the user's reference design (`media_1794720309531_582b15c0.jpg`).
+     - **Design Palette**: Warm cream background (`#FFFDF9`), vibrant orange accents (`#FF6B00`), dark stone typography (`#1C1917`), and gold rating stars (`#F59E0B`).
+     - **Navigation Architecture**: 5-tab persistent bottom navigation bar (`Home`, `Categories`, `Offers`, `Orders`, `Account`) and left slide-out drawer.
+     - **Header & Location Bar**: Hamburger menu, ServoLocal bag logo & tagline, notification badge, live cart counter, and deliver-to address selector ("Deliver to Kanti Nagar, Sindhi Camp, Jaipur v").
+     - **Hero & Benefits**: "In 30 Mins Delivery", "Local Shops", "Fresh & Genuine", "% Best Prices" pill strip; promotional hero banner with carousel dots and "Shop Now →".
+     - **10-Category Grid**: Vegetables & Fruits, Dairy & Breakfast, Snacks & Beverages, Home Essentials, Personal Care, Medicines & Health, Baby Care, Pet Care, Gifting & More, and All Categories.
+     - **Nearby Shops**: Horizontal card list fetching real shops from Neon PostgreSQL via Render API with distance, open/closed status badge, rating, and favorite toggle.
+     - **Deals & Offers**: Curated deal cards with badge discounts and instant quick-add.
+  2. **End-to-End Real Backend Integration**:
+     - Connected to central production FastAPI backend (`https://servolocal-api.onrender.com`) via `ApiService`.
+     - **Auth**: Brevo email OTP login flow, auto-injected Bearer tokens, and secure local storage with `SharedPreferences`.
+     - **18+ Safety Mode**: User profile toggle filtering adult products and restricting checkout for minors.
+     - **Cart & Checkout**: Multi-vendor line item grouping, coupon validation (`SERVO50`, `WELCOME`), delivery fee calculation, and payment mode selection (Cash on Delivery / Online UPI).
+     - **5-Stage Order Lifecycle**: `created` ➔ `accepted` ➔ `packing` ➔ `outForDelivery` ➔ `delivered` live status stepper with rider details and 4-digit Delivery PIN verification.
+     - **Verified Reviews**: Multi-axis rating dialog (Product, Shop, Delivery Partner) restricted to genuinely delivered orders.
+  3. **Verification & APK Compilation**:
+     - Resolved RenderFlex layout overflow in `nearby_shops_section.dart` with flexible wrapping.
+     - Ran `flutter test` — 100% green passed (`All tests passed!`).
+     - Ran `flutter analyze` — 0 errors.
+     - Compiled production Android APKs via Gradle:
+       - `apk/ServoLocal-Customer-Release.apk` (52.7 MB, optimized release build)
+       - `apk/ServoLocal-Customer-Debug.apk` (155 MB, debug build)
+- **Repositories & Toolchains**: `customer_app`, `Flutter 3.44.2`, `Dart 3.12.2`, `Android SDK 36.1.0`, `Gradle 9.1.0`, `pytest`, `gitleaks`
+- **Commands Executed**:
+  - `Push-Location customer_app; flutter test; Pop-Location` (All tests passed!)
+  - `Push-Location customer_app; flutter analyze; Pop-Location` (Exit code 0)
+  - `Push-Location customer_app; flutter build apk --debug; Pop-Location` (Built app-debug.apk)
+  - `Push-Location customer_app; flutter build apk --release; Pop-Location` (Built app-release.apk, 50.3MB compressed)
+  - `npm --prefix customer-web run type-check` (Exit code 0)
+  - `npm --prefix partner-web run type-check` (Exit code 0)
+  - `pytest backend/tests` (25/25 passed in 38.80s)
+  - `gitleaks detect --source customer_app/lib --no-git` (0 leaks found)
+- **Changed / Created Files**:
+  - `customer_app/lib/*` (Complete Flutter customer application)
+  - `customer_app/pubspec.yaml`
+  - `customer_app/test/widget_test.dart`
+  - `apk/ServoLocal-Customer-Release.apk`
+  - `apk/ServoLocal-Customer-Debug.apk`
+  - `.gitignore`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED

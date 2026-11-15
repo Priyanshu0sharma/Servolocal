@@ -41,6 +41,12 @@ build/
 .vercel/
 
 # ─── Flutter / Mobile ───────────────────────────────────────────
+customer_app/build/
+customer_app/.dart_tool/
+customer_app/.flutter-plugins
+customer_app/.flutter-plugins-dependencies
+customer_app/.packages
+customer_app/android/.gradle/
 mobile-apps/**/build/
 mobile-apps/**/.dart_tool/
 mobile-apps/**/.flutter-plugins
