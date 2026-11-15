@@ -719,3 +719,35 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
 
 
 
+
+---
+
+## Task-2026-11-15-001: Blinkit-Style Product Detail Page, Category Integrity & Demo Shop Purge
+
+- **Task ID**: `TASK-2026-11-15-001`
+- **Description**: Terminated hanging background task; implemented Blinkit-style dedicated product detail page (`/product/[slug]/[id]` with `/prn/` rewrite); fixed category and subcategory scrambling in split-view storefront; permanently purged 8 fake demo shops and 93 demo inventory items from Neon PostgreSQL; added authentic Indian FMCG (Parle-G Gold, Hide & Seek, Milano), Electronics (JBL Tune 510BT, boAt BassHeads, Mi 20W Charger, Ambrane Powerbank), and Pharma (Dolo-650, Vicks, Dettol, Crocin, Digene) items; and added clean empty states prompting real merchant signups on ServoPartner.
+- **Repositories & Toolchains**: `customer-web`, `partner-web`, `admin-web`, `backend`, `superpowers`, `agent-toolkit`
+- **Commands Executed**:
+  - `manage_task(Action='kill')` (Terminated hung task-14097)
+  - `python scratch/purge_demo_shops.py` (Purged 8 demo shops & 93 demo items from Neon DB)
+  - `npm --prefix customer-web run type-check` (Exit code 0)
+  - `npm --prefix customer-web run build` (Exit code 0, 8/8 static/dynamic routes)
+  - `npm --prefix partner-web run type-check` (Exit code 0)
+  - `npm --prefix partner-web run build` (Exit code 0, 7/7 routes)
+  - `npm --prefix admin-web run build` (Exit code 0, 4/4 routes)
+  - `pytest backend/tests` (25/25 passed)
+  - `git diff --cached | gitleaks detect --pipe` (0 leaks found)
+  - `semgrep scan --config "p/python" backend/app --metrics=off` (0 findings across 27 files)
+  - `git push origin main` (Commit `3d64e41` deployed)
+- **Changed / Created Files**:
+  - `customer-web/src/app/product/[slug]/[id]/page.tsx`
+  - `customer-web/src/app/product/[slug]/page.tsx`
+  - `customer-web/next.config.ts`
+  - `customer-web/src/app/page.tsx`
+  - `customer-web/src/components/BlinkitSplitViewStorefront.tsx`
+  - `customer-web/src/components/PopularShopsSection.tsx`
+  - `customer-web/src/lib/masterCatalogData.ts`
+  - `backend/app/api/seller.py`
+  - `backend/tests/test_all_workflows.py`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED
