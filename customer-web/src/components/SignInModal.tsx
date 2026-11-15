@@ -23,6 +23,7 @@ export default function SignInModal({
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [dobInput, setDobInput] = useState("");
+  const [is18Plus, setIs18Plus] = useState(true);
   const [genderInput, setGenderInput] = useState("Male");
   const [verifiedUser, setVerifiedUser] = useState<UserProfile | null>(null);
   const [error, setError] = useState("");
@@ -41,6 +42,7 @@ export default function SignInModal({
     setNameInput("");
     setPhoneInput("");
     setDobInput("");
+    setIs18Plus(true);
     setGenderInput("Male");
     setVerifiedUser(null);
     setError("");
@@ -106,6 +108,7 @@ export default function SignInModal({
     setNameInput("");
     setPhoneInput("");
     setDobInput("");
+    setIs18Plus(true);
     setGenderInput("Male");
     setVerifiedUser(null);
     setLoading(true);
@@ -135,6 +138,7 @@ export default function SignInModal({
     setNameInput("");
     setPhoneInput("");
     setDobInput("");
+    setIs18Plus(true);
     setGenderInput("Male");
     setVerifiedUser(null);
     setLoading(true);
@@ -195,8 +199,15 @@ export default function SignInModal({
       return;
     }
 
+    if (!is18Plus) {
+      setError("You must confirm you are 18+ to proceed with registration");
+      return;
+    }
+
     const formattedPhone = `+91${cleanPhoneDigits}`;
     setLoading(true);
+
+    const dobValue = is18Plus ? "18+ Confirmed" : undefined;
 
     let finalUser: UserProfile = verifiedUser
       ? {
@@ -204,7 +215,7 @@ export default function SignInModal({
           name: cleanName,
           phone: formattedPhone,
           gender: genderInput,
-          date_of_birth: dobInput.trim() || undefined,
+          date_of_birth: dobValue,
         }
       : {
           id: Date.now(),
@@ -213,7 +224,7 @@ export default function SignInModal({
           role: "customer",
           phone: formattedPhone,
           gender: genderInput,
-          date_of_birth: dobInput.trim() || undefined,
+          date_of_birth: dobValue,
         };
 
     try {
@@ -221,7 +232,7 @@ export default function SignInModal({
         name: cleanName,
         phone: formattedPhone,
         gender: genderInput,
-        date_of_birth: dobInput.trim() || undefined,
+        date_of_birth: dobValue,
       });
       if (updated && updated.name) {
         finalUser = updated;
@@ -242,6 +253,7 @@ export default function SignInModal({
     setNameInput("");
     setPhoneInput("");
     setDobInput("");
+    setIs18Plus(true);
     setGenderInput("Male");
     setVerifiedUser(null);
     setLoading(true);
@@ -549,22 +561,53 @@ export default function SignInModal({
                 </p>
               </div>
 
-              {/* Date of Birth (Optional) */}
-              <div className="space-y-1">
+              {/* Age Verification: Are you 18+? */}
+              <div className="p-3 bg-gradient-to-r from-emerald-50/70 via-emerald-50/30 to-white border border-emerald-200/80 rounded-xl transition-all shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-700">Date of Birth</label>
-                  <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    Birthday Treats
-                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs transition-colors select-none ${
+                        is18Plus ? "bg-[#078B35] text-white shadow-sm shadow-[#078B35]/25" : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      18+
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <label
+                          className="text-xs font-bold text-gray-800 cursor-pointer select-none"
+                          onClick={() => setIs18Plus(!is18Plus)}
+                        >
+                          Are you 18+ years old?
+                        </label>
+                        <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded-full select-none">
+                          Required
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-tight">
+                        Complies with local trade &amp; doorstep delivery laws
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={is18Plus}
+                    onClick={() => {
+                      setIs18Plus(!is18Plus);
+                      if (error) setError("");
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 cursor-pointer focus:outline-none ${
+                      is18Plus ? "bg-[#078B35]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
+                        is18Plus ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
                 </div>
-                <input
-                  type="date"
-                  value={dobInput}
-                  onChange={(e) => setDobInput(e.target.value)}
-                  disabled={loading}
-                  className="w-full px-4 py-2.5 text-xs text-gray-900 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#078B35] focus:ring-2 focus:ring-[#078B35]/20"
-                />
               </div>
 
               {/* Gender Selection */}
@@ -606,9 +649,9 @@ export default function SignInModal({
 
               <button
                 type="submit"
-                disabled={!nameInput.trim() || phoneInput.replace(/\D/g, "").length !== 10 || loading}
+                disabled={!nameInput.trim() || phoneInput.replace(/\D/g, "").length !== 10 || !is18Plus || loading}
                 className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-150 flex items-center justify-center gap-2 mt-2 ${
-                  nameInput.trim() && phoneInput.replace(/\D/g, "").length === 10 && !loading
+                  nameInput.trim() && phoneInput.replace(/\D/g, "").length === 10 && is18Plus && !loading
                     ? "bg-[#078B35] hover:bg-[#075C2A] text-white shadow-sm cursor-pointer active:scale-[0.99]"
                     : "bg-gray-100 text-gray-400 cursor-not-allowed"
                 }`}

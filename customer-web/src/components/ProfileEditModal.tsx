@@ -210,6 +210,7 @@ export default function ProfileEditModal({
             <input
               type="date"
               value={dob}
+              max={new Date().toISOString().split("T")[0]}
               onChange={(e) => setDob(e.target.value)}
               className="w-full px-3.5 py-2.5 text-xs text-gray-900 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F]"
             />
