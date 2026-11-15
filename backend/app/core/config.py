@@ -67,8 +67,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
-    # Resend & Brevo Email Service
-    RESEND_API_KEY: Optional[str] = None
+    # Brevo Transactional Email Service (300 Free Emails / Day)
     BREVO_API_KEY: Optional[str] = None
     BREVO_SENDER_EMAIL: str = "priyanshusharma1131@gmail.com"
     EMAIL_FROM: str = "ServoLocal <priyanshusharma1131@gmail.com>"

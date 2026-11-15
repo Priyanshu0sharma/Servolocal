@@ -45,7 +45,7 @@ async def check_smtp():
     smtp_host = os.getenv("SMTP_HOST") or "smtp.gmail.com"
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = bool(os.getenv("SMTP_PASSWORD"))
-    resend_key = bool(os.getenv("RESEND_API_KEY"))
+    brevo_key = bool(os.getenv("BREVO_API_KEY") or getattr(settings, "BREVO_API_KEY", None))
 
     conn_result = {}
     for p in [587, 465]:
@@ -75,7 +75,7 @@ async def check_smtp():
         "smtp_host": smtp_host,
         "smtp_user": smtp_user[:3] + "***" if smtp_user else None,
         "smtp_pass_configured": smtp_pass,
-        "resend_key_configured": resend_key,
+        "brevo_key_configured": brevo_key,
         "ports": conn_result,
     }
 
