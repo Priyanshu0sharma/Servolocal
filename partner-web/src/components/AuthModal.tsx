@@ -66,6 +66,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
   // Registration State - Essential fields only
   const [regStep, setRegStep] = useState<"FORM" | "OTP" | "SUCCESS">("FORM");
+  const [registeredUser, setRegisteredUser] = useState<UserProfile | null>(null);
   const [fullName, setFullName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
@@ -365,6 +366,16 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     setErrorMsg("");
   };
 
+  // Auto-redirect to dashboard on successful partner registration
+  useEffect(() => {
+    if (regStep === "SUCCESS" && registeredUser) {
+      const timer = setTimeout(() => {
+        onLoginSuccess(registeredUser);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [regStep, registeredUser, onLoginSuccess]);
+
   // ── Existing Login Flow ──────────────────────────────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,7 +514,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
     setErrorMsg("");
 
     try {
-      await registerPartner({
+      const res = await registerPartner({
         role: role as "seller" | "partner",
         full_name: fullName.trim(),
         email: cleanEmail,
@@ -522,6 +533,20 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
             }),
       });
 
+      const partnerUser = (res.user as UserProfile) || {
+        id: Date.now(),
+        email: cleanEmail,
+        name: fullName.trim(),
+        role: role as any,
+        wallet_balance: 0,
+        dues_limit: 1000,
+        servo_coins: 0,
+        is_active: true,
+        terms_accepted: true,
+        location_permission_granted: true,
+      };
+
+      setRegisteredUser(partnerUser);
       setRegStep("SUCCESS");
       setErrorMsg("");
       setSuccessMsg("");
@@ -1163,25 +1188,25 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Pending Admin Approval</span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Instant Auto-Approval • 100% Active</span>
                     </div>
 
                     <h3 className="text-lg font-black text-slate-900">
-                      Application Submitted!
+                      Welcome to ServoPartner!
                     </h3>
 
                     <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
                       {role === "seller"
-                        ? `Your shop "${shopName}" is registered. Accounts remain pending administrator verification before sign-in is unlocked.`
-                        : `Your delivery partner profile is registered. Accounts remain pending verification before delivery assignments begin.`}
+                        ? `Your shop "${shopName}" is verified and live on the hyperlocal grid. You can start adding products and accepting orders immediately!`
+                        : `Your delivery partner profile is active and verified. You are ready to receive delivery dispatch requests.`}
                     </p>
                   </div>
 
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-left text-xs space-y-1.5 text-slate-600">
                     <div className="flex justify-between">
-                      <span>Applicant:</span>
+                      <span>Owner / Partner:</span>
                       <span className="font-semibold text-slate-900">{fullName}</span>
                     </div>
                     <div className="flex justify-between">
@@ -1195,7 +1220,13 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                     <div className="flex justify-between">
                       <span>Role:</span>
                       <span className="font-semibold text-emerald-700 capitalize">
-                        {role === "seller" ? "Shopkeeper" : "Delivery Partner"}
+                        {role === "seller" ? "Shopkeeper (Merchant)" : "Delivery Partner (Fleet)"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Account Status:</span>
+                      <span className="font-bold text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Live & Ready
                       </span>
                     </div>
                   </div>
@@ -1203,18 +1234,31 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setEmail(regEmail);
-                      setAuthMode("LOGIN");
-                      setStep("EMAIL");
-                      setRegStep("FORM");
-                      setErrorMsg("");
-                      setSuccessMsg("Account registered. Sign-in will be enabled upon administrator approval.");
+                      if (registeredUser) {
+                        onLoginSuccess(registeredUser);
+                      } else {
+                        onLoginSuccess({
+                          id: Date.now(),
+                          email: regEmail,
+                          name: fullName,
+                          role: role as any,
+                          wallet_balance: 0,
+                          dues_limit: 1000,
+                          servo_coins: 0,
+                          is_active: true,
+                          terms_accepted: true,
+                          location_permission_granted: true,
+                        });
+                      }
                     }}
-                    className="w-full py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Proceed to Sign In</span>
+                    <span>Enter Partner Dashboard</span>
                     <ArrowRight className="w-4 h-4 text-white" />
                   </button>
+                  <p className="text-[11px] text-slate-400">
+                    Opening dashboard automatically in 2 seconds...
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>

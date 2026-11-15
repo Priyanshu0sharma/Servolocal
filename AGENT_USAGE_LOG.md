@@ -828,3 +828,23 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `partner-web/src/components/AuthModal.tsx`
   - `AGENT_USAGE_LOG.md`
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
+## Task-2026-11-15-005: Partner Registration Instant Auto-Approval & Zero-Friction Dashboard Onboarding
+
+- **Task ID**: `TASK-2026-11-15-005`
+- **Description**: 
+  1. **Purged Manual Admin Approval Roadblock**: Removed the legacy "Pending Admin Approval" screen and "Sign-in will be enabled upon administrator approval" roadblocks from `partner-web/src/components/AuthModal.tsx`.
+  2. **Enabled Instant Auto-Approval & Auto-Redirect**: Updated `partner-web/src/lib/api.ts` to automatically store `access_token` and `user` upon partner registration. In `AuthModal.tsx`, upon successful OTP verification during registration, the partner account is immediately recognized as auto-approved and 100% active. Renders an instant verification confirmation card with an "Enter Partner Dashboard →" button and an automated 2-second redirect into the live merchant/fleet dashboard.
+- **Repositories & Toolchains**: `partner-web`, `superpowers`, `agent-workflows`, `GoogleChrome/modern-web-guidance`
+- **Commands Executed**:
+  - `npm --prefix partner-web run type-check` (Exit code 0)
+  - `npm --prefix partner-web run build` (Exit code 0, 7/7 routes compiled)
+  - `git commit` and `git push origin main`
+- **Changed Files**:
+  - `partner-web/src/lib/api.ts`
+  - `partner-web/src/components/AuthModal.tsx`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED

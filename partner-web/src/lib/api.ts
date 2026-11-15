@@ -236,6 +236,8 @@ export interface RegistrationResponse {
   email: string;
   status: string;
   message: string;
+  access_token?: string;
+  user?: UserProfile;
 }
 
 // Auth Endpoints
@@ -256,6 +258,11 @@ export async function sendOtp(
 
 export async function registerPartner(payload: PartnerRegistrationPayload): Promise<RegistrationResponse> {
   const res = await api.post("/api/auth/register-partner", payload);
+  if (res.data?.access_token) {
+    localStorage.setItem("servo_partner_token", res.data.access_token);
+    localStorage.setItem("servo_partner_role", res.data.user.role);
+    localStorage.setItem("servo_partner_user", JSON.stringify(res.data.user));
+  }
   return res.data;
 }
 
