@@ -773,3 +773,22 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `backend/app/api/auth.py`
   - `AGENT_USAGE_LOG.md`
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
+## Task-2026-11-15-003: Profile Completion Age Verification UI Modernization (18+ Toggle)
+
+- **Task ID**: `TASK-2026-11-15-003`
+- **Description**: Replaced the clunky HTML native date-picker in the customer profile completion modal with a modern, iOS-style interactive "Are you 18+ years old?" verification toggle card. Defaulted to verified 18+ with smooth emerald accents matching Blinkit design patterns. Added future date restrictions (`max={today}`) in profile edit modal.
+- **Repositories & Toolchains**: `customer-web`, `superpowers`, `GoogleChrome/modern-web-guidance`
+- **Commands Executed**:
+  - `npm --prefix customer-web run type-check` (Exit code 0)
+  - `npm --prefix customer-web run build` (Exit code 0, 8/8 routes compiled)
+  - `git diff | gitleaks detect --pipe` (0 leaks found)
+  - `git commit` and `git push origin main` (Commit `b97f598`)
+- **Changed Files**:
+  - `customer-web/src/components/SignInModal.tsx`
+  - `customer-web/src/components/ProfileEditModal.tsx`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED
