@@ -48,6 +48,8 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addItem(ProductModel product, {int qty = 1}) => addToCart(product, qty: qty);
+
   void updateQuantity(int inventoryId, int qty) {
     if (!_items.containsKey(inventoryId)) return;
     if (qty <= 0) {

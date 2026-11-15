@@ -58,32 +58,35 @@ class TodayOffersSection extends StatelessWidget {
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            children: const [
+            children: [
               _OfferBannerCard(
                 badge: 'Up to',
                 highlight: '50% OFF',
                 title: 'On Daily Groceries',
                 emoji: '🥗',
-                bgColor: Color(0xFFFFF7ED),
-                borderColor: Color(0xFFFFEDD5),
+                bgColor: const Color(0xFFFFF7ED),
+                borderColor: const Color(0xFFFFEDD5),
+                onTap: onViewAll,
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               _OfferBannerCard(
                 badge: 'Buy 1 Get 1',
                 highlight: 'FREE',
                 title: 'Snacks & Beverages',
                 emoji: '🥤',
-                bgColor: Color(0xFFFEF2F2),
-                borderColor: Color(0xFFFEE2E2),
+                bgColor: const Color(0xFFFEF2F2),
+                borderColor: const Color(0xFFFEE2E2),
+                onTap: onViewAll,
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               _OfferBannerCard(
                 badge: 'Flat',
                 highlight: '₹100 OFF',
                 title: 'On Orders Above ₹499',
                 emoji: '🏷️',
-                bgColor: Color(0xFFF0FDF4),
-                borderColor: Color(0xFFDCFCE7),
+                bgColor: const Color(0xFFF0FDF4),
+                borderColor: const Color(0xFFDCFCE7),
+                onTap: onViewAll,
               ),
             ],
           ),
@@ -100,6 +103,7 @@ class _OfferBannerCard extends StatelessWidget {
   final String emoji;
   final Color bgColor;
   final Color borderColor;
+  final VoidCallback? onTap;
 
   const _OfferBannerCard({
     required this.badge,
@@ -108,12 +112,15 @@ class _OfferBannerCard extends StatelessWidget {
     required this.emoji,
     required this.bgColor,
     required this.borderColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 190,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 190,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: bgColor,
@@ -181,6 +188,7 @@ class _OfferBannerCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

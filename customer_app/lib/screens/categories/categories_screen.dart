@@ -5,6 +5,7 @@ import '../../providers/feed_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../product/product_detail_screen.dart';
+import '../../widgets/floating_cart_bar.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -24,14 +25,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final categories = feedProv.categories;
     final activeCat = categories[_selectedCategoryIndex];
 
-    // Filter products for this category
+    // Filter products for this category using the master category matching logic
     final allProducts = feedProv.getFilteredProducts(isUser18Plus: authProv.is18Plus);
     final categoryProducts = activeCat.id == 'all'
         ? allProducts
         : allProducts.where((p) {
-            final catLower = activeCat.name.toLowerCase();
-            final pCatLower = p.category.toLowerCase();
-            return pCatLower.contains(activeCat.id) || catLower.contains(pCatLower) || pCatLower.contains(catLower);
+            return FeedProvider.matchesCategory(activeCat.id, p.category, p.subCategory);
           }).toList();
 
     return Scaffold(
@@ -39,9 +38,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       appBar: AppBar(
         title: const Text('Categories & Aisles', style: TextStyle(fontWeight: FontWeight.w900)),
       ),
-      body: Row(
+      body: Stack(
         children: [
-          // ── Left Aisle Sidebar ───────────────────────────────────────────
+          Row(
+            children: [
+              // ── Left Aisle Sidebar ───────────────────────────────────────────
           Container(
             width: 95,
             color: Colors.white,
@@ -204,6 +205,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
-    );
+      const Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: FloatingCartBar(),
+      ),
+    ],
+  ),
+);
   }
 }

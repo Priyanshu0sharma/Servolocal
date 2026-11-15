@@ -14,6 +14,9 @@ import 'widgets/nearby_shops_section.dart';
 import 'widgets/today_offers_section.dart';
 import '../product/product_detail_screen.dart';
 import '../cart/cart_screen.dart';
+import '../shop/shop_detail_screen.dart';
+import '../categories/category_products_screen.dart';
+import '../../widgets/floating_cart_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onOpenCategories;
@@ -167,13 +170,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () => feedProv.fetchDiscoveryFeed(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-            child: Column(
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => feedProv.fetchDiscoveryFeed(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 1. Header with Brand, Bell & Deliver To Bar
@@ -224,7 +229,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (cat.id == 'all') {
                       widget.onOpenCategories();
                     } else {
-                      feedProv.selectCategory(cat.id);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CategoryProductsScreen(category: cat),
+                        ),
+                      );
                     }
                   },
                 ),
@@ -234,11 +244,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 6. Shop from Nearby Stores Section
                 NearbyShopsSection(
                   onSelectShop: (shop) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Opening ${shop.name} inventory...'),
-                        duration: const Duration(seconds: 1),
-                        behavior: SnackBarBehavior.floating,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ShopDetailScreen(shop: shop),
                       ),
                     );
                   },
@@ -521,7 +530,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-    );
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: FloatingCartBar(),
+        ),
+      ],
+    ),
+  ),
+);
   }
 }

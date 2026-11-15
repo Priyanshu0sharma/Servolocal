@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/api_constants.dart';
 import '../core/network/api_service.dart';
+import '../core/data/master_catalog.dart';
 import '../models/shop_model.dart';
 import '../models/product_model.dart';
 
@@ -116,144 +117,8 @@ class FeedProvider extends ChangeNotifier {
   }
 
   void _initLocalCatalog() {
-    _shops = [
-      ShopModel(
-        id: 7,
-        name: 'Saini Restrorent and Kirana Store',
-        category: 'Kirana & Daily Needs',
-        isOpen: true,
-        rating: 4.8,
-        ratingCount: '1.2k+',
-        distanceKm: 0.8,
-        etaMins: '⚡ 10 mins',
-        localityName: 'Kanti Nagar, Sindhi Camp',
-      ),
-      ShopModel(
-        id: 1,
-        name: 'Gupta Kirana Store',
-        category: 'Grocery & Staples',
-        isOpen: true,
-        rating: 4.7,
-        ratingCount: '950+',
-        distanceKm: 1.2,
-        etaMins: '⚡ 15 mins',
-        localityName: 'Sindhi Camp Market',
-      ),
-      ShopModel(
-        id: 2,
-        name: 'Rajasthan Fresh Mart',
-        category: 'Dairy, Bread & Eggs',
-        isOpen: true,
-        rating: 4.9,
-        ratingCount: '2.1k+',
-        distanceKm: 1.4,
-        etaMins: '⚡ 12 mins',
-        localityName: 'Station Road',
-      ),
-    ];
-
-    _allProducts = [
-      ProductModel(
-        id: 9001,
-        name: 'Amul Taaza Homogenised Toned Milk',
-        brand: 'Amul',
-        category: 'Dairy, Bread & Eggs',
-        subCategory: 'Milk',
-        sellingPrice: 28,
-        mrp: 30,
-        unit: '500 ml',
-        imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 7,
-        shopName: 'Saini Restrorent and Kirana Store',
-      ),
-      ProductModel(
-        id: 9002,
-        name: "Lay's India's Magic Masala Potato Chips",
-        brand: "Lay's",
-        category: 'Snacks & Munchies',
-        subCategory: 'Chips & Crisps',
-        sellingPrice: 20,
-        mrp: 20,
-        unit: '50 g',
-        imageUrl: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 7,
-        shopName: 'Saini Restrorent and Kirana Store',
-      ),
-      ProductModel(
-        id: 9003,
-        name: 'Fortune Sunlite Refined Sunflower Oil',
-        brand: 'Fortune',
-        category: 'Grocery',
-        subCategory: 'Edible Oils',
-        sellingPrice: 142,
-        mrp: 165,
-        unit: '1 L',
-        imageUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 1,
-        shopName: 'Gupta Kirana Store',
-      ),
-      ProductModel(
-        id: 9004,
-        name: 'Aashirvaad Shudh Chakki Atta',
-        brand: 'Aashirvaad',
-        category: 'Grocery',
-        subCategory: 'Atta & Flours',
-        sellingPrice: 245,
-        mrp: 275,
-        unit: '5 kg',
-        imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 7,
-        shopName: 'Saini Restrorent and Kirana Store',
-      ),
-      ProductModel(
-        id: 9005,
-        name: 'Dettol Original Germ Protection Bathing Soap',
-        brand: 'Dettol',
-        category: 'Personal Care',
-        subCategory: 'Bath & Body',
-        sellingPrice: 95,
-        mrp: 110,
-        unit: 'Pack of 3 x 75g',
-        imageUrl: 'https://images.unsplash.com/photo-1607006314187-573e047466eb?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 1,
-        shopName: 'Gupta Kirana Store',
-      ),
-      ProductModel(
-        id: 9006,
-        name: 'Dolo 650 Paracetamol Tablets',
-        brand: 'Micro Labs',
-        category: 'Medicines & Health',
-        subCategory: 'First Aid & Pain',
-        sellingPrice: 32,
-        mrp: 35,
-        unit: 'Strip of 15 Tabs',
-        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        shopId: 2,
-        shopName: 'Rajasthan Fresh Mart',
-      ),
-      // Adult 18+ Product (Protected by age gate)
-      ProductModel(
-        id: 9020,
-        name: 'Durex Extra Thin Ultra Lubricated Condoms',
-        brand: 'Durex',
-        category: 'Personal Care',
-        subCategory: 'Sexual Wellness',
-        sellingPrice: 220,
-        mrp: 240,
-        unit: 'Pack of 10',
-        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80',
-        inStock: true,
-        is18Plus: true,
-        shopId: 7,
-        shopName: 'Saini Restrorent and Kirana Store',
-      ),
-    ];
+    _shops = List.from(MasterCatalog.shops);
+    _allProducts = List.from(MasterCatalog.products);
   }
 
   Future<void> fetchDiscoveryFeed() async {
@@ -286,16 +151,14 @@ class FeedProvider extends ChangeNotifier {
   }
 
   List<ProductModel> getFilteredProducts({required bool isUser18Plus}) {
-    return _allProducts.filter((p) {
+    return _allProducts.where((p) {
       // 18+ Age Restriction Gate
       if (!isUser18Plus && p.is18Plus) return false;
       if (!isUser18Plus && p.subCategory.toLowerCase().contains('sexual wellness')) return false;
 
       // Category filter
       if (_selectedCategory != 'all') {
-        final catLower = _selectedCategory.toLowerCase();
-        final pCatLower = p.category.toLowerCase();
-        if (!pCatLower.contains(catLower) && !catLower.contains(pCatLower)) {
+        if (!matchesCategory(_selectedCategory, p.category, p.subCategory)) {
           return false;
         }
       }
@@ -305,11 +168,55 @@ class FeedProvider extends ChangeNotifier {
         final q = _searchQuery.toLowerCase().trim();
         return p.name.toLowerCase().contains(q) ||
             p.brand.toLowerCase().contains(q) ||
-            p.category.toLowerCase().contains(q);
+            p.category.toLowerCase().contains(q) ||
+            p.subCategory.toLowerCase().contains(q);
       }
 
       return true;
     }).toList();
+  }
+
+  static bool matchesCategory(String selectedCatId, String productCategory, String productSubCategory) {
+    if (selectedCatId == 'all') return true;
+    final cat = productCategory.toLowerCase();
+    final sub = productSubCategory.toLowerCase();
+    switch (selectedCatId) {
+      case 'veg_fruits':
+        return cat.contains('veg') || cat.contains('fruit') || cat.contains('produce') ||
+            sub.contains('veg') || sub.contains('fruit');
+      case 'dairy_breakfast':
+        return cat.contains('dairy') || cat.contains('milk') || cat.contains('breakfast') ||
+            sub.contains('dairy') || sub.contains('milk') || sub.contains('bread') ||
+            sub.contains('egg') || sub.contains('paneer') || sub.contains('curd') ||
+            sub.contains('butter');
+      case 'snacks_drinks':
+        return cat.contains('snack') || cat.contains('drink') || cat.contains('beverage') ||
+            cat.contains('cold') || sub.contains('chips') || sub.contains('namkeen') ||
+            sub.contains('juice') || sub.contains('soda') || sub.contains('soft');
+      case 'home_essentials':
+        return cat.contains('home') || cat.contains('cleaning') || cat.contains('kitchen') ||
+            cat.contains('household') || sub.contains('detergent') || sub.contains('dishwash') ||
+            sub.contains('cleaner') || sub.contains('repellent');
+      case 'personal_care':
+        return cat.contains('personal') || cat.contains('beauty') || cat.contains('care') ||
+            sub.contains('soap') || sub.contains('oral') || sub.contains('skin') ||
+            sub.contains('shampoo') || sub.contains('wellness');
+      case 'medicines':
+        return cat.contains('medicine') || cat.contains('pharma') || cat.contains('health') ||
+            sub.contains('pain') || sub.contains('first aid') || sub.contains('relief') ||
+            sub.contains('cold') || sub.contains('digestion');
+      case 'baby_care':
+        return cat.contains('baby') || sub.contains('baby') || sub.contains('diaper') ||
+            sub.contains('cerelac') || sub.contains('wipe');
+      case 'pet_care':
+        return cat.contains('pet') || sub.contains('dog') || sub.contains('cat') ||
+            sub.contains('pet');
+      case 'gifting':
+        return cat.contains('gift') || cat.contains('sweet') || cat.contains('mithai') ||
+            sub.contains('chocolate') || sub.contains('sweet');
+      default:
+        return cat.contains(selectedCatId.toLowerCase()) || sub.contains(selectedCatId.toLowerCase());
+    }
   }
 
   void selectCategory(String catId) {
@@ -320,11 +227,5 @@ class FeedProvider extends ChangeNotifier {
   void setSearchQuery(String query) {
     _searchQuery = query;
     notifyListeners();
-  }
-}
-
-extension ProductListFilter on List<ProductModel> {
-  List<ProductModel> filter(bool Function(ProductModel p) test) {
-    return where(test).toList();
   }
 }
