@@ -52,6 +52,19 @@ export default function BlinkitSplitViewStorefront({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubCatId, setSelectedSubCatId] = useState<string>("all");
 
+  // Check if current user is explicitly marked as under 18
+  const isUnder18 = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const savedUser = localStorage.getItem("servo_user");
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        return parsed.is_18_plus === false;
+      }
+    } catch {}
+    return false;
+  }, []);
+
   // Find matching category hierarchy if categoryName is provided
   const currentHierarchy = useMemo(() => {
     if (!categoryName) return null;
@@ -64,29 +77,42 @@ export default function BlinkitSplitViewStorefront({
     );
   }, [categoryName]);
 
-  // Build sub-categories for left aisle sidebar
+  // Build sub-categories for left aisle sidebar (filtering out 18+ for minors)
   const subCategories = useMemo(() => {
-    if (currentHierarchy) {
-      return currentHierarchy.sub_categories;
+    let subs = currentHierarchy ? currentHierarchy.sub_categories : [];
+    if (!currentHierarchy) {
+      // If shop view, extract unique sub-categories from products of this shop
+      const uniqueSubs = Array.from(
+        new Set(
+          allProducts
+            .filter((p) => (shopName ? p.shop_name === shopName || p.shop_id === shopId : true))
+            .map((p) => p.sub_category || p.category)
+            .filter(Boolean)
+        )
+      );
+      subs = [
+        { id: "all", name: "All Items", icon: "✨" },
+        ...uniqueSubs.map((s, idx) => ({ id: `sub_${idx}`, name: s, icon: "🏷️" })),
+      ];
     }
-    // If shop view, extract unique sub-categories from products of this shop
-    const uniqueSubs = Array.from(
-      new Set(
-        allProducts
-          .filter((p) => (shopName ? p.shop_name === shopName || p.shop_id === shopId : true))
-          .map((p) => p.sub_category || p.category)
-          .filter(Boolean)
-      )
-    );
-    return [
-      { id: "all", name: "All Items", icon: "✨" },
-      ...uniqueSubs.map((s, idx) => ({ id: `sub_${idx}`, name: s, icon: "🏷️" })),
-    ];
-  }, [currentHierarchy, allProducts, shopName, shopId]);
+    if (isUnder18) {
+      return subs.filter(
+        (s) => s.id !== "sexual-wellness" && !s.name.includes("18+")
+      );
+    }
+    return subs;
+  }, [currentHierarchy, allProducts, shopName, shopId, isUnder18]);
 
   // Filter products by shop, category, subcategory and search query
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
+      // 0. Legal Safety Age Gate: Under 18 accounts NEVER see adult products (condoms, adult wellness, etc.)
+      if (isUnder18) {
+        if ((p as any).is_18_plus) return false;
+        const subLower = (p.sub_category || "").toLowerCase();
+        if (subLower.includes("sexual wellness") || subLower.includes("adult")) return false;
+      }
+
       // 1. Shop filter if active
       if (shopName) {
         const matchShop =
@@ -136,7 +162,7 @@ export default function BlinkitSplitViewStorefront({
 
       return true;
     });
-  }, [allProducts, shopName, shopId, categoryName, selectedSubCatId, searchQuery, subCategories]);
+  }, [allProducts, shopName, shopId, categoryName, selectedSubCatId, searchQuery, subCategories, isUnder18]);
 
   // Do not fallback to random products across departments; show authentic aisle items
   const displayProducts = filteredProducts;

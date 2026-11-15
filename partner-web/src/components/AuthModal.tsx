@@ -726,9 +726,37 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
           {/* Feedback Alerts */}
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-              <span className="flex-1 leading-relaxed">{errorMsg}</span>
+            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex flex-col gap-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <span className="flex-1 leading-relaxed">{errorMsg}</span>
+              </div>
+              {errorMsg.toLowerCase().includes("create account") && authMode === "LOGIN" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("REGISTER");
+                    setErrorMsg("");
+                    setRegEmail(email);
+                  }}
+                  className="self-start ml-6 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all cursor-pointer shadow-xs"
+                >
+                  Switch to Create Account →
+                </button>
+              )}
+              {errorMsg.toLowerCase().includes("sign in") && authMode === "REGISTER" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("LOGIN");
+                    setErrorMsg("");
+                    setEmail(regEmail);
+                  }}
+                  className="self-start ml-6 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all cursor-pointer shadow-xs"
+                >
+                  Switch to Sign In →
+                </button>
+              )}
             </div>
           )}
 

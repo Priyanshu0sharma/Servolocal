@@ -50,7 +50,7 @@ import AccountSettingsView from "@/components/AccountSettingsView";
 
 import { ProductItem, CartItem, UserProfile, CategoryItem } from "@/types";
 import { MASTER_PRODUCTS, MASTER_SHOPS } from "@/lib/masterCatalogData";
-import { getDiscoveryFeed, getAppConfig } from "@/lib/api";
+import { getDiscoveryFeed, getAppConfig, fetchUserProfile } from "@/lib/api";
 
 export default function CustomerHomePage() {
   const router = useRouter();
@@ -124,6 +124,19 @@ export default function CustomerHomePage() {
         if (savedUser) {
           const parsed = JSON.parse(savedUser);
           setUser(parsed);
+        }
+
+        // Live Neon DB Sync for fresh Profile & 18+ Verification Status
+        const token = localStorage.getItem("servo_token");
+        if (token) {
+          fetchUserProfile()
+            .then((fresh) => {
+              if (fresh) {
+                setUser(fresh);
+                localStorage.setItem("servo_user", JSON.stringify(fresh));
+              }
+            })
+            .catch(() => {});
         }
 
         const savedLocality = localStorage.getItem("servo_locality");
@@ -330,8 +343,9 @@ export default function CustomerHomePage() {
 
   // Real Database Products (Primary from live Neon PostgreSQL, with local backup)
   const allProducts: ProductItem[] = useMemo(() => {
+    let prods: ProductItem[] = [];
     if (dbProducts.length > 0) {
-      return dbProducts.map((p) => ({
+      prods = dbProducts.map((p) => ({
         id: p.id,
         name: p.name,
         brand: p.brand || "Local Store",
@@ -348,34 +362,45 @@ export default function CustomerHomePage() {
         shop_id: p.shop_id || 1,
         shop_name: p.shop_name || "Verified Local Store",
         local_eta_mins: p.local_eta_mins || "⚡ 10 mins",
+        is_18_plus: Boolean(p.is_18_plus),
+      }));
+    } else {
+      prods = MASTER_PRODUCTS.map((p) => ({
+        id: p.id,
+        name: p.name,
+        brand: p.brand,
+        category: p.category,
+        sub_category: p.sub_category,
+        selling_price: p.selling_price,
+        mrp: p.mrp,
+        rating:
+          p.id === 9001
+            ? 4.6
+            : p.id === 9002
+            ? 4.8
+            : p.id === 9003
+            ? 4.5
+            : p.id === 9004
+            ? 4.7
+            : 4.6,
+        image_url: p.image_url,
+        in_stock: p.in_stock,
+        available_stock: p.available_stock,
+        shop_id: p.shop_id,
+        shop_name: p.shop_name,
+        local_eta_mins: p.local_eta_mins,
+        is_18_plus: Boolean(p.is_18_plus),
       }));
     }
-    return MASTER_PRODUCTS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      brand: p.brand,
-      category: p.category,
-      sub_category: p.sub_category,
-      selling_price: p.selling_price,
-      mrp: p.mrp,
-      rating:
-        p.id === 9001
-          ? 4.6
-          : p.id === 9002
-          ? 4.8
-          : p.id === 9003
-          ? 4.5
-          : p.id === 9004
-          ? 4.7
-          : 4.6,
-      image_url: p.image_url,
-      in_stock: p.in_stock,
-      available_stock: p.available_stock,
-      shop_id: p.shop_id,
-      shop_name: p.shop_name,
-      local_eta_mins: p.local_eta_mins,
-    }));
-  }, [dbProducts]);
+
+    // 🔞 Age restriction: If active user is under 18, strictly filter out adult products (condoms, adult wellness, etc.)
+    if (user?.is_18_plus === false) {
+      return prods.filter(
+        (p) => !p.is_18_plus && !p.sub_category?.toLowerCase().includes("sexual wellness")
+      );
+    }
+    return prods;
+  }, [dbProducts, user]);
 
   // Real Database Shops (Primary from live Neon PostgreSQL)
   const currentShops: ShopItem[] = useMemo(() => {

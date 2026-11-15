@@ -792,3 +792,39 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `customer-web/src/components/ProfileEditModal.tsx`
   - `AGENT_USAGE_LOG.md`
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
+## Task-2026-11-15-004: Partner Auth Intent Gating, Live Profile Sync & 18+ Age Restriction Filtering
+
+- **Task ID**: `TASK-2026-11-15-004`
+- **Description**: 
+  1. **Partner Auth Intent Validation**: Added `intent` check in `backend/app/api/auth.py`. When a partner attempts to "Sign In" with an unregistered email, backend returns HTTP 404 rather than sending an OTP code. In `partner-web/src/components/AuthModal.tsx`, added dynamic alert with a 1-click "Switch to Create Account →" button that automatically transfers the email.
+  2. **Profile Completion Persistence**: Fixed profile persistence issue where "Save & Continue" in `SignInModal.tsx` failed to write `finalUser` to `localStorage.setItem("servo_user")`. Updated `account/page.tsx` and `customer-web/src/app/page.tsx` to automatically pull fresh profile and 18+ verification state directly from Neon PostgreSQL on mount.
+  3. **18+ Compliance & Legal Protection**: Added `is_18_plus BOOLEAN DEFAULT TRUE` to Neon PostgreSQL `users` table. Added `Sexual Wellness (18+)` catalog category and adult products with `is_18_plus: true`. Filtered out all adult products and categories from storefront, category navigation, and search when account is verified under 18. On product details page (`/product/[slug]/[id]`), rendered an age restriction alert banner and locked the "Add to Cart" button for minor accounts. Added explicit 18+ age restriction policy to Customer Terms of Service in `backend/app/api/legal.py`.
+- **Repositories & Toolchains**: `customer-web`, `partner-web`, `backend`, `superpowers`, `agent-workflows`, `GoogleChrome/modern-web-guidance`
+- **Commands Executed**:
+  - `python scratch/add_col.py` (Added `is_18_plus` column to Neon DB)
+  - `pytest backend/tests` (25/25 passed in 32.39s)
+  - `npm --prefix customer-web run type-check` (Exit code 0)
+  - `npm --prefix customer-web run build` (Exit code 0, 8/8 routes compiled)
+  - `npm --prefix partner-web run type-check` (Exit code 0)
+  - `npm --prefix partner-web run build` (Exit code 0, 7/7 routes compiled)
+  - `git diff --stat` (13 files changed)
+- **Changed Files**:
+  - `backend/app/api/auth.py`
+  - `backend/app/api/legal.py`
+  - `backend/app/db/models.py`
+  - `customer-web/src/app/account/page.tsx`
+  - `customer-web/src/app/page.tsx`
+  - `customer-web/src/app/product/[slug]/[id]/page.tsx`
+  - `customer-web/src/components/BlinkitSplitViewStorefront.tsx`
+  - `customer-web/src/components/ProfileEditModal.tsx`
+  - `customer-web/src/components/SignInModal.tsx`
+  - `customer-web/src/lib/api.ts`
+  - `customer-web/src/lib/masterCatalogData.ts`
+  - `customer-web/src/types/index.ts`
+  - `partner-web/src/components/AuthModal.tsx`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED

@@ -24,6 +24,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 class SendOtpRequest(BaseModel):
     email: EmailStr
     role: str = "customer"
+    intent: Optional[str] = "login"  # "login" or "register"
+    mobile_number: Optional[str] = None
 
 
 class VerifyOtpRequest(BaseModel):
@@ -37,6 +39,7 @@ class UpdateProfileRequest(BaseModel):
     phone: Optional[str] = None
     gender: Optional[str] = None
     date_of_birth: Optional[str] = None
+    is_18_plus: Optional[bool] = None
 
 
 class PartnerRegisterRequest(BaseModel):
@@ -103,6 +106,34 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
             raise HTTPException(
                 status_code=403,
                 detail="Access Denied: This email address does not have administrator privileges.",
+            )
+
+    # For Merchant & Delivery Partner login: Verify account existence before sending OTP
+    if clean_role in ("seller", "partner", "rider", "delivery") and getattr(payload, "intent", "login") == "login":
+        partner_check = await db.execute(
+            select(User).where(
+                User.email.ilike(email_clean),
+                User.role.in_(["seller", "partner", "rider", "delivery"])
+            )
+        )
+        if not partner_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=404,
+                detail="No partner account found with this email. Please switch to 'Create Account' tab to register your shop or delivery profile.",
+            )
+
+    # For Merchant & Delivery Partner registration: Prevent duplicate account creation
+    if clean_role in ("seller", "partner", "rider", "delivery") and getattr(payload, "intent", "login") == "register":
+        existing_partner = await db.execute(
+            select(User).where(
+                User.email.ilike(email_clean),
+                User.role.in_(["seller", "partner", "rider", "delivery"])
+            )
+        )
+        if existing_partner.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="A partner account already exists with this email address. Please switch to 'Sign In' tab to log in.",
             )
 
     # 1. Fast Redis in-memory check followed by Neon PostgreSQL cooldown check
@@ -319,6 +350,7 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
             "phone": user.phone or "",
             "gender": user.gender or "",
             "date_of_birth": user.date_of_birth or "",
+            "is_18_plus": getattr(user, "is_18_plus", True),
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
             "upi_id": user.upi_id,
@@ -329,6 +361,7 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
     }
 
 
+@router.get("/profile")
 @router.get("/me")
 async def get_current_user_profile(
     authorization: Optional[str] = Header(None),
@@ -404,6 +437,8 @@ async def update_user_profile(
         user.gender = payload.gender.strip()
     if payload.date_of_birth is not None:
         user.date_of_birth = payload.date_of_birth.strip()
+    if payload.is_18_plus is not None:
+        user.is_18_plus = payload.is_18_plus
 
     await db.commit()
     await db.refresh(user)
@@ -419,6 +454,7 @@ async def update_user_profile(
             "phone": user.phone or "",
             "gender": user.gender or "",
             "date_of_birth": user.date_of_birth or "",
+            "is_18_plus": getattr(user, "is_18_plus", True),
             "servo_coins": user.servo_coins,
             "wallet_balance": user.wallet_balance,
             "upi_id": user.upi_id,

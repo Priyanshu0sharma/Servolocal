@@ -108,13 +108,45 @@ export interface UpdateProfilePayload {
   phone?: string;
   gender?: string;
   date_of_birth?: string;
+  is_18_plus?: boolean;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile | null> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const user = data.user || data;
+    if (user && user.id) {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("servo_user");
+        const existing = saved ? JSON.parse(saved) : {};
+        const merged = { ...existing, ...user };
+        localStorage.setItem("servo_user", JSON.stringify(merged));
+      }
+      return user;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function updateUserProfile(
   nameOrPayload: string | UpdateProfilePayload,
   genderArg?: string,
   phoneArg?: string,
-  dobArg?: string
+  dobArg?: string,
+  is18PlusArg?: boolean
 ) {
   let payload: UpdateProfilePayload;
   if (typeof nameOrPayload === "string") {
@@ -123,6 +155,7 @@ export async function updateUserProfile(
       gender: genderArg,
       phone: phoneArg,
       date_of_birth: dobArg,
+      is_18_plus: is18PlusArg,
     };
   } else {
     payload = nameOrPayload;
@@ -151,6 +184,7 @@ export async function updateUserProfile(
       gender: payload.gender !== undefined ? payload.gender : (data.user.gender || existing.gender),
       phone: payload.phone !== undefined ? payload.phone : (data.user.phone || existing.phone),
       date_of_birth: payload.date_of_birth !== undefined ? payload.date_of_birth : (data.user.date_of_birth || existing.date_of_birth),
+      is_18_plus: payload.is_18_plus !== undefined ? payload.is_18_plus : (data.user.is_18_plus ?? existing.is_18_plus ?? true),
     };
     localStorage.setItem("servo_user", JSON.stringify(updated));
     return updated;

@@ -32,6 +32,7 @@ export default function ProfileEditModal({
   const [phone, setPhone] = useState(initialPhone || "");
   const [gender, setGender] = useState<string>(user.gender || "Male");
   const [dob, setDob] = useState<string>(user.date_of_birth || "");
+  const [is18Plus, setIs18Plus] = useState<boolean>(user.is_18_plus !== false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -46,6 +47,7 @@ export default function ProfileEditModal({
       }
       if (user.gender) setGender(user.gender);
       if (user.date_of_birth) setDob(user.date_of_birth);
+      if (user.is_18_plus !== undefined) setIs18Plus(user.is_18_plus);
     }
   }, [user]);
 
@@ -75,7 +77,8 @@ export default function ProfileEditModal({
         name: cleanName,
         phone: formattedPhone,
         gender,
-        date_of_birth: dob.trim() || undefined,
+        date_of_birth: is18Plus ? (dob.trim() || "18+ Confirmed") : "Under 18 (Safe Mode)",
+        is_18_plus: is18Plus,
       });
 
       if (updated) {
@@ -86,7 +89,8 @@ export default function ProfileEditModal({
           name: cleanName,
           phone: formattedPhone,
           gender,
-          date_of_birth: dob.trim() || undefined,
+          date_of_birth: is18Plus ? (dob.trim() || "18+ Confirmed") : "Under 18 (Safe Mode)",
+          is_18_plus: is18Plus,
         });
       }
       onClose();
@@ -97,7 +101,8 @@ export default function ProfileEditModal({
         name: cleanName,
         phone: formattedPhone,
         gender,
-        date_of_birth: dob.trim() || undefined,
+        date_of_birth: is18Plus ? (dob.trim() || "18+ Confirmed") : "Under 18 (Safe Mode)",
+        is_18_plus: is18Plus,
       };
       if (typeof window !== "undefined") {
         localStorage.setItem("servo_user", JSON.stringify(fallbackUser));
@@ -198,25 +203,49 @@ export default function ProfileEditModal({
             </div>
           </div>
 
-          {/* Date of Birth (Optional - Blinkit style) */}
-          <div className="space-y-1">
+          {/* Age Verification & Safety Compliance (18+ / Under 18) */}
+          <div className="space-y-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-700">Date of Birth</label>
-              <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                Birthday Rewards
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-md bg-emerald-100 text-[#075C2A] text-xs font-black flex items-center justify-center">
+                  🔞
+                </span>
+                <label className="text-xs font-bold text-gray-800">Age Verification</label>
+              </div>
+              <span className="text-[10px] text-gray-500 font-medium">Safety Filter</span>
             </div>
-            <input
-              type="date"
-              value={dob}
-              max={new Date().toISOString().split("T")[0]}
-              onChange={(e) => setDob(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs text-gray-900 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#0C831F] focus:ring-1 focus:ring-[#0C831F]"
-            />
-            <p className="text-[10px] text-gray-400">
-              Optional • Receive exclusive birthday treats and free delivery coupons
+            <p className="text-[11px] text-gray-500 leading-tight">
+              Adult products (condoms, adult wellness &amp; medicines) are strictly hidden from accounts under 18.
             </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIs18Plus(true)}
+                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  is18Plus === true
+                    ? "bg-[#EAF7EE] border-[#078B35] text-[#075C2A] shadow-xs"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <span>✅ Yes, 18+</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIs18Plus(false)}
+                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  is18Plus === false
+                    ? "bg-amber-50 border-amber-500 text-amber-800 shadow-xs"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <span>🛡️ Under 18</span>
+              </button>
+            </div>
+            {is18Plus === false && (
+              <p className="text-[10px] text-amber-800 font-medium bg-amber-50 p-1.5 rounded-md border border-amber-200">
+                🔒 Safe Mode: 18+ adult items will remain hidden across the storefront.
+              </p>
+            )}
           </div>
 
           {/* Gender Selector */}

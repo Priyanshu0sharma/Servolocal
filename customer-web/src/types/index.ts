@@ -26,6 +26,7 @@ export interface ProductItem {
   shop_distance_km?: number;
   local_eta_mins?: string;
   delivery_mode?: string;
+  is_18_plus?: boolean;
 }
 
 export interface CategoryItem {
@@ -56,6 +57,7 @@ export interface UserProfile {
   gender?: string;
   phone?: string;
   date_of_birth?: string;
+  is_18_plus?: boolean;
   wallet_balance?: number;
   servo_coins?: number;
   upi_id?: string;

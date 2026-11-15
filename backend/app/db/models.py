@@ -30,6 +30,7 @@ class User(Base):
     phone = Column(String(50), nullable=True)
     gender = Column(String(20), nullable=True)
     date_of_birth = Column(String(50), nullable=True)
+    is_18_plus = Column(Boolean, default=True, nullable=False)
     terms_accepted = Column(Boolean, default=True, nullable=False)
     location_permission_granted = Column(Boolean, default=True, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)

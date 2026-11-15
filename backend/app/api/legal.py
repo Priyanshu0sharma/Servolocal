@@ -42,6 +42,7 @@ POLICIES = {
                 "Orders can be tracked in real-time until final doorstep delivery.",
                 "Zero cancellation fees if cancelled prior to shop acceptance.",
                 "ServoCoins can be redeemed for instant bill discounts at checkout.",
+                "Age-Restricted Products Policy (18+ Only): Adult wellness, sexual health, condoms, and regulated essentials are strictly restricted to customers aged 18 years or older. By confirming 18+ status, the customer certifies legal adulthood. Users under 18 are blocked from viewing, carting, or purchasing 18+ categorized goods in compliance with POCSO and relevant consumer protection legislation.",
             ],
         },
     },

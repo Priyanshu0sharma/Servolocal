@@ -22,6 +22,7 @@ import {
   MapPin,
   Tag,
   Info,
+  ShieldAlert,
 } from "lucide-react";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Header from "@/components/Header";
@@ -221,6 +222,10 @@ export default function DedicatedProductPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
+    if ((product as any)?.is_18_plus && user?.is_18_plus === false) {
+      alert("This item is strictly restricted to customers aged 18 and older.");
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((item) => item.inventory_id === activeInventoryId);
       let updated: CartItem[];
@@ -497,6 +502,15 @@ export default function DedicatedProductPage() {
 
               {/* Product Headline */}
               <div>
+                {(product as any).is_18_plus && (
+                  <div className="mb-3 p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs flex items-center gap-2.5">
+                    <span className="text-base">🔞</span>
+                    <p className="leading-relaxed">
+                      <strong className="font-bold">18+ Age-Restricted Wellness Product:</strong>{" "}
+                      This product is restricted to adult customers aged 18 and above in compliance with Indian consumer protection and product safety guidelines.
+                    </p>
+                  </div>
+                )}
                 <h1 className="text-xl sm:text-2xl font-black text-[#171717] tracking-tight leading-snug">
                   {product.name}
                 </h1>
@@ -567,7 +581,12 @@ export default function DedicatedProductPage() {
                   </div>
 
                   {/* Add To Cart Controller */}
-                  {cartQuantity > 0 ? (
+                  {(product as any).is_18_plus && user?.is_18_plus === false ? (
+                    <div className="px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>Restricted: Under 18 account</span>
+                    </div>
+                  ) : cartQuantity > 0 ? (
                     <div className="flex items-center gap-3 bg-[#078B35] text-white px-4 py-2.5 rounded-2xl shadow-md font-bold text-sm">
                       <button
                         type="button"

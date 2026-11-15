@@ -199,15 +199,10 @@ export default function SignInModal({
       return;
     }
 
-    if (!is18Plus) {
-      setError("You must confirm you are 18+ to proceed with registration");
-      return;
-    }
-
     const formattedPhone = `+91${cleanPhoneDigits}`;
     setLoading(true);
 
-    const dobValue = is18Plus ? "18+ Confirmed" : undefined;
+    const dobValue = is18Plus ? "18+ Confirmed" : "Under 18 (Safe Mode)";
 
     let finalUser: UserProfile = verifiedUser
       ? {
@@ -216,6 +211,7 @@ export default function SignInModal({
           phone: formattedPhone,
           gender: genderInput,
           date_of_birth: dobValue,
+          is_18_plus: is18Plus,
         }
       : {
           id: Date.now(),
@@ -225,6 +221,7 @@ export default function SignInModal({
           phone: formattedPhone,
           gender: genderInput,
           date_of_birth: dobValue,
+          is_18_plus: is18Plus,
         };
 
     try {
@@ -233,11 +230,20 @@ export default function SignInModal({
         phone: formattedPhone,
         gender: genderInput,
         date_of_birth: dobValue,
+        is_18_plus: is18Plus,
       });
       if (updated && updated.name) {
         finalUser = updated;
       }
-    } catch {}
+    } catch (err: any) {
+      setError(err.message || "Failed to save profile. Please check your connection and retry.");
+      setLoading(false);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("servo_user", JSON.stringify(finalUser));
+    }
 
     setStep("SUCCESS");
     setLoading(false);
@@ -561,53 +567,59 @@ export default function SignInModal({
                 </p>
               </div>
 
-              {/* Age Verification: Are you 18+? */}
-              <div className="p-3 bg-gradient-to-r from-emerald-50/70 via-emerald-50/30 to-white border border-emerald-200/80 rounded-xl transition-all shadow-2xs">
+              {/* Age Verification & Safety Compliance (18+ / Under 18) */}
+              <div className="space-y-2 p-3 bg-gray-50/80 border border-gray-200 rounded-xl transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs transition-colors select-none ${
-                        is18Plus ? "bg-[#078B35] text-white shadow-sm shadow-[#078B35]/25" : "bg-gray-200 text-gray-500"
-                      }`}
-                    >
-                      18+
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <label
-                          className="text-xs font-bold text-gray-800 cursor-pointer select-none"
-                          onClick={() => setIs18Plus(!is18Plus)}
-                        >
-                          Are you 18+ years old?
-                        </label>
-                        <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded-full select-none">
-                          Required
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-gray-500 leading-tight">
-                        Complies with local trade &amp; doorstep delivery laws
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-md bg-emerald-100 text-[#075C2A] text-xs font-black flex items-center justify-center">
+                      🔞
+                    </span>
+                    <label className="text-xs font-bold text-gray-800">
+                      Age Verification &amp; Safety <span className="text-red-500">*</span>
+                    </label>
                   </div>
+                  <span className="text-[10px] text-gray-500 font-medium">
+                    Consumer Protection
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-tight">
+                  Are you 18 years or older? Age-restricted products (condoms, adult wellness &amp; medicines) are strictly hidden from users under 18.
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
-                    role="switch"
-                    aria-checked={is18Plus}
                     onClick={() => {
-                      setIs18Plus(!is18Plus);
+                      setIs18Plus(true);
                       if (error) setError("");
                     }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 cursor-pointer focus:outline-none ${
-                      is18Plus ? "bg-[#078B35]" : "bg-gray-300"
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      is18Plus === true
+                        ? "bg-[#EAF7EE] border-[#078B35] text-[#075C2A] shadow-xs ring-1 ring-[#078B35]"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
-                        is18Plus ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
+                    <span>✅ Yes, I am 18+</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIs18Plus(false);
+                      if (error) setError("");
+                    }}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      is18Plus === false
+                        ? "bg-amber-50 border-amber-500 text-amber-800 shadow-xs ring-1 ring-amber-500"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🛡️ No, Under 18</span>
                   </button>
                 </div>
+                {is18Plus === false && (
+                  <p className="text-[11px] text-amber-800 font-semibold mt-1 bg-amber-50 p-2 rounded-lg border border-amber-200 leading-tight">
+                    🔒 Safe Mode Active: 18+ adult items (wellness, protection &amp; restricted items) will be hidden from your account.
+                  </p>
+                )}
               </div>
 
               {/* Gender Selection */}

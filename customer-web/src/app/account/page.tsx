@@ -250,6 +250,16 @@ function AccountContent() {
           setUser(null);
         }
 
+        // Fresh profile sync from Neon PostgreSQL
+        getMe()
+          .then((freshUser) => {
+            if (freshUser && freshUser.id) {
+              setUser(freshUser);
+              localStorage.setItem("servo_user", JSON.stringify(freshUser));
+            }
+          })
+          .catch(() => {});
+
         const savedCart = localStorage.getItem("servo_cart");
         if (savedCart) setCart(JSON.parse(savedCart));
 
@@ -947,10 +957,21 @@ function AccountContent() {
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                    <span className="text-[11px] text-gray-500 font-medium">Date of Birth</span>
-                    <p className="text-sm font-bold text-[#171717]">
-                      {user?.date_of_birth ? user.date_of_birth : "Not specified (Add for birthday rewards)"}
-                    </p>
+                    <span className="text-[11px] text-gray-500 font-medium">Age Verification &amp; Safety</span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#171717]">
+                        {user?.is_18_plus !== false ? "18+ Verified (Adult)" : "Under 18 (Safe Mode)"}
+                      </p>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                          user?.is_18_plus !== false
+                            ? "bg-emerald-100 text-[#075C2A]"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {user?.is_18_plus !== false ? "Adult Access" : "Safe Filter Active"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-1 sm:col-span-2">
