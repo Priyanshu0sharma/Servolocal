@@ -102,13 +102,21 @@ class _MainNavScreenState extends State<MainNavScreen> {
               child: Row(
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 22))),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/servolocal_logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(child: Text('🛍️', style: TextStyle(fontSize: 22))),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Column(

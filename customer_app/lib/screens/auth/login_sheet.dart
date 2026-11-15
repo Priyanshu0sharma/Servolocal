@@ -52,13 +52,21 @@ class _LoginSheetState extends State<LoginSheet> {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
                 ),
-                child: const Center(child: Text('🛍️', style: TextStyle(fontSize: 20))),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/images/servolocal_logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Center(child: Text('🛍️', style: TextStyle(fontSize: 20))),
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
               Column(
