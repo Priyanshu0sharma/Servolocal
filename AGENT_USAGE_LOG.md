@@ -751,3 +751,25 @@ This file tracks all AI-assisted engineering tasks performed on Servolocal using
   - `backend/tests/test_all_workflows.py`
   - `AGENT_USAGE_LOG.md`
 - **Final Status**: ✅ COMPLETED & VERIFIED
+
+
+---
+
+## Task-2026-11-15-002: Render "Failed to Fetch" Root Cause Diagnostics & Profile Field Pre-fill Cleanup
+
+- **Task ID**: `TASK-2026-11-15-002`
+- **Description**: Diagnosed `Failed to fetch` error on `https://servolocal.vercel.app/`. Probed Render backend URL `https://servolocal-api.onrender.com/api/health` which returns HTTP 404 with header `x-render-routing: no-server` indicating the Render web service is sleeping, suspended, or awaiting manual resume/deploy on Render dashboard. Updated frontend error messages to guide user when Render is down/spinning up; fixed bug where switching emails had pre-filled name/phone numbers in profile completion modal.
+- **Repositories & Toolchains**: `customer-web`, `backend`, `superpowers`, `agent-workflows`
+- **Commands Executed**:
+  - `python scratch/check_names.py` (Probed Render endpoint headers)
+  - `pytest backend/tests` (25/25 passed in 32.38s)
+  - `npm --prefix customer-web run type-check` (0 errors)
+  - `npm --prefix customer-web run build` (8/8 routes compiled)
+  - `git diff | gitleaks detect --pipe` (0 leaks found)
+  - `git commit` and `git push origin main` (Commit `ecfd191`)
+- **Changed Files**:
+  - `customer-web/src/lib/api.ts`
+  - `customer-web/src/components/SignInModal.tsx`
+  - `backend/app/api/auth.py`
+  - `AGENT_USAGE_LOG.md`
+- **Final Status**: ✅ COMPLETED & VERIFIED
