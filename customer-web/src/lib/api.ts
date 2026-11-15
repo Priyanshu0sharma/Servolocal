@@ -55,34 +55,52 @@ export async function getAppConfig(): Promise<AppConfig> {
  * Authentication
  */
 export async function sendOtp(email: string, role: string = "customer") {
-  const res = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Failed to send OTP to email");
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to send OTP to email");
+    }
+    return res.json();
+  } catch (err: any) {
+    if (err.message === "Failed to fetch" || err.name === "TypeError") {
+      throw new Error(
+        "Backend server is waking up or temporarily unreachable on Render (x-render-routing: no-server). Please verify your Render web service is active or wait 30 seconds."
+      );
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export async function verifyOtp(email: string, otp_code: string, role: string = "customer") {
-  const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp_code, role }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Invalid OTP code");
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp_code, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Invalid OTP code");
+    }
+    const data = await res.json();
+    if (typeof window !== "undefined" && data.access_token) {
+      localStorage.setItem("servo_token", data.access_token);
+      localStorage.setItem("servo_user", JSON.stringify(data.user));
+    }
+    return data;
+  } catch (err: any) {
+    if (err.message === "Failed to fetch" || err.name === "TypeError") {
+      throw new Error(
+        "Backend server is unreachable. Please verify Render service status."
+      );
+    }
+    throw err;
   }
-  const data = await res.json();
-  if (typeof window !== "undefined" && data.access_token) {
-    localStorage.setItem("servo_token", data.access_token);
-    localStorage.setItem("servo_user", JSON.stringify(data.user));
-  }
-  return data;
 }
 
 export interface UpdateProfilePayload {

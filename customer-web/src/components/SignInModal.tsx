@@ -38,6 +38,11 @@ export default function SignInModal({
     }
     setEmail("");
     setOtpCode("");
+    setNameInput("");
+    setPhoneInput("");
+    setDobInput("");
+    setGenderInput("Male");
+    setVerifiedUser(null);
     setError("");
     setLoading(false);
     setStep("EMAIL");
@@ -98,6 +103,11 @@ export default function SignInModal({
     }
 
     setError("");
+    setNameInput("");
+    setPhoneInput("");
+    setDobInput("");
+    setGenderInput("Male");
+    setVerifiedUser(null);
     setLoading(true);
 
     try {
@@ -122,6 +132,11 @@ export default function SignInModal({
     }
 
     setError("");
+    setNameInput("");
+    setPhoneInput("");
+    setDobInput("");
+    setGenderInput("Male");
+    setVerifiedUser(null);
     setLoading(true);
 
     try {
@@ -142,11 +157,18 @@ export default function SignInModal({
         }
 
         // New user or missing profile details: clean blank inputs for user entry
-        const cleanExistingName = (data.user.name || "").replace(/[0-9]/g, "").trim();
-        setNameInput(cleanExistingName !== "Customer" ? cleanExistingName : "");
+        const rawName = data.user.name || "";
+        const emailPrefix = email.split("@")[0].replace(/[._0-9]/g, "").toLowerCase();
+        const isDefaultName =
+          !rawName ||
+          rawName === "Customer" ||
+          rawName.toLowerCase().startsWith("customer") ||
+          (emailPrefix.length > 2 && rawName.replace(/\s+/g, "").toLowerCase() === emailPrefix);
+
+        setNameInput(isDefaultName ? "" : rawName);
         const initialPhone = (data.user.phone || "").replace("+91", "").replace(/\D/g, "").slice(-10);
-        setPhoneInput(initialPhone || "");
-        if (data.user.date_of_birth) setDobInput(data.user.date_of_birth);
+        setPhoneInput(initialPhone.length === 10 ? initialPhone : "");
+        setDobInput(data.user.date_of_birth || "");
         setGenderInput(data.user.gender || "Male");
         setStep("PROFILE");
         setLoading(false);
@@ -217,6 +239,11 @@ export default function SignInModal({
   const handleResendOtp = async () => {
     if (resendTimer > 0 || loading) return;
     setError("");
+    setNameInput("");
+    setPhoneInput("");
+    setDobInput("");
+    setGenderInput("Male");
+    setVerifiedUser(null);
     setLoading(true);
     setIsResendActive(true);
 

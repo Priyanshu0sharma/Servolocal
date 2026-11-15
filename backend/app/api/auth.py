@@ -283,12 +283,10 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
                 status_code=403,
                 detail="Admin user does not exist. Admin accounts must be pre-configured.",
             )
-        raw_name = email_clean.split("@")[0]
-        formatted_name = raw_name.replace(".", " ").replace("_", " ").title()
         assigned_role = clean_role if clean_role in ("customer", "seller", "partner", "rider", "delivery") else "customer"
         user = User(
             email=email_clean,
-            name=formatted_name,
+            name="Customer" if assigned_role == "customer" else f"{assigned_role.capitalize()} Partner",
             role=assigned_role,
             servo_coins=100 if assigned_role == "customer" else 0,
             wallet_balance=0.0,
