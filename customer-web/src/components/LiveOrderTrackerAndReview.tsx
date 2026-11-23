@@ -16,6 +16,7 @@ import {
   Bike,
   KeyRound,
 } from "lucide-react";
+import OrderTrackingMap from "./OrderTrackingMap";
 import { trackOrder, submitOrderReview } from "@/lib/api";
 
 export interface ActiveOrderData {
@@ -48,9 +49,11 @@ export default function LiveOrderTrackerAndReview({
   onClose,
 }: LiveOrderTrackerAndReviewProps) {
   const [currentStatus, setCurrentStatus] = useState<ActiveOrderData["status"]>(order.status || "PLACED");
-  const [etaMins, setEtaMins] = useState(12);
+  const [unavailable, setUnavailable] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [reviewError, setReviewError] = useState("");
   const [liveOrder, setLiveOrder] = useState<any>(null);
-  const [riderInfo, setRiderInfo] = useState<any>(null);
+  const riderInfo = liveOrder?.rider;
 
   // Review state
   const [showReview, setShowReview] = useState(false);
@@ -63,26 +66,29 @@ export default function LiveOrderTrackerAndReview({
   // Real-time Order Tracking Polling from Neon PostgreSQL via FastAPI
   useEffect(() => {
     let isMounted = true;
+    let timer: ReturnType<typeof setTimeout>;
     const fetchLiveStatus = async () => {
+      let finished = false;
       try {
         const orderIdentifier = order.orderCode || order.id;
         if (!orderIdentifier) return;
         const data = await trackOrder(orderIdentifier);
-        if (isMounted && data) {
+        if (isMounted && !data) {
+          setLiveOrder(null);
+          setUnavailable(true);
+          finished = true;
+        } else if (isMounted && data) {
           setLiveOrder(data);
-          if (data.rider) {
-            setRiderInfo(data.rider);
-          }
+          setOffline(false);
+          finished = ["DELIVERED", "CANCELLED", "REJECTED"].includes(data.status);
 
           // Map backend status to UI status
           const beStatus = (data.status || "").toUpperCase();
           if (beStatus === "DELIVERED") {
             setCurrentStatus("DELIVERED");
-            setEtaMins(0);
             setShowReview(true);
           } else if (beStatus === "OUT_FOR_DELIVERY" || beStatus === "PICKED_UP") {
             setCurrentStatus("OUT_FOR_DELIVERY");
-            setEtaMins(5);
           } else if (
             beStatus === "READY_FOR_PICKUP" ||
             beStatus === "PREPARING" ||
@@ -92,22 +98,21 @@ export default function LiveOrderTrackerAndReview({
             beStatus === "ASSIGNED"
           ) {
             setCurrentStatus("PACKING");
-            setEtaMins(8);
           } else {
             setCurrentStatus("PLACED");
-            setEtaMins(12);
           }
         }
-      } catch (err) {
-        // Suppress transient network errors
+      } catch {
+        if (isMounted) setOffline(true);
+      } finally {
+        if (isMounted && !finished) timer = setTimeout(fetchLiveStatus, 5000);
       }
     };
 
     fetchLiveStatus();
-    const interval = setInterval(fetchLiveStatus, 3500);
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, [order.id, order.orderCode]);
 
@@ -129,6 +134,7 @@ export default function LiveOrderTrackerAndReview({
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    setReviewError("");
     setIsSubmittingReview(true);
     try {
       await submitOrderReview({
@@ -143,11 +149,7 @@ export default function LiveOrderTrackerAndReview({
         onClose();
       }, 1800);
     } catch {
-      setSubmitted(true);
-      setTimeout(() => {
-        setShowReview(false);
-        onClose();
-      }, 1500);
+      setReviewError("Could not save the review. Please try again.");
     } finally {
       setIsSubmittingReview(false);
     }
@@ -155,14 +157,14 @@ export default function LiveOrderTrackerAndReview({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs select-none overflow-y-auto">
-      <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-[#E8ECE9] relative my-6 animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-white rounded-3xl p-6 shadow-2xl border border-[#E8ECE9] relative my-6 animate-in zoom-in-95 duration-200">
         
         {/* Top Header */}
         <div className="flex items-center justify-between pb-3.5 border-b border-[#E8ECE9]">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-[#075C2A] bg-[#EAF7EE] px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#078B35] animate-ping" />
-              <span>Live 10-15 Min Delivery</span>
+              <span>Order tracking</span>
             </span>
             <span className="text-xs font-mono font-bold text-[#171717]">
               #{order.orderCode}
@@ -170,6 +172,7 @@ export default function LiveOrderTrackerAndReview({
           </div>
           <button
             type="button"
+            aria-label="Close order tracker"
             onClick={onClose}
             className="p-1.5 rounded-full text-[#666666] hover:bg-slate-100 transition-colors cursor-pointer"
           >
@@ -177,27 +180,16 @@ export default function LiveOrderTrackerAndReview({
           </button>
         </div>
 
-        {/* Big ETA Countdown Banner */}
-        <div className="my-4 p-4 rounded-2xl bg-gradient-to-r from-[#075C2A] to-[#078B35] text-white flex items-center justify-between shadow-xs">
-          <div className="space-y-0.5">
-            <span className="text-xs font-medium text-emerald-100 block">
-              {currentStatus === "DELIVERED"
-                ? "Order Delivered!"
-                : "Arriving at Doorstep in"}
-            </span>
-            <h2 className="text-2xl font-black tracking-tight">
-              {currentStatus === "DELIVERED"
-                ? "Enjoy your local goods!"
-                : `⚡ ${etaMins} Minutes`}
-            </h2>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-white border border-white/20">
-            <Bike className="w-6 h-6 animate-bounce" />
-          </div>
-        </div>
+        {unavailable ? <p role="alert" className="my-4">This order is unavailable for this account. Sign in and open the order from your order history.</p> : <>
+        <h2 className="mt-4 text-xl font-bold">
+          {["CANCELLED", "REJECTED"].includes(liveOrder?.status) ? "Order cancelled" : ORDER_STEPS[currentStep].label}
+        </h2>
+        {offline && <p role="status" className="my-2 text-xs text-amber-800">Tracking updates unavailable. Reconnecting…</p>}
+        {liveOrder && !["DELIVERED", "CANCELLED", "REJECTED"].includes(liveOrder.status) &&
+          <OrderTrackingMap shop={liveOrder.shop} destination={liveOrder.destination} rider={riderInfo} offline={offline} />}
 
         {/* 4-Step Blinkit Live Tracker */}
-        <div className="py-2 space-y-4">
+        {!["CANCELLED", "REJECTED"].includes(liveOrder?.status) && <div className="py-2 space-y-4">
           <div className="relative flex justify-between items-center px-2">
             {/* Background progress line */}
             <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-1 bg-[#E8ECE9] -z-0" />
@@ -232,7 +224,7 @@ export default function LiveOrderTrackerAndReview({
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Delivery OTP Security PIN */}
         <div className="my-3 p-3.5 rounded-2xl bg-[#EAF7EE] border border-[#078B35]/25 flex items-center justify-between">
@@ -245,7 +237,7 @@ export default function LiveOrderTrackerAndReview({
                 Doorstep Delivery PIN
               </span>
               <span className="text-base font-black text-[#171717] tracking-widest font-mono">
-                {liveOrder?.delivery_pin || order.deliveryPin}
+                {liveOrder?.delivery_pin || "—"}
               </span>
             </div>
           </div>
@@ -300,10 +292,12 @@ export default function LiveOrderTrackerAndReview({
                   {currentStatus === "PACKING" ? "Store packing items • Assigning nearest rider" : "Assigning local runner..."}
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 animate-pulse">⚡ 10-15 Min Hub</span>
+
             </div>
           )}
         </div>
+
+        </>}
 
         {/* Review Modal Triggered After Delivery */}
         {showReview && (
@@ -314,7 +308,7 @@ export default function LiveOrderTrackerAndReview({
                   <Sparkles className="w-5 h-5 animate-pulse" />
                 </div>
                 <h3 className="text-sm font-bold text-[#171717]">
-                  How was your 10-minute delivery?
+                  How was your delivery?
                 </h3>
                 <p className="text-[11px] text-[#666666]">
                   Rate {order.shopName} & your delivery partner
@@ -386,7 +380,9 @@ export default function LiveOrderTrackerAndReview({
                     />
                   </div>
 
+                  {reviewError && <p role="alert">{reviewError}</p>}
                   <button
+                    disabled={isSubmittingReview}
                     type="submit"
                     className="w-full py-2.5 rounded-xl bg-[#078B35] hover:bg-[#075C2A] text-white font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from app.api.admin import verify_admin
 from sqlalchemy import text
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
@@ -30,16 +31,12 @@ async def get_readiness_status():
             "database": "connected",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-    except Exception as e:
-        return {
-            "status": "not_ready",
-            "database": "disconnected",
-            "error": str(e),
-        }
+    except Exception:
+        raise HTTPException(503, "Database unavailable.")
 
 
 @router.get("/health/smtp-check", tags=["Health"])
-async def check_smtp():
+def check_smtp(admin: dict = Depends(verify_admin)):
     """Diagnostic check to verify SMTP port availability and credentials in the active cloud environment."""
     import socket, os
     smtp_host = os.getenv("SMTP_HOST") or "smtp.gmail.com"

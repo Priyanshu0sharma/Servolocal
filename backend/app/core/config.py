@@ -1,4 +1,3 @@
-import os
 import secrets
 from typing import List, Union, Optional
 from pydantic import field_validator
@@ -113,4 +112,6 @@ settings = Settings()
 
 # Ensure JWT_SECRET is always populated with a cryptographically secure secret
 if not settings.JWT_SECRET or not settings.JWT_SECRET.strip():
-    settings.JWT_SECRET = os.getenv("JWT_SECRET") or secrets.token_urlsafe(64)
+    if settings.APP_ENV.lower() == "production":
+        raise RuntimeError("Set a persistent JWT_SECRET for production.")
+    settings.JWT_SECRET = secrets.token_urlsafe(64)

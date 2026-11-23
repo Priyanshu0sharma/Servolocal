@@ -153,67 +153,53 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
     } catch {}
   };
 
-  // Periodic GPS Broadcaster
+  const deliveryId = activeJob && ["OUT_FOR_DELIVERY", "PICKED_UP"].includes(activeJob.status) ? activeJob.id : null;
+
   useEffect(() => {
-    let watchId: number | null = null;
-    let pollInterval: NodeJS.Timeout | null = null;
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCurrentLat(pos.coords.latitude);
-          setCurrentLng(pos.coords.longitude);
-          setGpsAccuracy(pos.coords.accuracy);
-        },
-        () => {},
-        { enableHighAccuracy: true }
-      );
-    }
-
-    if (isOnDuty) {
-      setGpsStreaming(true);
-      // Stream coordinates every 5 seconds to Redis
-      pollInterval = setInterval(async () => {
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-              const lat = pos.coords.latitude;
-              const lng = pos.coords.longitude;
-              setCurrentLat(lat);
-              setCurrentLng(lng);
-              setGpsAccuracy(pos.coords.accuracy);
-
-              try {
-                // Update idle duty location
-                await updateDutyGps(lat, lng);
-                // If on active delivery, stream to order tracking key
-                if (activeJob && activeJob.status !== "DELIVERED") {
-                  await updateRiderGps(activeJob.id, lat, lng, pos.coords.heading || 0.0);
-                }
-              } catch {
-                // Suppress background errors
-              }
-            },
-            () => {},
-            { enableHighAccuracy: true }
-          );
-        }
-      }, 5000);
-    } else {
-      setGpsStreaming(false);
-    }
-
-    return () => {
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-      if (pollInterval) clearInterval(pollInterval);
-    };
-  }, [isOnDuty, activeJob]);
+    setGpsStreaming(false);
+    if (!isOnDuty || !navigator.geolocation) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const locate = () => navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      if (!active) return;
+      setCurrentLat(coords.latitude);
+      setCurrentLng(coords.longitude);
+      setGpsAccuracy(coords.accuracy);
+      try {
+        if (deliveryId) await updateRiderGps(deliveryId, coords.latitude, coords.longitude, coords.heading ?? 0);
+        else await updateDutyGps(coords.latitude, coords.longitude);
+        if (active) setGpsStreaming(true);
+      } catch {
+        if (active) setGpsStreaming(false);
+      } finally {
+        if (active) timer = setTimeout(locate, 8000);
+      }
+    }, () => {
+      if (active) {
+        setGpsStreaming(false);
+        timer = setTimeout(locate, 15000);
+      }
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    locate();
+    return () => { active = false; clearTimeout(timer); };
+  }, [isOnDuty, deliveryId]);
 
   // Handle Duty Toggle
   const handleToggleDuty = async () => {
     const nextState = !isOnDuty;
     try {
-      await toggleDutyStatus(nextState, currentLat, currentLng);
+      let lat = currentLat;
+      let lng = currentLng;
+      if (nextState) {
+        if (!navigator.geolocation) throw new Error("GPS is unavailable on this device.");
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 }));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        setCurrentLat(lat);
+        setCurrentLng(lng);
+      }
+      await toggleDutyStatus(nextState, lat, lng);
       setIsOnDuty(nextState);
       if (nextState) {
         setStatusMsg("🟢 You are now ON DUTY. Order radar active!");
@@ -225,7 +211,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
       }
       setTimeout(() => setStatusMsg(""), 3500);
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || "Failed to update duty status.");
+      setErrorMsg(err?.response?.data?.detail || err.message || "Allow location access to go on duty.");
       setTimeout(() => setErrorMsg(""), 3500);
     }
   };
@@ -391,11 +377,11 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
     }
   };
 
-  // Handle 2-Digit Pickup PIN
+  // Handle 4-Digit Pickup PIN
   const handleVerifyPickup = async () => {
     if (!activeJob) return;
-    if (pickupPinInput.length < 2) {
-      setErrorMsg("Please enter the 2-digit pickup PIN.");
+    if (pickupPinInput.length !== 4) {
+      setErrorMsg("Please enter the 4-digit pickup PIN.");
       return;
     }
     setVerifyingPin(true);
@@ -408,7 +394,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
         confetti({ particleCount: 40, spread: 60 });
       } catch {}
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || "Invalid 2-digit pickup PIN. Please check with store owner.");
+      setErrorMsg(err?.response?.data?.detail || "Invalid 4-digit pickup PIN. Please check with store owner.");
     } finally {
       setVerifyingPin(false);
       setTimeout(() => setStatusMsg(""), 4000);
@@ -684,7 +670,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                    {isOnDuty ? "Live 5-Sec GPS Telemetry Active" : "Telemetry Inactive"}
+                    {gpsStreaming ? "Location sharing active" : isOnDuty ? "Waiting for GPS or connection" : "Location sharing off"}
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     {isOnDuty
@@ -822,7 +808,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                       </p>
                       <div className="pt-2 flex flex-wrap items-center gap-2">
                         <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${activeJob.customer_lat},${activeJob.customer_lng}`}
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeJob.customer_lat != null && activeJob.customer_lng != null ? `${activeJob.customer_lat},${activeJob.customer_lng}` : activeJob.customer_address)}`}
                           target="_blank"
                           rel="noreferrer"
                           className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-bold transition-all flex items-center gap-1.5"
@@ -845,7 +831,7 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                               Confirm Store Pickup
                             </h4>
                             <p className="text-[11px] text-slate-400">
-                              Ask shopkeeper for their 2-Digit Pickup PIN to start delivery
+                              Ask shopkeeper for their 4-Digit Pickup PIN to start delivery
                             </p>
                           </div>
                         </div>
@@ -857,12 +843,12 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                           maxLength={4}
                           value={pickupPinInput}
                           onChange={(e) => setPickupPinInput(e.target.value.replace(/\D/g, ""))}
-                          placeholder="2-Digit PIN"
+                          placeholder="4-Digit PIN"
                           className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center font-mono font-bold text-lg tracking-widest text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500"
                         />
                         <button
                           onClick={handleVerifyPickup}
-                          disabled={verifyingPin || pickupPinInput.length < 2}
+                          disabled={verifyingPin || pickupPinInput.length !== 4}
                           className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all disabled:opacity-40 flex items-center gap-2"
                         >
                           <span>Verify Pickup</span>
@@ -1050,9 +1036,9 @@ export default function DeliveryPartnerHub({ user, onLogout }: DeliveryPartnerHu
                         <MapPin className="w-4 h-4" />
                         <span>Deliver To</span>
                       </div>
-                      <h4 className="text-sm font-bold text-white">{incomingOrder.customer_name}</h4>
+                      <h4 className="text-sm font-bold text-white">Delivery destination</h4>
                       <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                        {incomingOrder.customer_address}
+                        Exact address available after accepting the order
                       </p>
                       <div className="pt-1.5 text-xs text-slate-400">
                         Total Order Value: <span className="text-white font-bold">₹{incomingOrder.grand_total}</span>

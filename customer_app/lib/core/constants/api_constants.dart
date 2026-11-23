@@ -12,7 +12,7 @@ class ApiConstants {
 
   // Discovery & Feed
   static const String discoveryFeed = '$baseUrl/api/discovery/feed';
-  static const String appConfig = '$baseUrl/api/config';
+  static const String appConfig = '$baseUrl/api/app-config';
   static const String shops = '$baseUrl/api/discovery/shops';
 
   // Products
@@ -20,9 +20,10 @@ class ApiConstants {
   static const String productDetails = '$baseUrl/api/products/details';
 
   // Orders & Lifecycle
-  static const String placeOrder = '$baseUrl/api/orders/place';
+  static const String placeOrder = '$baseUrl/api/orders/checkout';
   static const String myOrders = '$baseUrl/api/orders/my-orders';
-  static const String orderDetails = '$baseUrl/api/orders';
+  static const String orderDetails = '$baseUrl/api/orders/track';
+  static const String cartQuote = '$baseUrl/api/orders/cart-quote';
   static const String submitReview = '$baseUrl/api/orders/review';
 
   // Legal

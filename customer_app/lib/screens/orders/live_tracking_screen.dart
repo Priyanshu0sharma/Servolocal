@@ -12,7 +12,8 @@ class LiveTrackingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orderProv = context.watch<OrderProvider>();
-    final currentOrder = orderProv.activeOrder ?? order;
+    final active = orderProv.activeOrder;
+    final currentOrder = active != null && active.id == order.id ? active : order;
     final currentStep = currentOrder.status.stepIndex;
 
     return Scaffold(

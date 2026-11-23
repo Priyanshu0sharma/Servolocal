@@ -17,17 +17,18 @@ import {
   Timer,
   Share2,
   Info,
-  Heart,
   MapPin,
   Check,
   Loader2,
   Edit2,
   Wallet,
 } from "lucide-react";
+import MapPinSelectorModal from "./MapPinSelectorModal";
 import { CartItem, UserProfile } from "@/types";
 import { ActiveOrderData } from "./LiveOrderTrackerAndReview";
 import {
   checkoutOrder,
+  getCartQuote,
   createRazorpayOrder,
   verifyRazorpayPayment,
   getSavedAddresses,
@@ -75,10 +76,32 @@ export default function SmartCartDrawer({
   const [drawerStep, setDrawerStep] = useState<"CART" | "CHECKOUT">("CART");
   const [paymentMethod, setPaymentMethod] = useState<"WALLET" | "UPI" | "CARD" | "COD">("WALLET");
   const [deliveryInstruction, setDeliveryInstruction] = useState<string>("Leave at door");
-  const [address, setAddress] = useState(`House/Flat 402, Main Road, ${currentLocality}`);
+  const [address, setAddress] = useState("");
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [feedingIndia, setFeedingIndia] = useState<boolean>(true);
-  const [tipAmount, setTipAmount] = useState<number>(0);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [addressPin, setAddressPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [bill, setBill] = useState<{ key: string; items_total: number; platform_fee: number; delivery_fee: number; grand_total: number } | null>(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteAttempt, setQuoteAttempt] = useState(0);
+  const shopId = cart[0]?.shop_id;
+  const cartKey = JSON.stringify(cart.map(({ inventory_id, quantity, shop_id }) => ({ inventory_id, quantity, shop_id })));
+  useEffect(() => {
+    let cancelled = false;
+    setBill(null);
+    setQuoteError("");
+    if (!isOpen || !shopId) return;
+    const items: { inventory_id: number; quantity: number; shop_id: number }[] = JSON.parse(cartKey);
+    if (items.some(item => item.shop_id !== shopId)) {
+      setQuoteError("Please check out one shop at a time.");
+      return;
+    }
+    getCartQuote(shopId, items).then(quote => {
+      if (!cancelled) setBill({ ...quote, key: cartKey });
+    }).catch(() => {
+      if (!cancelled) setQuoteError("Could not confirm prices and stock.");
+    });
+    return () => { cancelled = true; };
+  }, [cartKey, shopId, isOpen, quoteAttempt]);
   const [isPlacing, setIsPlacing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number>(user?.wallet_balance || 0);
@@ -86,8 +109,9 @@ export default function SmartCartDrawer({
 
   // Sync address if locality changes
   useEffect(() => {
-    setAddress(`House/Flat 402, Main Road, ${currentLocality}`);
-  }, [currentLocality]);
+    setAddress("");
+    setAddressPin(null);
+  }, [currentLocality, user?.id]);
 
   // Modern Web Guidance: Escape key platform dismiss
   useEffect(() => {
@@ -103,13 +127,14 @@ export default function SmartCartDrawer({
 
   // Load real wallet balance & default saved address from Neon DB
   useEffect(() => {
+    let cancelled = false;
     if (isOpen && user) {
       if (typeof user.wallet_balance === "number") {
         setWalletBalance(user.wallet_balance);
       }
       getWalletOverview()
         .then((w) => {
-          if (w && typeof w.wallet_balance === "number") {
+          if (!cancelled && w && typeof w.wallet_balance === "number") {
             setWalletBalance(w.wallet_balance);
             if (user) {
               user.wallet_balance = w.wallet_balance;
@@ -121,15 +146,17 @@ export default function SmartCartDrawer({
 
       getSavedAddresses()
         .then((addrs) => {
-          if (Array.isArray(addrs) && addrs.length > 0) {
+          if (!cancelled && Array.isArray(addrs) && addrs.length > 0) {
             const def = addrs.find((a: any) => a.is_default) || addrs[0];
             if (def) {
+              setAddressPin(Number.isFinite(def.lat) && Number.isFinite(def.lng) ? { lat: def.lat, lng: def.lng } : null);
               setAddress(`${def.line1}, ${def.locality || currentLocality}`);
             }
           }
         })
         .catch(() => {});
     }
+    return () => { cancelled = true; };
   }, [isOpen, user, currentLocality]);
 
   // Reset drawer step to "CART" when drawer is closed or opened
@@ -144,17 +171,17 @@ export default function SmartCartDrawer({
   if (!isOpen) return null;
 
   // Pricing calculations matching authentic Blinkit
-  const itemsTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const confirmedBill = bill?.key === cartKey ? bill : null;
+  const itemsTotal = confirmedBill?.items_total ?? cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const mrpTotal = cart.reduce(
     (sum, item) => sum + (item.mrp && item.mrp > item.price ? item.mrp : item.price) * item.quantity,
     0
   );
   const savings = Math.max(0, mrpTotal - itemsTotal);
-  const isFreeDelivery = itemsTotal >= 150;
-  const deliveryFee = itemsTotal === 0 ? 0 : isFreeDelivery ? 0 : 25;
-  const handlingFee = itemsTotal === 0 ? 0 : 5;
-  const donationFee = feedingIndia && cart.length > 0 ? 1 : 0;
-  const grandTotal = itemsTotal + deliveryFee + handlingFee + donationFee + tipAmount;
+  const deliveryFee = confirmedBill?.delivery_fee;
+  const isFreeDelivery = deliveryFee === 0;
+  const handlingFee = confirmedBill?.platform_fee;
+  const grandTotal = confirmedBill?.grand_total ?? itemsTotal;
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const deliveringShop = cart[0]?.shop_name || "Sharma Kirana & Supermart";
@@ -200,31 +227,29 @@ export default function SmartCartDrawer({
     setIsPlacing(true);
     setCheckoutError(null);
 
-    let orderCode = "SL-" + Math.floor(100000 + Math.random() * 900000);
-    let deliveryPin = String(Math.floor(1000 + Math.random() * 9000));
-    let pickupPin = String(Math.floor(10 + Math.random() * 90));
-    let createdOrderId = "ord_" + Date.now();
-
     try {
-      const targetShopId = cart[0]?.shop_id || 1;
+      const targetShopId = cart[0]?.shop_id;
+      if (!targetShopId) throw new Error("Choose a product from a shop before checking out.");
       const dbRes = await checkoutOrder({
         shop_id: targetShopId,
         items: cart.map((c) => ({
           inventory_id: c.inventory_id,
           quantity: c.quantity,
         })),
-        delivery_address: address,
+        delivery_address: address.trim(),
+        delivery_lat: addressPin?.lat ?? null,
+        delivery_lng: addressPin?.lng ?? null,
         payment_method: methodToUse,
         payment_id: paymentRef,
+        expected_total: grandTotal,
         customer_notes: deliveryInstruction,
       });
 
-      if (dbRes?.order_code) {
-        orderCode = dbRes.order_code;
-        if (dbRes.id || dbRes.order?.id) createdOrderId = String(dbRes.id || dbRes.order?.id);
-        if (dbRes.delivery_pin) deliveryPin = String(dbRes.delivery_pin);
-        if (dbRes.pickup_pin) pickupPin = String(dbRes.pickup_pin);
-      }
+      if (!dbRes?.order?.id || !dbRes.order_code) throw new Error("Order confirmation is unavailable. Check your order history.");
+      const createdOrderId = String(dbRes.order.id);
+      const orderCode = dbRes.order_code;
+      const deliveryPin = dbRes.delivery_pin;
+      const pickupPin = dbRes.pickup_pin;
 
       // Update wallet balance if paid via Wallet
       if (methodToUse === "WALLET" && typeof dbRes?.new_wallet_balance === "number") {
@@ -245,7 +270,7 @@ export default function SmartCartDrawer({
         shopName: deliveringShop,
         shopLocality: currentLocality,
         deliveryAddress: address,
-        grandTotal,
+        grandTotal: dbRes.grand_total,
         deliveryPin,
         pickupPin,
         itemsCount: cart.length,
@@ -258,12 +283,20 @@ export default function SmartCartDrawer({
       onClose();
     } catch (err: any) {
       setIsPlacing(false);
-      setCheckoutError(err.message || "Checkout failed. Please try again.");
+      const detail = err.message || "Checkout failed.";
+      setCheckoutError(paymentRef
+        ? `${detail} Payment reference: ${paymentRef}. Check order history and contact support before paying again.`
+        : detail);
     }
   };
 
   const handleFinalOrderSubmit = async () => {
     setCheckoutError(null);
+
+    if (!confirmedBill || !address.trim()) {
+      setCheckoutError("Confirm the cart total and enter your delivery address.");
+      return;
+    }
 
     // 1. Direct Wallet Checkout
     if (paymentMethod === "WALLET") {
@@ -303,11 +336,11 @@ export default function SmartCartDrawer({
 
         const options = {
           key: keyId,
-          amount: razorpayRes.payment_order.amount,
+          amount: razorpayRes.payment_order.amount_paise,
           currency: "INR",
           name: "ServoLocal",
           description: `${paymentMethod === "UPI" ? "UPI Payment" : "Card Payment"} for order at ${deliveringShop}`,
-          order_id: razorpayRes.payment_order.id,
+          order_id: razorpayRes.payment_order.order_id,
           prefill: {
             name: user?.name || "Customer",
             email: user?.email || "",
@@ -322,7 +355,9 @@ export default function SmartCartDrawer({
                 razorpay_signature: resp.razorpay_signature,
               });
             } catch (vErr: any) {
-              console.warn("Signature verification notice:", vErr);
+              setCheckoutError(vErr.message || "Payment verification pending. Check your payment before retrying.");
+              setIsPlacing(false);
+              return;
             }
             await executeCheckout(paymentMethod, resp.razorpay_payment_id);
           },
@@ -542,20 +577,6 @@ export default function SmartCartDrawer({
                         <span className="font-semibold text-[#171717]">₹{handlingFee}</span>
                       </div>
 
-                      {feedingIndia && (
-                        <div className="flex justify-between items-center text-[#666666]">
-                          <span>Feeding India donation</span>
-                          <span className="font-semibold text-[#171717]">₹1</span>
-                        </div>
-                      )}
-
-                      {tipAmount > 0 && (
-                        <div className="flex justify-between items-center text-[#666666]">
-                          <span>Delivery partner tip</span>
-                          <span className="font-semibold text-[#0C831F]">₹{tipAmount}</span>
-                        </div>
-                      )}
-
                       <div className="pt-2 border-t border-[#F2F4F5] flex justify-between font-bold text-sm text-[#171717]">
                         <div className="flex items-center gap-1">
                           <span>Grand total</span>
@@ -563,73 +584,6 @@ export default function SmartCartDrawer({
                         </div>
                         <span>₹{grandTotal}</span>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Feeding India Donation Card (Exact Blinkit Style) */}
-                  <div className="p-3 bg-white rounded-2xl border border-[#E8ECE9] shadow-2xs flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                        <Heart className="w-4 h-4 fill-amber-500 text-amber-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <h5 className="text-xs font-bold text-[#171717] leading-tight">
-                          Feeding India donation
-                        </h5>
-                        <p className="text-[10px] text-[#777777] leading-tight truncate mt-0.5">
-                          Working towards a malnutrition free India
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-bold text-[#171717]">₹1</span>
-                      <input
-                        type="checkbox"
-                        checked={feedingIndia}
-                        onChange={(e) => setFeedingIndia(e.target.checked)}
-                        className="w-4 h-4 rounded text-[#0C831F] accent-[#0C831F] cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tip Your Delivery Partner Card (Exact Blinkit Style) */}
-                  <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2.5 shadow-2xs">
-                    <div>
-                      <h5 className="text-xs font-bold text-[#171717]">
-                        Tip your delivery partner
-                      </h5>
-                      <p className="text-[11px] text-[#777777] leading-tight mt-0.5">
-                        Your kindness means a lot! 100% of your tip will go directly to your delivery partner
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { amount: 20, label: "✌️ ₹20" },
-                        { amount: 30, label: "💌 ₹30" },
-                        { amount: 50, label: "❤️ ₹50" },
-                        { amount: 100, label: "Custom" },
-                      ].map((tip) => {
-                        const isSelected = tipAmount === tip.amount;
-                        return (
-                          <button
-                            key={tip.label}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) setTipAmount(0);
-                              else setTipAmount(tip.amount);
-                            }}
-                            className={`py-2 px-1 text-center rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
-                              isSelected
-                                ? "bg-[#EAF7EE] border-[#0C831F] text-[#075C2A] font-bold shadow-2xs"
-                                : "bg-white border-[#E8ECE9] text-[#555555] hover:bg-[#F9FAFB]"
-                            }`}
-                          >
-                            {tip.label}
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
 
@@ -647,8 +601,12 @@ export default function SmartCartDrawer({
             {/* Bottom Sticky Green Button (Exact Blinkit Style) */}
             {cart.length > 0 && (
               <div className="p-3 bg-white border-t border-[#E8ECE9]">
+                {!confirmedBill && <p role="status" className="mb-2 text-xs">
+                  {quoteError || "Checking shop prices and stock…"} {quoteError && <button onClick={() => setQuoteAttempt(n => n + 1)} className="underline">Retry</button>}
+                </p>}
                 <button
                   type="button"
+                  disabled={!!user && !confirmedBill}
                   onClick={handleProceedClick}
                   className="w-full py-3 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-md flex items-center justify-between px-4 cursor-pointer active:scale-[0.99]"
                 >
@@ -725,19 +683,26 @@ export default function SmartCartDrawer({
                   <textarea
                     rows={2}
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    onChange={(e) => { setAddress(e.target.value); setAddressPin(null); }}
                     className="w-full bg-[#F8F9FA] border border-[#0C831F] rounded-xl px-3 py-2 text-xs text-[#171717] focus:outline-none"
                     placeholder="Enter your complete flat / house address"
                   />
                 ) : (
                   <div className="p-2.5 rounded-xl bg-[#F8F9FA] border border-[#E8ECE9]">
-                    <p className="text-xs font-semibold text-[#171717] leading-snug">{address}</p>
+                    <p className="text-xs font-semibold text-[#171717] leading-snug">{address || "Enter your delivery address"}</p>
                     <p className="text-[10px] text-[#0C831F] font-bold mt-1">
                       ⚡ 10-15 Min Express Delivery Locality
                     </p>
                   </div>
                 )}
               </div>
+
+              <button type="button" onClick={() => setPinOpen(true)} className="text-xs font-bold text-green-800 underline">
+                {addressPin ? "Adjust delivery pin" : "Pin your doorstep on the map"}
+              </button>
+              {pinOpen && <MapPinSelectorModal isOpen onClose={() => setPinOpen(false)}
+                initialLat={addressPin?.lat} initialLng={addressPin?.lng}
+                onConfirmLocation={(_, lat, lng) => setAddressPin({ lat, lng })} />}
 
               {/* Delivery Instructions Card */}
               <div className="p-3.5 bg-white rounded-2xl border border-[#E8ECE9] space-y-2 shadow-2xs">
@@ -1003,7 +968,7 @@ export default function SmartCartDrawer({
             <div className="p-3 bg-white border-t border-[#E8ECE9]">
               <button
                 type="button"
-                disabled={isPlacing || (paymentMethod === "WALLET" && walletBalance < grandTotal)}
+                disabled={isPlacing || !address.trim() || !confirmedBill || (paymentMethod === "WALLET" && walletBalance < grandTotal)}
                 onClick={handleFinalOrderSubmit}
                 className="w-full py-3 rounded-xl bg-[#0C831F] hover:bg-[#075C2A] text-white text-xs font-bold transition-all shadow-md flex items-center justify-between px-4 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
               >

@@ -57,6 +57,7 @@ export interface AdminShopItem {
   owner_email?: string;
   is_active: boolean;
   is_approved: boolean;
+  commission_pct: number;
   rating: number;
   total_orders: number;
   created_at: string;

@@ -1,10 +1,10 @@
-import random
+import secrets
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Literal, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.db.session import get_db
 from app.db.models import (
@@ -20,31 +20,14 @@ from app.db.models import (
     PaymentIntent,
     WalletLedger,
 )
-from app.api.auth import decode_token
+from app.api.auth import active_session
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
-def get_current_user_optional(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            token = authorization.split(" ")[1]
-            return decode_token(token)
-        except Exception:
-            return None
-    return None
-
-
-def get_current_user_required(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required. Please log in.")
-    token = authorization.split(" ")[1]
-    return decode_token(token)
-
-
 class CartItemPayload(BaseModel):
     inventory_id: int
-    quantity: int
+    quantity: int = Field(gt=0)
     name: Optional[str] = None
     price: Optional[float] = None
     mrp: Optional[float] = None
@@ -65,7 +48,8 @@ class CheckoutRequest(BaseModel):
     delivery_address: str
     delivery_lat: Optional[float] = 27.0544
     delivery_lng: Optional[float] = 75.8942
-    payment_method: str = "DIRECT_SHOP_UPI"  # DIRECT_SHOP_UPI, RAZORPAY, WALLET, COD, UPI, CARD
+    payment_method: Literal["DIRECT_SHOP_UPI", "RAZORPAY", "WALLET", "COD", "UPI", "CARD"] = "DIRECT_SHOP_UPI"  # DIRECT_SHOP_UPI, RAZORPAY, WALLET, COD, UPI, CARD
+    expected_total: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     payment_id: Optional[str] = None
     customer_notes: Optional[str] = None
     coupon_code: Optional[str] = None
@@ -80,7 +64,7 @@ class OrderReviewRequest(BaseModel):
 
 class ClearDuesPayload(BaseModel):
     shop_id: int
-    amount: float
+    amount: float = Field(gt=0, allow_inf_nan=False)
 
 
 @router.post("/cart-quote")
@@ -93,8 +77,8 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
 
     shop_res = await db.execute(select(Shop).where(Shop.id == payload.shop_id))
     shop = shop_res.scalar_one_or_none()
-    if not shop:
-        raise HTTPException(status_code=404, detail="Shop not found.")
+    if not shop or not shop.is_verified or not shop.is_open:
+        raise HTTPException(status_code=404, detail="Shop unavailable.")
 
     items_total = 0.0
     validated_items = []
@@ -110,8 +94,8 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
         if not inv:
             raise HTTPException(status_code=400, detail=f"Item #{item.inventory_id} not available in this shop.")
 
-        qty = max(1, item.quantity)
-        if inv.available_stock < qty:
+        qty = item.quantity
+        if not inv.in_stock or inv.available_stock < qty:
             raise HTTPException(
                 status_code=400,
                 detail=f"Only {inv.available_stock} units available for '{inv.name}'. Requested: {qty}.",
@@ -130,7 +114,7 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
     # Shop free delivery rule
     threshold = shop.min_order_for_free_delivery if shop.free_delivery_enabled else 150.0
     free_unlocked = shop.free_delivery_enabled and (items_total >= threshold)
-    delivery_fee = 0.0 if free_unlocked else (shop.base_delivery_fee or 25.0)
+    delivery_fee = 0.0 if free_unlocked else shop.base_delivery_fee
     platform_fee = 5.0
 
     discount = 0.0
@@ -140,7 +124,11 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
     if payload.coupon_code:
         code = payload.coupon_code.upper().strip()
         coupon_res = await db.execute(
-            select(Coupon).where(Coupon.code == code, Coupon.is_active == True)
+            select(Coupon).where(
+                Coupon.code == code, Coupon.is_active.is_(True),
+                or_(Coupon.expires_at.is_(None), Coupon.expires_at > datetime.now(timezone.utc)),
+                or_(Coupon.usage_limit.is_(None), Coupon.used_count < Coupon.usage_limit),
+            )
         )
         coupon = coupon_res.scalar_one_or_none()
 
@@ -150,7 +138,6 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
             else:
                 if coupon.discount_type == "FREE_DELIVERY":
                     discount = delivery_fee
-                    delivery_fee = 0.0
                 elif coupon.discount_type == "PERCENTAGE":
                     discount = min(coupon.max_discount or 999.0, items_total * (coupon.value / 100.0))
                 else:  # FLAT
@@ -183,7 +170,7 @@ async def get_cart_quote(payload: CartQuoteRequest, db: AsyncSession = Depends(g
 @router.post("/checkout")
 async def checkout_order(
     payload: CheckoutRequest,
-    user_payload: dict = Depends(get_current_user_required),
+    user_payload: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -191,7 +178,7 @@ async def checkout_order(
     and logs audit history.
     """
     user_id = user_payload.get("id")
-    user_res = await db.execute(select(User).where(User.id == user_id))
+    user_res = await db.execute(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
     user = user_res.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User account not found.")
@@ -200,67 +187,50 @@ async def checkout_order(
         raise HTTPException(status_code=400, detail="Cannot checkout with an empty cart.")
 
     # Verify shop
-    shop_res = await db.execute(select(Shop).where(Shop.id == payload.shop_id))
+    shop_res = await db.execute(select(Shop).where(Shop.id == payload.shop_id).with_for_update())
     shop = shop_res.scalar_one_or_none()
     if not shop:
         raise HTTPException(status_code=404, detail="Selected store does not exist.")
 
-    if not shop.is_open:
+    if not shop.is_verified or not shop.is_open:
         raise HTTPException(status_code=400, detail=f"{shop.name} is currently closed.")
 
     now = datetime.now(timezone.utc)
 
-    # Validate stock and calculate prices inside database transaction
-    items_total = 0.0
+    await db.execute(select(ShopInventory.id).where(
+        ShopInventory.shop_id == shop.id,
+        ShopInventory.id.in_([item.inventory_id for item in payload.items]),
+    ).order_by(ShopInventory.id).with_for_update())
+    coupon = None
+    if payload.coupon_code:
+        coupon = await db.scalar(select(Coupon).where(Coupon.code == payload.coupon_code.upper().strip()).with_for_update())
+    quote = await get_cart_quote(CartQuoteRequest(**payload.model_dump()), db)
+    if coupon and quote["coupon_applied"]:
+        coupon.used_count += 1
+    items_total = quote["items_total"]
+    delivery_fee = quote["delivery_fee"]
+    platform_fee = quote["platform_fee"]
+    grand_total = quote["grand_total"]
+    if payload.expected_total is not None and round(payload.expected_total * 100) != round(grand_total * 100):
+        raise HTTPException(409, "Cart prices have changed. Refresh your quote before checking out.")
     order_items_to_create = []
-
     for item in payload.items:
-        inv_res = await db.execute(
-            select(ShopInventory).where(
-                ShopInventory.id == item.inventory_id,
-                ShopInventory.shop_id == shop.id,
-            )
-        )
-        inv = inv_res.scalar_one_or_none()
-        if not inv:
-            raise HTTPException(status_code=400, detail=f"Item #{item.inventory_id} is not available at {shop.name}.")
-
-        qty = max(1, item.quantity)
-        if inv.available_stock < qty:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Item '{inv.name}' only has {inv.available_stock} in stock. Please reduce quantity.",
-            )
-
-        # Deduct stock atomically
-        inv.available_stock -= qty
-        inv.sold_count += qty
-        if inv.available_stock <= 0:
-            inv.in_stock = False
-
-        line_price = inv.selling_price * qty
-        items_total += line_price
-
+        inv = await db.get(ShopInventory, item.inventory_id)
+        if inv.available_stock < item.quantity:
+            raise HTTPException(400, f"Insufficient stock for {inv.name}.")
+        inv.available_stock -= item.quantity
+        inv.sold_count += item.quantity
+        inv.in_stock = inv.available_stock > 0
         order_items_to_create.append({
-            "inventory_id": inv.id,
-            "item_name": inv.name,
-            "weight_or_size": inv.weight_or_size,
-            "unit_price": inv.selling_price,
-            "quantity": qty,
-            "total_price": line_price,
+            "inventory_id": inv.id, "item_name": inv.name, "weight_or_size": inv.weight_or_size,
+            "unit_price": inv.selling_price, "quantity": item.quantity,
+            "total_price": inv.selling_price * item.quantity,
         })
 
-    # Calculate delivery & platform fees
-    threshold = shop.min_order_for_free_delivery if shop.free_delivery_enabled else 150.0
-    free_unlocked = shop.free_delivery_enabled and (items_total >= threshold)
-    delivery_fee = 0.0 if free_unlocked else (shop.base_delivery_fee or 25.0)
-    platform_fee = 5.0
-    grand_total = round(items_total + delivery_fee + platform_fee, 2)
-
     # Generate secure, unique order code and random 4-digit PINs
-    order_code = f"SL-{random.randint(100000, 999999)}"
-    pickup_pin = str(random.randint(1000, 9999))
-    delivery_pin = str(random.randint(1000, 9999))
+    order_code = f"SL-{secrets.token_hex(5).upper()}"
+    pickup_pin = str(1000 + secrets.randbelow(9000))
+    delivery_pin = str(1000 + secrets.randbelow(9000))
 
     # Process WALLET payment deduction atomically
     if payload.payment_method == "WALLET":
@@ -282,7 +252,16 @@ async def checkout_order(
         )
         db.add(ledger)
 
-    is_paid = payload.payment_method in ("WALLET", "RAZORPAY", "UPI", "CARD", "DIRECT_SHOP_UPI")
+    is_paid = payload.payment_method == "WALLET"
+    if payload.payment_method in ("RAZORPAY", "UPI", "CARD"):
+        intent = await db.scalar(select(PaymentIntent).where(
+            PaymentIntent.user_id == user.id, PaymentIntent.purpose == "CUSTOMER_ORDER_CHECKOUT",
+            PaymentIntent.status == "PAID", PaymentIntent.razorpay_payment_id == payload.payment_id,
+        ).with_for_update()) if payload.payment_id else None
+        if intent is None or round(intent.amount * 100) != round(grand_total * 100):
+            raise HTTPException(409, "A verified payment matching the order total is required.")
+        intent.status = "APPLIED"
+        is_paid = True
     status = "CONFIRMED" if is_paid else "CREATED"
 
     customer_notes = payload.customer_notes.strip() if payload.customer_notes else ""
@@ -303,9 +282,9 @@ async def checkout_order(
         items_total=round(items_total, 2),
         delivery_fee=round(delivery_fee, 2),
         platform_fee=platform_fee,
-        discount_amount=0.0,
+        discount_amount=quote["discount_amount"],
         grand_total=grand_total,
-        platform_commission_amount=round(grand_total * 0.05, 2),
+        platform_commission_amount=round(grand_total * shop.commission_rate_percent / 100, 2),
         partner_earning_amount=25.0,
         delivery_address=payload.delivery_address.strip(),
         delivery_lat=payload.delivery_lat,
@@ -315,8 +294,7 @@ async def checkout_order(
         updated_at=now,
     )
     db.add(new_order)
-    await db.commit()
-    await db.refresh(new_order)
+    await db.flush()
 
     # Insert individual order items
     for oi in order_items_to_create:
@@ -367,12 +345,12 @@ async def checkout_order(
 
 
 @router.get("/track/{order_id}")
-async def track_order(order_id: str, db: AsyncSession = Depends(get_db)):
+async def track_order(order_id: str, customer: dict = Depends(active_session), db: AsyncSession = Depends(get_db)):
     """
     Track order live status, PINs, and real delivery partner updates.
     Truthfully reports assigned status without fabricating rider names or GPS.
     """
-    query = select(Order)
+    query = select(Order).where(Order.customer_id == customer["id"])
     if order_id.isdigit():
         query = query.where(Order.id == int(order_id))
     else:
@@ -403,14 +381,18 @@ async def track_order(order_id: str, db: AsyncSession = Depends(get_db)):
         p_profile_res = await db.execute(select(PartnerProfile).where(PartnerProfile.user_id == order.delivery_partner_id))
         p_profile = p_profile_res.scalar_one_or_none()
 
+        # A profile may hold a shift's previous fix. Only share fixes received on this delivery leg.
+        share_fix = (p_profile and p_profile.is_online and order.status in ("OUT_FOR_DELIVERY", "PICKED_UP")
+                     and p_profile.updated_at >= order.updated_at)
         if p_user:
             rider_info = {
                 "name": p_user.name,
-                "phone": p_user.email,
+                "phone": p_user.phone,
                 "vehicle": p_profile.vehicle_type if p_profile else "Bike",
                 "rating": p_profile.rating if p_profile else 4.9,
-                "lat": p_profile.lat if p_profile else None,
-                "lng": p_profile.lng if p_profile else None,
+                "lat": p_profile.lat if share_fix else None,
+                "lng": p_profile.lng if share_fix else None,
+                "location_updated_at": p_profile.updated_at.replace(tzinfo=timezone.utc).isoformat() if share_fix else None,
             }
 
     return {
@@ -421,11 +403,12 @@ async def track_order(order_id: str, db: AsyncSession = Depends(get_db)):
         "delivery_pin": order.delivery_pin,
         "pickup_pin": order.pickup_pin,
         "delivery_address": order.delivery_address,
+        "destination": {"lat": order.delivery_lat, "lng": order.delivery_lng},
         "shop": {
             "name": shop.name if shop else "Local Store",
             "locality": shop.locality_name if shop else "",
-            "lat": shop.lat if shop else 27.0544,
-            "lng": shop.lng if shop else 75.8942,
+            "lat": shop.lat if shop else None,
+            "lng": shop.lng if shop else None,
         },
         "rider": rider_info,
         "timeline": [
@@ -441,7 +424,7 @@ async def track_order(order_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/my-orders")
 async def get_my_orders(
-    user_payload: dict = Depends(get_current_user_required),
+    user_payload: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -493,7 +476,7 @@ async def get_my_orders(
 @router.post("/review")
 async def submit_review(
     payload: OrderReviewRequest,
-    user_payload: dict = Depends(get_current_user_required),
+    user_payload: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -523,13 +506,15 @@ async def submit_review(
 @router.post("/clear-dues")
 async def clear_dues(
     payload: ClearDuesPayload,
-    user_payload: dict = Depends(get_current_user_required),
+    user_payload: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Creates payment intent for shopkeeper to settle outstanding dues.
     """
     user_id = user_payload.get("id")
+    if user_payload["role"] != "seller" or not await db.scalar(select(Shop.id).where(Shop.id == payload.shop_id, Shop.owner_id == user_id)):
+        raise HTTPException(403, "Shop owner access required.")
     now = datetime.now(timezone.utc)
 
     intent = PaymentIntent(

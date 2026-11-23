@@ -39,6 +39,7 @@ import {
 import Header from "@/components/Header";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import Footer from "@/components/Footer";
+import LiveOrderTrackerAndReview, { ActiveOrderData } from "@/components/LiveOrderTrackerAndReview";
 import SmartCartDrawer from "@/components/SmartCartDrawer";
 import SignInModal from "@/components/SignInModal";
 import LocationSelectorModal from "@/components/LocationSelectorModal";
@@ -119,6 +120,7 @@ function AccountContent() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Orders & Wallet State (Live from Neon DB) ─────────────────────────────
+  const [trackedOrder, setTrackedOrder] = useState<ActiveOrderData | null>(null);
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(true);
   const [walletData, setWalletData] = useState<{
@@ -175,7 +177,7 @@ function AccountContent() {
 
       const options = {
         key: keyId,
-        amount: res.payment_order.amount,
+        amount: res.payment_order.amount_paise,
         currency: "INR",
         name: "ServoLocal",
         description: `Add ₹${amountToAdd} to Wallet Cash & Tokens`,
@@ -269,27 +271,6 @@ function AccountContent() {
         const savedWish = localStorage.getItem("servo_wishlist");
         if (savedWish) setWishlist(JSON.parse(savedWish));
 
-        // Instant Cache for Orders & Addresses (SWR 0ms Render)
-        const savedOrders = localStorage.getItem("servo_cached_orders");
-        if (savedOrders) {
-          const parsed = JSON.parse(savedOrders);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setOrdersList(parsed);
-            setIsLoadingOrders(false);
-          }
-        }
-
-        // Instant Cache for Wallet (SWR 0ms Render)
-        const savedWallet = localStorage.getItem("servo_cached_wallet");
-        if (savedWallet) {
-          try {
-            const parsed = JSON.parse(savedWallet);
-            if (parsed && typeof parsed === "object") {
-              setWalletData(parsed);
-              setIsLoadingWallet(false);
-            }
-          } catch {}
-        }
       } catch {}
     }
   }, []);
@@ -351,13 +332,6 @@ function AccountContent() {
             itemsSummary: o.items_summary,
           }));
           setOrdersList(mapped);
-          try {
-            if (mapped.length > 0) {
-              localStorage.setItem("servo_cached_orders", JSON.stringify(mapped));
-            } else {
-              localStorage.removeItem("servo_cached_orders");
-            }
-          } catch {}
         }
       } catch {
       } finally {
@@ -378,9 +352,6 @@ function AccountContent() {
         const data = await getWalletOverview();
         if (isMounted && data) {
           setWalletData(data);
-          try {
-            localStorage.setItem("servo_cached_wallet", JSON.stringify(data));
-          } catch {}
         }
       } catch {
       } finally {
@@ -395,6 +366,10 @@ function AccountContent() {
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
+      localStorage.removeItem("servo_cached_wallet");
+      localStorage.removeItem("servo_cached_orders");
+      localStorage.removeItem("servo_active_order");
+      if (user) localStorage.removeItem(`servo_order_${user.id}`);
       localStorage.removeItem("servo_token");
       localStorage.removeItem("servo_user");
     }
@@ -854,6 +829,9 @@ function AccountContent() {
                             {order.status || "CONFIRMED"}
                           </span>
                         </div>
+                        <button type="button" className="text-xs font-bold text-green-800 underline" onClick={() => setTrackedOrder({
+                          ...order, id: String(order.id), status: "PLACED", pickupPin: "", deliveryPin: "", shopLocality: "",
+                        })}>Track order</button>
                         <h4 className="text-sm font-bold text-[#171717]">
                           {order.shopName || "Verified Local Kirana"}
                         </h4>
@@ -1524,7 +1502,7 @@ function AccountContent() {
         }}
         onOrderPlaced={(order) => {
           setOrdersList([order, ...ordersList]);
-          localStorage.setItem("servo_active_order", JSON.stringify(order));
+          setTrackedOrder(order);
           setIsCartOpen(false);
           switchTab("orders");
         }}
@@ -1557,6 +1535,7 @@ function AccountContent() {
       )}
 
       {/* ── Location Selector Modal ───────────────────────────────── */}
+      {trackedOrder && user && <LiveOrderTrackerAndReview order={trackedOrder} onClose={() => setTrackedOrder(null)} />}
       <LocationSelectorModal
         isOpen={isLocationOpen}
         onClose={() => setIsLocationOpen(false)}

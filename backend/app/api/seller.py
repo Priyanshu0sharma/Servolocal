@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,19 +16,15 @@ from app.db.models import (
     OrderEvent,
     WalletLedger,
 )
-from app.api.auth import decode_token
+from app.api.auth import active_session
 
 router = APIRouter(prefix="/seller", tags=["Seller Hub"])
 
 
-def get_current_seller(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required. Please log in.")
-    token = authorization.split(" ")[1]
-    decoded = decode_token(token)
-    if decoded.get("role") not in ("seller", "admin"):
-        raise HTTPException(status_code=403, detail="Access denied. Merchant account required.")
-    return decoded
+def get_current_seller(session: dict = Depends(active_session)) -> dict:
+    if session["role"] not in ("seller", "admin"):
+        raise HTTPException(status_code=403, detail="Account role does not have access.")
+    return session
 
 
 class ShopSetupPayload(BaseModel):
@@ -44,14 +40,14 @@ class ShopSetupPayload(BaseModel):
     delivery_radius_km: float = 5.0
     free_delivery_enabled: bool = True
     min_order_for_free_delivery: float = 150.0
-    base_delivery_fee: float = 15.0
+    base_delivery_fee: float = Field(default=15.0, ge=0, allow_inf_nan=False)
     seller_upi_id: Optional[str] = None
 
 
 class AddFromMasterPayload(BaseModel):
     master_item_id: int
-    selling_price: float
-    stock_quantity: int = 50
+    selling_price: float = Field(gt=0, allow_inf_nan=False)
+    stock_quantity: int = Field(default=50, ge=0)
     is_pan_india_eligible: bool = False
 
 
@@ -59,11 +55,11 @@ class AddCustomItemPayload(BaseModel):
     name: str
     category: str
     sub_category: Optional[str] = None
-    selling_price: float
-    mrp: float
+    selling_price: float = Field(gt=0, allow_inf_nan=False)
+    mrp: float = Field(gt=0, allow_inf_nan=False)
     weight_or_size: str
     image_url: Optional[str] = None
-    stock_quantity: int = 50
+    stock_quantity: int = Field(default=50, ge=0)
     low_stock_threshold: int = 10
     is_pan_india_eligible: bool = False
 
@@ -103,7 +99,7 @@ async def setup_or_update_shop(
             name=payload.name.strip(),
             category=payload.category.strip(),
             image_url=payload.image_url,
-            is_open=payload.is_open,
+            is_open=False,
             rating=5.0,
             management_mode=payload.management_mode or "DIRECT_MERCHANT",
             lat=payload.lat,
@@ -116,7 +112,7 @@ async def setup_or_update_shop(
             base_delivery_fee=payload.base_delivery_fee,
             seller_upi_id=payload.seller_upi_id,
             commission_rate_percent=5.0,
-            is_verified=True,
+            is_verified=False,
             created_at=datetime.now(timezone.utc),
         )
         db.add(shop)
@@ -125,7 +121,7 @@ async def setup_or_update_shop(
         shop.category = payload.category.strip()
         if payload.image_url:
             shop.image_url = payload.image_url
-        shop.is_open = payload.is_open
+        shop.is_open = payload.is_open and shop.is_verified
         shop.lat = payload.lat
         shop.lng = payload.lng
         shop.locality_name = payload.locality_name.strip()
@@ -160,6 +156,18 @@ async def setup_or_update_shop(
     }
 
 
+@router.get("/shop")
+async def get_seller_shop(seller: dict = Depends(get_current_seller), db: AsyncSession = Depends(get_db)):
+    shop = await db.scalar(select(Shop).where(Shop.owner_id == seller["id"]))
+    if shop is None:
+        return None
+    return {key: getattr(shop, key) for key in (
+        "id", "name", "category", "image_url", "is_open", "is_verified", "management_mode",
+        "lat", "lng", "locality_name", "delivery_radius_km", "delivery_scope",
+        "free_delivery_enabled", "min_order_for_free_delivery", "base_delivery_fee", "seller_upi_id",
+    )}
+
+
 @router.get("/inventory")
 async def get_shop_inventory(
     seller: dict = Depends(get_current_seller),
@@ -171,11 +179,6 @@ async def get_shop_inventory(
     seller_id = seller.get("id")
     shop_res = await db.execute(select(Shop).where(Shop.owner_id == seller_id))
     shop = shop_res.scalar_one_or_none()
-
-    if not shop:
-        # Fallback to shop 1 or first shop if admin / onboarding
-        shop_res = await db.execute(select(Shop).order_by(Shop.id.asc()).limit(1))
-        shop = shop_res.scalar_one_or_none()
 
     if not shop:
         return []
@@ -212,6 +215,17 @@ async def get_shop_inventory(
         }
         for i in items
     ]
+
+
+@router.get("/master-catalog")
+async def seller_master_catalog(q: str = "", seller: dict = Depends(get_current_seller), db: AsyncSession = Depends(get_db)):
+    stmt = select(MasterCatalogItem).where(MasterCatalogItem.status == "ACTIVE")
+    if q.strip():
+        stmt = stmt.where(MasterCatalogItem.name.icontains(q.strip(), autoescape=True))
+    items = (await db.scalars(stmt.order_by(MasterCatalogItem.name).limit(150))).all()
+    return [{key: getattr(item, key) for key in (
+        "id", "name", "brand", "category", "sub_category", "image_url", "mrp", "default_weight_or_size",
+    )} for item in items]
 
 
 @router.post("/inventory/add-from-master")
@@ -304,8 +318,6 @@ async def add_custom_inventory(
     shop = shop_res.scalar_one_or_none()
 
     if not shop:
-        shop = (await db.execute(select(Shop).order_by(Shop.id.asc()).limit(1))).scalar_one_or_none()
-    if not shop:
         raise HTTPException(status_code=400, detail="Please set up your shop first.")
 
     image_url = payload.image_url or "https://pub-8897640d3c294b099af1aa1be730700b.r2.dev/products/placeholder.jpg"
@@ -355,7 +367,7 @@ async def update_inventory_item(
     Updates price, stock count, and availability of an inventory item.
     """
     seller_id = seller.get("id")
-    res = await db.execute(select(ShopInventory).where(ShopInventory.id == item_id))
+    res = await db.execute(select(ShopInventory).join(Shop).where(ShopInventory.id == item_id, Shop.owner_id == seller_id))
     item = res.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found.")
@@ -389,8 +401,6 @@ async def get_seller_orders(
     shop_res = await db.execute(select(Shop).where(Shop.owner_id == seller_id))
     shop = shop_res.scalar_one_or_none()
 
-    if not shop:
-        shop = (await db.execute(select(Shop).order_by(Shop.id.asc()).limit(1))).scalar_one_or_none()
 
     if not shop:
         return {"orders": []}
@@ -415,7 +425,7 @@ async def get_seller_orders(
             "id": o.id,
             "order_code": o.order_code,
             "customer_name": cust.name if cust else "Valued Customer",
-            "customer_phone": cust.email if cust else "",
+            "customer_phone": cust.phone if cust else "",
             "delivery_address": o.delivery_address,
             "status": o.status,
             "payment_method": o.payment_method,
@@ -425,7 +435,6 @@ async def get_seller_orders(
             "platform_fee": o.platform_fee,
             "grand_total": o.grand_total,
             "pickup_pin": o.pickup_pin,
-            "delivery_pin": o.delivery_pin,
             "created_at": o.created_at.isoformat() if o.created_at else None,
             "items": [
                 {
@@ -468,11 +477,13 @@ async def update_seller_order_status(
     if new_status not in valid_transitions:
         raise HTTPException(status_code=400, detail=f"Invalid status: {payload.status}")
 
-    order_res = await db.execute(select(Order).where(Order.id == order_id))
+    order_res = await db.execute(select(Order).join(Shop).where(Order.id == order_id, Shop.owner_id == seller["id"]).with_for_update())
     order = order_res.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
+    if order.status in ("DELIVERED", "OUT_FOR_DELIVERY", "CANCELLED", "REJECTED"):
+        raise HTTPException(status_code=409, detail="Order can no longer be edited by the shop.")
     order.status = new_status
     order.updated_at = datetime.now(timezone.utc)
 
@@ -503,10 +514,10 @@ async def toggle_shop_open(
     shop = shop_res.scalar_one_or_none()
 
     if not shop:
-        shop = (await db.execute(select(Shop).order_by(Shop.id.asc()).limit(1))).scalar_one_or_none()
-    if not shop:
         raise HTTPException(status_code=404, detail="Shop not found.")
 
+    if not shop.is_verified:
+        raise HTTPException(status_code=403, detail="Shop approval is pending.")
     if payload.is_open is not None:
         shop.is_open = payload.is_open
     else:

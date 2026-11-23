@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 
 from app.db.session import get_db
 from app.db.models import (
@@ -20,19 +20,15 @@ from app.db.models import (
     PlatformSetting,
     PromoBanner,
 )
-from app.api.auth import decode_token
+from app.api.auth import active_session
 
 router = APIRouter(prefix="/admin", tags=["Admin Portal"])
 
 
-def verify_admin(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-    token = authorization.split(" ")[1]
-    decoded = decode_token(token)
-    if decoded.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return decoded
+def verify_admin(session: dict = Depends(active_session)) -> dict:
+    if session["role"] not in ("admin",):
+        raise HTTPException(status_code=403, detail="Account role does not have access.")
+    return session
 
 
 class UpdateStatusRequest(BaseModel):
@@ -83,7 +79,7 @@ async def get_admin_overview(
         "today_orders": today_orders,
         "total_gmv": round(total_sales, 2),
         "today_gmv": round(today_sales, 2),
-        "platform_earnings": round(total_sales * 0.05, 2),
+        "platform_earnings": round(await db.scalar(select(func.sum(Order.platform_commission_amount))) or 0.0, 2),
         "pending_shop_approvals": pending_approvals,
     }
 
@@ -98,6 +94,7 @@ async def get_admin_shops(
     """
     res = await db.execute(select(Shop).order_by(Shop.id.asc()))
     shops = res.scalars().all()
+    order_counts = dict((await db.execute(select(Order.shop_id, func.count(Order.id)).group_by(Order.shop_id))).all())
     out = []
     for s in shops:
         out.append({
@@ -107,7 +104,8 @@ async def get_admin_shops(
             "is_active": s.is_open,
             "is_approved": s.is_verified,
             "rating": s.rating,
-            "total_orders": 0,
+            "commission_pct": s.commission_rate_percent,
+            "total_orders": order_counts.get(s.id, 0),
             "created_at": s.created_at.isoformat() if s.created_at else "",
         })
     return out
@@ -140,7 +138,7 @@ async def approve_shop_endpoint(
 
 class CommissionRequest(BaseModel):
     category: str
-    commission_pct: float
+    commission_pct: float = Field(ge=0, le=100)
 
 
 @router.post("/commissions")
@@ -149,6 +147,11 @@ async def update_commission(
     user: dict = Depends(verify_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    changed = await db.execute(update(Shop).where(func.lower(Shop.category) == payload.category.strip().lower())
+                               .values(commission_rate_percent=payload.commission_pct))
+    if not changed.rowcount:
+        raise HTTPException(404, "No shops in this category.")
+    await db.commit()
     return {"success": True, "category": payload.category, "commission_pct": payload.commission_pct}
 
 
@@ -288,6 +291,8 @@ async def toggle_user_active(
     target = res.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+    if target.id == user["id"] and target.is_active:
+        raise HTTPException(409, "Use another administrator to suspend this account.")
     target.is_active = not target.is_active
     await db.commit()
     return {"success": True, "user_id": target.id, "is_active": target.is_active}
@@ -387,7 +392,7 @@ async def get_admin_settlements(
     orders = orders_res.scalars().all()
 
     total_gmv = sum(o.grand_total for o in orders)
-    platform_commission = sum(o.platform_commission_amount or (o.grand_total * 0.05) for o in orders)
+    platform_commission = sum(o.platform_commission_amount for o in orders)
     partner_payouts = sum(o.partner_earning_amount or 25.0 for o in orders if o.status == "DELIVERED")
 
     return {
@@ -399,7 +404,7 @@ async def get_admin_settlements(
                 "order_id": o.id,
                 "order_code": o.order_code,
                 "amount": o.grand_total,
-                "commission": round(o.platform_commission_amount or (o.grand_total * 0.05), 2),
+                "commission": round(o.platform_commission_amount, 2),
                 "partner_earning": o.partner_earning_amount or 25.0,
                 "payment_method": o.payment_method,
                 "payment_status": o.payment_status,

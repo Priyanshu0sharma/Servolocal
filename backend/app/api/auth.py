@@ -9,7 +9,7 @@ from typing import Optional
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -86,6 +86,16 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
 
+async def active_session(authorization: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    claims = decode_token(authorization[7:])
+    user = await db.get(User, claims.get("id"))
+    if not user or not user.is_active or user.role != claims.get("role"):
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+    return {**claims, "role": user.role, "email": user.email}
+
+
 @router.post("/send-otp")
 async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     """
@@ -100,9 +110,9 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     # Security check for Admin access: Only authorized pre-configured admin emails allowed
     if clean_role == "admin":
         admin_check = await db.execute(
-            select(User).where(User.email.ilike(email_clean), User.role == "admin")
+            select(User).where(func.lower(User.email) == email_clean, User.role == "admin")
         )
-        if not admin_check.scalar_one_or_none() and email_clean != "priyanshusharma1131@gmail.com":
+        if not admin_check.scalar_one_or_none():
             raise HTTPException(
                 status_code=403,
                 detail="Access Denied: This email address does not have administrator privileges.",
@@ -112,7 +122,7 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     if clean_role in ("seller", "partner", "rider", "delivery") and getattr(payload, "intent", "login") == "login":
         partner_check = await db.execute(
             select(User).where(
-                User.email.ilike(email_clean),
+                func.lower(User.email) == email_clean,
                 User.role.in_(["seller", "partner", "rider", "delivery"])
             )
         )
@@ -126,7 +136,7 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     if clean_role in ("seller", "partner", "rider", "delivery") and getattr(payload, "intent", "login") == "register":
         existing_partner = await db.execute(
             select(User).where(
-                User.email.ilike(email_clean),
+                func.lower(User.email) == email_clean,
                 User.role.in_(["seller", "partner", "rider", "delivery"])
             )
         )
@@ -158,12 +168,13 @@ async def send_otp(payload: SendOtpRequest, db: AsyncSession = Depends(get_db)):
         )
         .order_by(UserOTP.created_at.desc())
         .limit(1)
+        .with_for_update()
     )
     res = await db.execute(stmt)
     latest_otp = res.scalar_one_or_none()
 
-    if latest_otp and latest_otp.resend_available_at > now:
-        wait_seconds = int((latest_otp.resend_available_at - now).total_seconds())
+    if latest_otp and latest_otp.resend_available_at.replace(tzinfo=timezone.utc) > now:
+        wait_seconds = int((latest_otp.resend_available_at.replace(tzinfo=timezone.utc) - now).total_seconds())
         raise HTTPException(
             status_code=429,
             detail=f"Please wait {wait_seconds} seconds before requesting another verification code.",
@@ -242,22 +253,22 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
         select(UserOTP)
         .where(
             UserOTP.email == email_clean,
-            UserOTP.is_used == False,
         )
         .order_by(UserOTP.created_at.desc())
         .limit(1)
+        .with_for_update()
     )
     res = await db.execute(stmt)
     otp_record = res.scalar_one_or_none()
 
-    if not otp_record:
+    if not otp_record or otp_record.is_used:
         raise HTTPException(
             status_code=400,
             detail="No active verification code found for this email. Please request a new code.",
         )
 
     # 2. Check Expiration
-    if otp_record.expires_at < now:
+    if otp_record.expires_at.replace(tzinfo=timezone.utc) <= now:
         raise HTTPException(
             status_code=400,
             detail="Verification code has expired. Please request a new code.",
@@ -274,7 +285,7 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
 
     # 4. Validate OTP Hash
     expected_hash = hash_otp(provided_code)
-    if otp_record.otp_hash != expected_hash:
+    if not secrets.compare_digest(otp_record.otp_hash, expected_hash):
         otp_record.attempts += 1
         await db.commit()
         remaining = 5 - otp_record.attempts
@@ -294,32 +305,21 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
     except Exception:
         pass
 
-    # Clear Upstash Redis OTP & cooldown cache on successful verification
-    try:
-        await redis_client.delete(f"otp:{email_clean}")
-        await redis_client.delete(f"otp_cooldown:{email_clean}")
-    except Exception:
-        pass
-
     # 6. Fetch or Create User in PostgreSQL
-    user_stmt = select(User).where(User.email.ilike(email_clean))
+    user_stmt = select(User).where(func.lower(User.email) == email_clean)
     user_res = await db.execute(user_stmt)
     user = user_res.scalar_one_or_none()
 
     clean_role = payload.role.lower().strip() if payload.role else "customer"
 
     if not user:
-        if clean_role == "admin":
-            raise HTTPException(
-                status_code=403,
-                detail="Admin user does not exist. Admin accounts must be pre-configured.",
-            )
-        assigned_role = clean_role if clean_role in ("customer", "seller", "partner", "rider", "delivery") else "customer"
+        if clean_role != "customer":
+            raise HTTPException(status_code=403, detail="Use the registration flow for your account type.")
         user = User(
             email=email_clean,
-            name="Customer" if assigned_role == "customer" else f"{assigned_role.capitalize()} Partner",
-            role=assigned_role,
-            servo_coins=100 if assigned_role == "customer" else 0,
+            name="Customer",
+            role="customer",
+            servo_coins=100,
             wallet_balance=0.0,
             is_active=True,
             terms_accepted=True,
@@ -328,6 +328,12 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
         db.add(user)
         await db.commit()
         await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive.")
+    rider_roles = {"rider", "partner", "delivery"}
+    if clean_role != user.role and not (clean_role in rider_roles and user.role in rider_roles):
+        raise HTTPException(status_code=403, detail="Sign in through the portal for your account type.")
 
     # 7. Generate Authenticated Customer JWT Session Token
     access_token = create_access_token({
@@ -364,26 +370,14 @@ async def verify_otp(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_d
 @router.get("/profile")
 @router.get("/me")
 async def get_current_user_profile(
-    authorization: Optional[str] = Header(None),
+    session: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Returns the authenticated customer profile for the active session.
     Rejects requests without a valid Bearer token.
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Please log in.",
-        )
-
-    token = authorization.split(" ")[1]
-    token_data = decode_token(token)
-
-    stmt = select(User).where(User.id == token_data.get("id"))
-    res = await db.execute(stmt)
-    user = res.scalar_one_or_none()
-
+    user = await db.get(User, session["id"])
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User account is inactive or not found.")
 
@@ -407,25 +401,13 @@ async def get_current_user_profile(
 @router.put("/profile")
 async def update_user_profile(
     payload: UpdateProfileRequest,
-    authorization: Optional[str] = Header(None),
+    session: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Updates the authenticated customer's Name and personal profile details.
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Please log in.",
-        )
-
-    token = authorization.split(" ")[1]
-    token_data = decode_token(token)
-
-    stmt = select(User).where(User.id == token_data.get("id"))
-    res = await db.execute(stmt)
-    user = res.scalar_one_or_none()
-
+    user = await db.get(User, session["id"])
     if not user or not user.is_active:
         raise HTTPException(status_code=404, detail="User account not found.")
 
@@ -482,23 +464,26 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
     # 1. Verify OTP
     stmt = (
         select(UserOTP)
-        .where(UserOTP.email == email_clean, UserOTP.is_used == False)
+        .where(UserOTP.email == email_clean)
         .order_by(UserOTP.created_at.desc())
         .limit(1)
+        .with_for_update()
     )
     res = await db.execute(stmt)
     otp_record = res.scalar_one_or_none()
 
-    if not otp_record or otp_record.expires_at < now:
+    if not otp_record or otp_record.is_used or otp_record.expires_at.replace(tzinfo=timezone.utc) <= now:
         raise HTTPException(status_code=400, detail="Verification code expired or invalid.")
 
-    if hash_otp(provided_code) != otp_record.otp_hash:
+    if otp_record.attempts >= 5:
+        raise HTTPException(status_code=400, detail="Request a new verification code.")
+
+    if not secrets.compare_digest(hash_otp(provided_code), otp_record.otp_hash):
         otp_record.attempts += 1
         await db.commit()
         raise HTTPException(status_code=400, detail="Incorrect verification code.")
 
     otp_record.is_used = True
-    await db.commit()
 
     # Clear Upstash Redis OTP & cooldown cache
     try:
@@ -508,13 +493,14 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
         pass
 
     # 2. Check if user already exists
-    user_res = await db.execute(select(User).where(User.email.ilike(email_clean)))
+    user_res = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     user = user_res.scalar_one_or_none()
 
     if not user:
         user = User(
             email=email_clean,
             name=payload.full_name.strip(),
+            phone=payload.mobile_number,
             role=role_clean,
             servo_coins=0,
             wallet_balance=0.0,
@@ -524,12 +510,12 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
             created_at=now,
         )
         db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        await db.flush()
     else:
+        if not user.is_active or user.role != "customer":
+            raise HTTPException(status_code=409, detail="Account already exists. Please sign in.")
         user.name = payload.full_name.strip()
         user.role = role_clean
-        await db.commit()
 
     # 3. Create role-specific entity
     if role_clean == "seller":
@@ -541,7 +527,7 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
                 name=payload.shop_name or f"{user.name}'s Mart",
                 category="Kirana / Daily Needs",
                 image_url=None,
-                is_open=True,
+                is_open=False,
                 rating=5.0,
                 management_mode="DIRECT_MERCHANT",
                 lat=payload.lat or 27.0544,
@@ -553,11 +539,10 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
                 min_order_for_free_delivery=150.0,
                 base_delivery_fee=15.0,
                 commission_rate_percent=5.0,
-                is_verified=True,
+                is_verified=False,
                 created_at=now,
             )
             db.add(shop)
-            await db.commit()
     elif role_clean in ("partner", "rider"):
         p_res = await db.execute(select(PartnerProfile).where(PartnerProfile.user_id == user.id))
         p_profile = p_res.scalar_one_or_none()
@@ -574,8 +559,8 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
                 updated_at=now,
             )
             db.add(p_profile)
-            await db.commit()
 
+    await db.commit()
     access_token = create_access_token({
         "id": user.id,
         "email": user.email,
@@ -587,7 +572,7 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
         "success": True,
         "role": user.role,
         "email": user.email,
-        "status": "APPROVED",
+        "status": "PENDING_APPROVAL" if role_clean == "seller" else "APPROVED",
         "message": f"Partner onboarding complete! Welcome to ServoLocal.",
         "access_token": access_token,
         "user": {
@@ -604,21 +589,14 @@ async def register_partner(payload: PartnerRegisterRequest, db: AsyncSession = D
 @router.post("/update-permission")
 async def update_permissions(
     payload: UpdatePermissionRequest,
-    authorization: Optional[str] = Header(None),
+    session: dict = Depends(active_session),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Updates user device permissions (GPS permission, Terms acceptance, FCM Push Token).
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required.")
-
-    token = authorization.split(" ")[1]
-    decoded = decode_token(token)
-
-    user_res = await db.execute(select(User).where(User.id == decoded.get("id")))
-    user = user_res.scalar_one_or_none()
-    if not user:
+    user = await db.get(User, session["id"])
+    if not user or not user.is_active:
         raise HTTPException(status_code=404, detail="User not found.")
 
     if payload.location_permission_granted is not None:

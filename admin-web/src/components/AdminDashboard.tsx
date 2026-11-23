@@ -1030,23 +1030,28 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </p>
 
             <div className="space-y-3 pt-3">
-              {[
-                { cat: "Fresh Dairy & Eggs", pct: 5.0 },
-                { cat: "Fresh Fruits & Vegetables", pct: 6.0 },
-                { cat: "Snacks & Munchies", pct: 8.0 },
-                { cat: "Electronics & Audio", pct: 10.0 },
-                { cat: "Pharmacy & Wellness", pct: 7.5 },
-              ].map((item) => (
-                <div
-                  key={item.cat}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[#080E1C] border border-slate-800"
-                >
-                  <span className="text-sm font-semibold text-slate-200">{item.cat}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-rose-400">{item.pct}%</span>
-                  </div>
-                </div>
-              ))}
+              {Array.from(new Set(shops.map(shop => shop.category))).map(category => {
+                const rates = new Set(shops.filter(shop => shop.category === category).map(shop => shop.commission_pct));
+                const rate = rates.size === 1 ? Array.from(rates)[0] : "";
+                return <form key={category + rate} className="flex items-center justify-between gap-2" onSubmit={async event => {
+                  event.preventDefault();
+                  const pct = Number(new FormData(event.currentTarget).get("commission"));
+                  try {
+                    await updateCategoryCommission(category, pct);
+                    setShops(prev => prev.map(shop => shop.category === category ? { ...shop, commission_pct: pct } : shop));
+                    setStatusMsg("Commission saved for " + category);
+                  } catch {
+                    setErrorMsg("Could not save commission for " + category);
+                  }
+                }}>
+                  <label className="flex flex-1 items-center justify-between gap-3">{category}
+                    <input name="commission" type="number" step="0.01" min="0" max="100" required defaultValue={rate}
+                      placeholder="Mixed" className="w-20 rounded bg-slate-800 p-2" aria-label={category + " commission percent"} />
+                  </label>
+                  <span>%</span><button type="submit" className="rounded bg-emerald-700 px-3 py-2">Save</button>
+                </form>;
+              })}
+              {shops.length === 0 && <p>No shop categories available.</p>}
             </div>
           </div>
         )}

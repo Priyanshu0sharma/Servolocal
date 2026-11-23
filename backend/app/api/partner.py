@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel
-from sqlalchemy import select, update
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -15,20 +15,16 @@ from app.db.models import (
     OrderEvent,
     WalletLedger,
 )
-from app.api.auth import decode_token
+from app.api.auth import active_session
 from app.api.discovery import calculate_haversine_distance
 
 router = APIRouter(prefix="/partner", tags=["Delivery Partner & Rider Hub"])
 
 
-def get_current_rider(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required. Please log in.")
-    token = authorization.split(" ")[1]
-    decoded = decode_token(token)
-    if decoded.get("role") not in ("partner", "rider", "delivery", "admin"):
-        raise HTTPException(status_code=403, detail="Access denied. Delivery partner account required.")
-    return decoded
+def get_current_rider(session: dict = Depends(active_session)) -> dict:
+    if session["role"] not in ("rider", "partner", "delivery", "admin"):
+        raise HTTPException(status_code=403, detail="Account role does not have access.")
+    return session
 
 
 class DutyTogglePayload(BaseModel):
@@ -38,14 +34,12 @@ class DutyTogglePayload(BaseModel):
 
 
 class DutyGpsPayload(BaseModel):
-    lat: float
-    lng: float
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
 
 
-class UpdateRiderGpsPayload(BaseModel):
+class UpdateRiderGpsPayload(DutyGpsPayload):
     order_id: int
-    lat: float
-    lng: float
     heading: Optional[float] = 0.0
 
 
@@ -159,7 +153,7 @@ async def get_duty_status(
         select(Order)
         .where(
             Order.delivery_partner_id == user_id,
-            Order.status.in_(["ASSIGNED", "ACCEPTED", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "PICKED_UP", "OUT_FOR_DELIVERY"]),
+            Order.status.in_(["ASSIGNED", "ACCEPTED", "ACCEPTED_BY_SHOP", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "PICKED_UP", "OUT_FOR_DELIVERY"]),
         )
         .order_by(Order.created_at.desc())
         .limit(1)
@@ -185,8 +179,8 @@ async def get_duty_status(
             "customer_name": cust.name if cust else "Customer",
             "customer_phone": cust.phone if (cust and cust.phone) else "",
             "customer_address": active_order.delivery_address,
-            "customer_lat": active_order.delivery_lat or 27.0544,
-            "customer_lng": active_order.delivery_lng or 75.8942,
+            "customer_lat": active_order.delivery_lat,
+            "customer_lng": active_order.delivery_lng,
             "items_summary": f"{len(items)} items ({', '.join(i.item_name for i in items[:2])})",
             "items_count": len(items),
             "grand_total": active_order.grand_total,
@@ -196,7 +190,6 @@ async def get_duty_status(
             "cod_amount": active_order.grand_total if active_order.payment_method == "COD" else 0.0,
             "estimated_earning": active_order.partner_earning_amount or 25.0,
             "status": active_order.status,
-            "pickup_pin": active_order.pickup_pin,
         }
 
     return {
@@ -229,7 +222,7 @@ async def get_available_orders(
         select(Order)
         .where(
             Order.delivery_partner_id.is_(None),
-            Order.status.in_(["PLACED", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP"]),
+            Order.status.in_(["CREATED", "PLACED", "CONFIRMED", "ACCEPTED", "ACCEPTED_BY_SHOP", "PREPARING", "READY_FOR_PICKUP"]),
         )
         .order_by(Order.created_at.desc())
         .limit(10)
@@ -243,8 +236,6 @@ async def get_available_orders(
     for ord_obj in unassigned_orders:
         shop_res = await db.execute(select(Shop).where(Shop.id == ord_obj.shop_id))
         shop = shop_res.scalar_one_or_none()
-        cust_res = await db.execute(select(User).where(User.id == ord_obj.customer_id))
-        cust = cust_res.scalar_one_or_none()
         items_res = await db.execute(select(OrderItem).where(OrderItem.order_id == ord_obj.id))
         items = items_res.scalars().all()
 
@@ -265,11 +256,6 @@ async def get_available_orders(
             "shop_locality": shop.locality_name if shop else "Local Area",
             "shop_lat": shop_lat,
             "shop_lng": shop_lng,
-            "customer_name": cust.name if cust else "Verified Customer",
-            "customer_phone": cust.phone if (cust and cust.phone) else "",
-            "customer_address": ord_obj.delivery_address,
-            "customer_lat": cust_lat,
-            "customer_lng": cust_lng,
             "items_summary": f"{len(items)} items ({', '.join(i.item_name for i in items[:2])})",
             "items_count": len(items),
             "grand_total": ord_obj.grand_total,
@@ -297,17 +283,28 @@ async def accept_delivery_order(
     Rider accepts an available delivery order. Sets delivery_partner_id atomically.
     """
     user_id = rider.get("id")
-    order_res = await db.execute(select(Order).where(Order.id == order_id))
+    profile = await db.scalar(select(PartnerProfile).where(PartnerProfile.user_id == user_id, PartnerProfile.is_online.is_(True)).with_for_update())
+    if profile is None:
+        raise HTTPException(409, "Go on duty before accepting an order.")
+    order_res = await db.execute(select(Order).where(Order.id == order_id).with_for_update())
     order = order_res.scalar_one_or_none()
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
-    if order.delivery_partner_id and order.delivery_partner_id != user_id:
+    if order.delivery_partner_id == user_id:
+        return {"success": True, "order_id": order.id, "order_code": order.order_code}
+    other_job = await db.scalar(select(Order.id).where(Order.delivery_partner_id == user_id,
+        Order.status.not_in(("REJECTED", "CANCELLED", "DELIVERED")), Order.id != order.id).limit(1))
+    if other_job:
+        raise HTTPException(409, "Complete your current delivery before accepting another.")
+    if order.delivery_partner_id:
         raise HTTPException(status_code=400, detail="This order has already been accepted by another delivery partner.")
 
+    if order.status not in ("PLACED", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "ACCEPTED", "ACCEPTED_BY_SHOP", "CREATED"):
+        raise HTTPException(status_code=409, detail="Order is unavailable.")
     order.delivery_partner_id = user_id
-    if order.status in ("PLACED", "CONFIRMED"):
+    if order.status in ("CREATED", "PLACED", "CONFIRMED"):
         order.status = "ASSIGNED"
     order.updated_at = datetime.now(timezone.utc)
 
@@ -330,7 +327,6 @@ async def accept_delivery_order(
         "message": f"Order #{order.order_code} assigned to you! Proceed to store for pickup.",
         "order_id": order.id,
         "order_code": order.order_code,
-        "pickup_pin": order.pickup_pin,
     }
 
 
@@ -357,17 +353,18 @@ async def verify_pickup_pin(
     Verifies the pickup PIN provided by merchant, updates order to PICKED_UP / OUT_FOR_DELIVERY.
     """
     user_id = rider.get("id")
-    order_res = await db.execute(select(Order).where(Order.id == payload.order_id))
+    order_res = await db.execute(select(Order).where(Order.id == payload.order_id, Order.delivery_partner_id == user_id).with_for_update())
     order = order_res.scalar_one_or_none()
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
+    if order.status not in ("ASSIGNED", "ACCEPTED", "ACCEPTED_BY_SHOP", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP"):
+        raise HTTPException(status_code=409, detail="Order is unavailable for pickup.")
     if not payload.pickup_pin or payload.pickup_pin.strip() != order.pickup_pin.strip():
         raise HTTPException(status_code=400, detail="Invalid Pickup PIN. Please verify with the shopkeeper.")
 
     order.status = "OUT_FOR_DELIVERY"
-    order.delivery_partner_id = user_id
     order.updated_at = datetime.now(timezone.utc)
 
     # Log audit event
@@ -393,12 +390,14 @@ async def verify_delivery_pin(
     Verifies the customer's delivery PIN, marks order as DELIVERED, and credits partner earnings.
     """
     user_id = rider.get("id")
-    order_res = await db.execute(select(Order).where(Order.id == payload.order_id))
+    order_res = await db.execute(select(Order).where(Order.id == payload.order_id, Order.delivery_partner_id == user_id).with_for_update())
     order = order_res.scalar_one_or_none()
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
+    if order.status != "OUT_FOR_DELIVERY":
+        raise HTTPException(status_code=409, detail="Order is unavailable for delivery confirmation.")
     if not payload.delivery_pin or payload.delivery_pin.strip() != order.delivery_pin.strip():
         raise HTTPException(status_code=400, detail="Invalid Customer Delivery PIN. Please ask customer for correct 4-digit PIN.")
 
@@ -410,7 +409,7 @@ async def verify_delivery_pin(
 
     # Credit partner earnings to rider wallet
     earning = order.partner_earning_amount or 25.0
-    rider_user_res = await db.execute(select(User).where(User.id == user_id))
+    rider_user_res = await db.execute(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
     rider_user = rider_user_res.scalar_one_or_none()
 
     if rider_user:
@@ -544,48 +543,7 @@ async def request_partner_payout(
     """
     Withdraw available partner wallet earnings to registered UPI ID.
     """
-    user_id = rider.get("id")
-    user_res = await db.execute(select(User).where(User.id == user_id))
-    user = user_res.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Partner account not found.")
-
-    if payload.amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid withdrawal amount.")
-
-    current_bal = float(user.wallet_balance or 0.0)
-    if current_bal < payload.amount:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Insufficient wallet balance. You have ₹{current_bal:.2f} available.",
-        )
-
-    payout_upi = payload.upi_id or user.upi_id
-    if not payout_upi:
-        raise HTTPException(status_code=400, detail="Please provide a valid UPI ID (e.g. 98290XXXXX@paytm) for payout.")
-
-    user.wallet_balance = round(current_bal - payload.amount, 2)
-    if payload.upi_id:
-        user.upi_id = payload.upi_id.strip()
-
-    now = datetime.now(timezone.utc)
-    ledger = WalletLedger(
-        user_id=user.id,
-        entry_type="DEBIT",
-        amount=payload.amount,
-        balance_after=user.wallet_balance,
-        note=f"Instant payout transfer to UPI: {payout_upi}",
-        created_at=now,
-    )
-    db.add(ledger)
-    await db.commit()
-
-    return {
-        "success": True,
-        "message": f"Payout of ₹{payload.amount:.2f} transferred to {payout_upi} successfully!",
-        "new_balance": user.wallet_balance,
-        "payout_ref": f"TXN-{int(now.timestamp())}",
-    }
+    raise HTTPException(503, "Payout transfers are unavailable. Your wallet balance is unchanged.")
 
 
 @router.post("/update-gps")
@@ -598,13 +556,17 @@ async def update_rider_gps(
     Updates the rider's active location for order tracking.
     """
     user_id = rider.get("id")
-    profile_res = await db.execute(select(PartnerProfile).where(PartnerProfile.user_id == user_id))
-    profile = profile_res.scalar_one_or_none()
-    if profile:
-        profile.lat = payload.lat
-        profile.lng = payload.lng
-        profile.updated_at = datetime.now(timezone.utc)
-        await db.commit()
+    order = await db.scalar(select(Order).where(Order.id == payload.order_id,
+        Order.delivery_partner_id == user_id, Order.status.in_(("PICKED_UP", "OUT_FOR_DELIVERY"))).with_for_update())
+    if order is None:
+        raise HTTPException(404, "Active delivery not found.")
+    profile = await db.scalar(select(PartnerProfile).where(PartnerProfile.user_id == user_id,
+                                                          PartnerProfile.is_online.is_(True)).with_for_update())
+    if profile is None:
+        raise HTTPException(409, "Go on duty to share location.")
+    profile.lat, profile.lng = payload.lat, payload.lng
+    profile.updated_at = datetime.now(timezone.utc)
+    await db.commit()
     return {"success": True}
 
 
@@ -622,7 +584,7 @@ async def onboard_shop_field(
 
     # Create merchant user if not existing
     email_clean = payload.owner_email.lower().strip()
-    user_res = await db.execute(select(User).where(User.email.ilike(email_clean)))
+    user_res = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     merchant_user = user_res.scalar_one_or_none()
 
     if not merchant_user:
@@ -641,13 +603,16 @@ async def onboard_shop_field(
         await db.commit()
         await db.refresh(merchant_user)
 
+    if merchant_user.role != "seller" or await db.scalar(select(Shop.id).where(Shop.owner_id == merchant_user.id).limit(1)):
+        raise HTTPException(status_code=409, detail="This email is already registered.")
+
     # Create new shop
     new_shop = Shop(
         owner_id=merchant_user.id,
         name=payload.shop_name.strip(),
         category=payload.category or "Street Food / Snacks",
         image_url=payload.image_url,
-        is_open=True,
+        is_open=False,
         rating=5.0,
         management_mode="PARTNER_RUNNER_STALL" if payload.is_runner_stall else "DIRECT_MERCHANT",
         lat=payload.lat,
@@ -660,7 +625,7 @@ async def onboard_shop_field(
         base_delivery_fee=15.0,
         seller_upi_id=payload.seller_upi_id,
         commission_rate_percent=5.0,
-        is_verified=True,
+        is_verified=False,
         created_at=now,
     )
     db.add(new_shop)
@@ -718,7 +683,7 @@ async def rider_track_order(
     """
     Rider job details view.
     """
-    order_res = await db.execute(select(Order).where(Order.id == order_id))
+    order_res = await db.execute(select(Order).where(Order.id == order_id, Order.delivery_partner_id == rider["id"]))
     order = order_res.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
@@ -732,8 +697,6 @@ async def rider_track_order(
         "id": order.id,
         "order_code": order.order_code,
         "status": order.status,
-        "pickup_pin": order.pickup_pin,
-        "delivery_pin": order.delivery_pin,
         "shop": {
             "name": shop.name if shop else "Shop",
             "locality": shop.locality_name if shop else "",

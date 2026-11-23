@@ -16,10 +16,13 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   final TextEditingController _couponCtrl = TextEditingController();
   String _paymentMode = 'COD';
+  bool _confirming = false;
+  final _doorstep = TextEditingController();
 
   @override
   void dispose() {
     _couponCtrl.dispose();
+    _doorstep.dispose();
     super.dispose();
   }
 
@@ -369,6 +372,8 @@ class _CartScreenState extends State<CartScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  TextField(controller: _doorstep, decoration: const InputDecoration(labelText: 'House, street and landmark')),
+                  const SizedBox(height: 12),
                   const Text('Payment Mode', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   RadioListTile<String>(
@@ -381,12 +386,12 @@ class _CartScreenState extends State<CartScreen> {
                     onChanged: (val) => setState(() => _paymentMode = val!),
                   ),
                   RadioListTile<String>(
-                    value: 'ONLINE',
+                    value: 'WALLET',
                     groupValue: _paymentMode,
                     activeColor: AppColors.primary,
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('UPI / Credit & Debit Cards (Razorpay)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
-                    subtitle: const Text('Instant contactless payment', style: TextStyle(fontSize: 10.5)),
+                    title: const Text('ServoLocal wallet', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Pay from your available balance', style: TextStyle(fontSize: 10.5)),
                     onChanged: (val) => setState(() => _paymentMode = val!),
                   ),
                 ],
@@ -426,23 +431,43 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
             ElevatedButton(
-              onPressed: orderProv.isLoading
+              onPressed: _confirming || orderProv.isLoading
                   ? null
                   : () async {
-                      final success = await orderProv.placeOrder(
-                        items: cartProv.itemList,
-                        totalAmount: cartProv.finalTotal,
-                        deliveryAddress: locationProv.currentLocality,
-                        paymentMode: _paymentMode,
-                      );
-                      if (success && mounted) {
-                        cartProv.clearCart();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => LiveTrackingScreen(order: orderProv.activeOrder!),
-                          ),
+                      if (_doorstep.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter your house and street.')));
+                        return;
+                      }
+                      setState(() => _confirming = true);
+                      try {
+                        final items = cartProv.itemList.toList();
+                        final coupon = cartProv.appliedCoupon;
+                        final total = await orderProv.quote(items, coupon);
+                        if (!context.mounted) return;
+                        final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+                          title: const Text('Confirm order'),
+                          content: Text('Shop total including fees: ₹${total.toStringAsFixed(2)}'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Back')),
+                            TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Place order')),
+                          ],
+                        ));
+                        if (confirmed != true || !context.mounted) return;
+                        final success = await orderProv.placeOrder(
+                          items: items, totalAmount: total, coupon: coupon,
+                          deliveryAddress: '${_doorstep.text.trim()}, ${locationProv.currentLocality}',
+                          lat: locationProv.currentLat, lng: locationProv.currentLng, paymentMode: _paymentMode,
                         );
+                        if (!context.mounted) return;
+                        if (!success) throw Exception(orderProv.errorMessage);
+                        cartProv.clearCart();
+                        Navigator.pushReplacement(context, MaterialPageRoute(
+                          builder: (_) => LiveTrackingScreen(order: orderProv.activeOrder!),
+                        ));
+                      } catch (error) {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+                      } finally {
+                        if (mounted) setState(() => _confirming = false);
                       }
                     },
               style: ElevatedButton.styleFrom(

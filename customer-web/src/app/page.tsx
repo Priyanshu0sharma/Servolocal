@@ -105,6 +105,7 @@ export default function CustomerHomePage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // ── 7. Active Order State (Live 10-15 Min Tracking) ───────────────────────
+  const [trackerOpen, setTrackerOpen] = useState(false);
   const [activeOrder, setActiveOrder] = useState<ActiveOrderData | null>(null);
 
   // ── 8. Wishlist State (Persisted) ─────────────────────────────────────────
@@ -156,8 +157,11 @@ export default function CustomerHomePage() {
           } catch {}
         }
 
-        const savedOrder = localStorage.getItem("servo_active_order");
-        if (savedOrder) setActiveOrder(JSON.parse(savedOrder));
+        localStorage.removeItem("servo_active_order");
+        if (token && savedUser) {
+          const savedOrder = localStorage.getItem(`servo_order_${JSON.parse(savedUser).id}`);
+          if (savedOrder) setActiveOrder(JSON.parse(savedOrder));
+        }
 
         // Instant Feed Cache (SWR 0ms Render)
         const cachedShops = localStorage.getItem("servo_feed_shops");
@@ -315,16 +319,14 @@ export default function CustomerHomePage() {
 
   const handleOrderPlaced = (newOrder: ActiveOrderData) => {
     setActiveOrder(newOrder);
+    setTrackerOpen(true);
     if (typeof window !== "undefined") {
-      localStorage.setItem("servo_active_order", JSON.stringify(newOrder));
+      if (user) localStorage.setItem(`servo_order_${user.id}`, JSON.stringify(newOrder));
     }
   };
 
   const handleCloseActiveOrder = () => {
-    setActiveOrder(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("servo_active_order");
-    }
+    setTrackerOpen(false);
   };
 
   const handleLoginSuccess = (newUser: UserProfile) => {
@@ -335,6 +337,9 @@ export default function CustomerHomePage() {
   };
 
   const handleLogout = () => {
+    if (user) localStorage.removeItem(`servo_order_${user.id}`);
+    setActiveOrder(null);
+    setTrackerOpen(false);
     setUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("servo_user");
@@ -1150,7 +1155,7 @@ export default function CustomerHomePage() {
                   <div className="pt-2">
                     <button
                       type="button"
-                      onClick={() => setActiveOrder(activeOrder)}
+                      onClick={() => setTrackerOpen(true)}
                       className="w-full py-2.5 rounded-xl bg-[#078B35] text-white text-xs font-bold hover:bg-[#075C2A] cursor-pointer"
                     >
                       Open Live Tracker & PIN
@@ -1378,7 +1383,7 @@ export default function CustomerHomePage() {
       />
 
       {/* ── Live 10-15 Min Order Tracker Modal ────────────────────── */}
-      {activeOrder && (
+      {activeOrder && trackerOpen && user && (
         <LiveOrderTrackerAndReview
           order={activeOrder}
           onClose={handleCloseActiveOrder}

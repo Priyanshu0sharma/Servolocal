@@ -200,7 +200,7 @@ export interface SellerOrder {
   customer_name: string;
   customer_phone?: string;
   delivery_address: string;
-  status: "PENDING" | "ACCEPTED" | "PREPARING" | "READY_FOR_PICKUP" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
+  status: "CREATED" | "PLACED" | "CONFIRMED" | "ASSIGNED" | "ACCEPTED_BY_SHOP" | "PENDING" | "ACCEPTED" | "PREPARING" | "READY_FOR_PICKUP" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
   payment_method: string;
   payment_status: string;
   items_total: number;
@@ -323,18 +323,14 @@ export async function setupShop(payload: ShopSetupPayload) {
   return res.data;
 }
 
-export async function getMasterCatalog(search: string = "a"): Promise<MasterCatalogItem[]> {
-  try {
-    const res = await api.get(`/api/discovery/search-suggest?q=${encodeURIComponent(search || "a")}`);
-    return res.data?.products || [];
-  } catch {
-    return [];
-  }
+export async function getMasterCatalog(search = ""): Promise<MasterCatalogItem[]> {
+  const res = await api.get("/api/seller/master-catalog", { params: { q: search } });
+  return res.data;
 }
 
 export async function getShopInventory() {
-  const res = await api.get("/api/seller/inventory");
-  return res.data;
+  const [inventory, shop] = await Promise.all([api.get("/api/seller/inventory"), api.get("/api/seller/shop")]);
+  return { items: inventory.data as InventoryItem[], shop: shop.data as ShopData | null };
 }
 
 export async function addFromMasterCatalog(
@@ -350,6 +346,13 @@ export async function addFromMasterCatalog(
     is_pan_india_eligible,
   });
   return res.data;
+}
+
+export async function uploadInventoryImage(file: File): Promise<string> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await api.post("/api/storage/upload", body, { headers: { "Content-Type": "multipart/form-data" } });
+  return response.data.url;
 }
 
 export async function addCustomItem(payload: AddCustomItemPayload) {

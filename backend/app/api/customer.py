@@ -16,19 +16,9 @@ from app.db.models import (
     MasterCatalogItem,
     ShopInventory,
 )
-from app.api.auth import decode_token
+from app.api.auth import active_session as get_current_customer
 
 router = APIRouter(prefix="/customer", tags=["Customer Portal"])
-
-
-def get_current_customer(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Please log in.",
-        )
-    token = authorization.split(" ")[1]
-    return decode_token(token)
 
 
 # ─── ADDRESSES ─────────────────────────────────────────────────────────────

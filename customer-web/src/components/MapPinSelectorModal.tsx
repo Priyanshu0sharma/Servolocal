@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, X, Check, Loader2, Navigation } from "lucide-react";
-import { reverseGeocodeIndianLocation, isLocalInstantDeliveryAvailable } from "@/lib/locationSearch";
+import { googleMapsPinUrl, reverseGeocodeIndianLocation } from "@/lib/locationSearch";
 
 interface MapPinSelectorModalProps {
   isOpen: boolean;
@@ -20,14 +20,15 @@ export default function MapPinSelectorModal({
   onConfirmLocation,
 }: MapPinSelectorModalProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({
     lat: initialLat,
     lng: initialLng,
   });
   const [addressTitle, setAddressTitle] = useState("Loading address...");
   const [addressFull, setAddressFull] = useState("Locating coordinates...");
-  const [isResolving, setIsResolving] = useState(false);
+  const [isResolving, setIsResolving] = useState(true);
+  const [gpsMessage, setGpsMessage] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize interactive Leaflet map with OpenStreetMap tiles
@@ -35,6 +36,7 @@ export default function MapPinSelectorModal({
     if (!isOpen || !mapContainerRef.current) return;
 
     let isMounted = true;
+    let revision = 0;
 
     import("leaflet").then((L) => {
       if (!isMounted || !mapContainerRef.current) return;
@@ -63,7 +65,8 @@ export default function MapPinSelectorModal({
 
       // Listen for map movements: updates center coordinates and reverse geocodes
       const handleMoveEnd = () => {
-        const center = map.getCenter();
+        const request = ++revision;
+        const center = map.getCenter().wrap();
         const lat = center.lat;
         const lng = center.lng;
         setCurrentCoords({ lat, lng });
@@ -74,21 +77,22 @@ export default function MapPinSelectorModal({
         debounceTimerRef.current = setTimeout(async () => {
           try {
             const data = await reverseGeocodeIndianLocation(lat, lng);
-            if (isMounted) {
+            if (isMounted && request === revision) {
               setAddressTitle(data.title);
               setAddressFull(data.subtitle);
             }
           } catch {
-            if (isMounted) {
+            if (isMounted && request === revision) {
               setAddressTitle("Pinned Location");
               setAddressFull(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
             }
           } finally {
-            if (isMounted) setIsResolving(false);
+            if (isMounted && request === revision) setIsResolving(false);
           }
         }, 400);
       };
 
+      map.on("movestart", () => { ++revision; setIsResolving(true); });
       map.on("moveend", handleMoveEnd);
 
       // Initial reverse geocode
@@ -108,24 +112,24 @@ export default function MapPinSelectorModal({
   if (!isOpen) return null;
 
   const handleRecenterGPS = () => {
-    if (typeof window !== "undefined" && "geolocation" in navigator && mapRef.current) {
+    const map = mapRef.current;
+    if (navigator.geolocation && map) {
+      setGpsMessage("Locating…");
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          mapRef.current.setView([lat, lng], 16);
+          if (mapRef.current !== map) return;
+          setGpsMessage("");
+          map.setView([lat, lng], 16);
         },
-        () => {},
+        () => { if (mapRef.current === map) setGpsMessage("Location unavailable. Drag the pin to your doorstep."); },
         { enableHighAccuracy: true, timeout: 6000 }
       );
+    } else {
+      setGpsMessage("GPS unavailable. Drag the pin to your doorstep.");
     }
   };
-
-  const isInstantAvailable = isLocalInstantDeliveryAvailable(
-    currentCoords.lat,
-    currentCoords.lng,
-    `${addressTitle} ${addressFull}`
-  );
 
   const handleConfirm = () => {
     const localityName = `${addressTitle}, ${addressFull.split(",")[0] || ""}`.trim();
@@ -134,7 +138,7 @@ export default function MapPinSelectorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 select-none animate-in fade-in duration-150">
+    <div role="dialog" aria-modal="true" aria-label="Select delivery location" onKeyDown={e => { if (e.key === "Escape") onClose(); }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 select-none animate-in fade-in duration-150">
       <div className="relative w-full max-w-xl h-[85vh] max-h-[680px] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-100">
         
         {/* Header */}
@@ -142,6 +146,7 @@ export default function MapPinSelectorModal({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
+              aria-label="Go back"
               onClick={onClose}
               className="p-1 rounded-full text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
             >
@@ -158,6 +163,7 @@ export default function MapPinSelectorModal({
           </div>
           <button
             type="button"
+            aria-label="Close map"
             onClick={onClose}
             className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
           >
@@ -204,7 +210,7 @@ export default function MapPinSelectorModal({
             type="button"
             onClick={handleRecenterGPS}
             title="Recenter to My GPS Location"
-            className="absolute bottom-5 right-4 z-10 p-2.5 bg-white hover:bg-gray-50 text-gray-800 rounded-full shadow-lg border border-gray-200 transition-all cursor-pointer flex items-center justify-center active:scale-95"
+            className="absolute bottom-5 left-4 z-10 p-2.5 bg-white hover:bg-gray-50 text-gray-800 rounded-full shadow-lg border border-gray-200 transition-all cursor-pointer flex items-center justify-center active:scale-95"
           >
             <Navigation className="w-5 h-5 text-[#0C831F]" />
           </button>
@@ -212,21 +218,17 @@ export default function MapPinSelectorModal({
 
         {/* Bottom Address Confirmation Sheet */}
         <div className="p-4 bg-white border-t border-gray-100 space-y-3 z-20">
+          <div className="flex items-center justify-between text-xs">
+            <span role="status">{gpsMessage}</span>
+            <a href={googleMapsPinUrl(currentCoords.lat, currentCoords.lng)} target="_blank" rel="noopener noreferrer" className="text-green-800 underline">View pin in Google Maps</a>
+          </div>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                   Delivering to:
                 </span>
-                {isInstantAvailable ? (
-                  <span className="text-[10px] font-bold text-[#0C831F] bg-[#EAF7EE] px-2 py-0.5 rounded-full">
-                    ⚡ 10-15 Min Instant Delivery Available
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                    📦 Pan-India Courier Delivery
-                  </span>
-                )}
+
               </div>
 
               <div className="flex items-center gap-2 mt-1">

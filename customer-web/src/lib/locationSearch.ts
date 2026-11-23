@@ -7,44 +7,6 @@ export interface PlaceSuggestion {
   lng: number;
 }
 
-// Check if location is within local 10-15 minute instant delivery hub (Kukas, Amer, Jaipur & surroundings)
-export function isLocalInstantDeliveryAvailable(lat: number, lng: number, placeName: string): boolean {
-  const query = (placeName || "").toLowerCase();
-
-  // Keyword check for local delivery hubs
-  const localKeywords = [
-    "kukas",
-    "amer",
-    "amber",
-    "jaipur",
-    "sodala",
-    "malviya",
-    "mansarovar",
-    "vaishali",
-    "sindhi camp",
-    "mi road",
-    "c-scheme",
-    "rajasthan university",
-    "sitapura",
-    "jagatpura",
-    "durgapura",
-    "sanganer",
-    "tonk road",
-    "bapu nagar",
-  ];
-
-  if (localKeywords.some((kw) => query.includes(kw))) {
-    return true;
-  }
-
-  // Bounding box check around Jaipur & Kukas hub (Lat: ~26.75 to ~27.20, Lng: ~75.60 to ~76.05)
-  if (lat >= 26.7 && lat <= 27.25 && lng >= 75.55 && lng <= 76.1) {
-    return true;
-  }
-
-  return false;
-}
-
 // Live search across all Indian locations (landmarks, schools, forts, railway stations, towns, cities)
 export async function searchIndianPlaces(query: string): Promise<PlaceSuggestion[]> {
   const clean = query.trim();
@@ -63,6 +25,7 @@ export async function searchIndianPlaces(query: string): Promise<PlaceSuggestion
       for (const f of data.features) {
         const props = f.properties || {};
         const coords = f.geometry?.coordinates || [];
+        if (props.countrycode?.toUpperCase() !== "IN" || !Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) continue;
         const lng = coords[0];
         const lat = coords[1];
 
@@ -84,8 +47,8 @@ export async function searchIndianPlaces(query: string): Promise<PlaceSuggestion
           results.push({
             title: name,
             subtitle,
-            lat: lat || 26.9124,
-            lng: lng || 75.7873,
+            lat,
+            lng,
           });
         }
       }
@@ -95,29 +58,7 @@ export async function searchIndianPlaces(query: string): Promise<PlaceSuggestion
       }
     }
   } catch {
-    // Fallback if photon is blocked or offline: query Nominatim
-    try {
-      const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-        clean
-      )}&countrycodes=in&format=json&limit=6&addressdetails=1`;
-      const nomRes = await fetch(nomUrl, { headers: { "User-Agent": "ServoLocal-App/1.0" } });
-      if (nomRes.ok) {
-        const nomData = await nomRes.json();
-        if (Array.isArray(nomData)) {
-          return nomData.map((item: any) => {
-            const parts = (item.display_name || "").split(",");
-            const title = parts[0]?.trim() || "Location";
-            const subtitle = parts.slice(1).join(",").trim() || "India";
-            return {
-              title,
-              subtitle,
-              lat: parseFloat(item.lat),
-              lng: parseFloat(item.lon),
-            };
-          });
-        }
-      }
-    } catch {}
+    return [];
   }
 
   return [];
@@ -130,7 +71,7 @@ export async function reverseGeocodeIndianLocation(
 ): Promise<{ title: string; subtitle: string; fullAddress: string }> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
-    const res = await fetch(url, { headers: { "User-Agent": "ServoLocal-App/1.0" } });
+    const res = await fetch(url, { signal: AbortSignal.timeout(7000) });
     if (res.ok) {
       const data = await res.json();
       if (data && data.display_name) {
@@ -153,3 +94,9 @@ export async function reverseGeocodeIndianLocation(
   };
 }
 
+
+
+export function googleMapsPinUrl(lat: number, lng: number) {
+  const params = new URLSearchParams({ api: "1", query: `${lat},${lng}` });
+  return `https://www.google.com/maps/search/?${params}`;
+}

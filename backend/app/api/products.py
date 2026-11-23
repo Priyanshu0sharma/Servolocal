@@ -27,7 +27,7 @@ async def get_product_details(
     # 2. If not found by direct ID in master, check if it's an inventory item id
     if not product:
         inv_res = await db.execute(
-            select(ShopInventory).where(ShopInventory.id == product_id)
+            select(ShopInventory).join(Shop).where(ShopInventory.id == product_id, Shop.is_verified.is_(True))
         )
         inv_item = inv_res.scalar_one_or_none()
         if inv_item and inv_item.master_item_id:
@@ -39,7 +39,7 @@ async def get_product_details(
     if not product:
         # Fallback to returning from shop_inventory directly
         inv_res = await db.execute(
-            select(ShopInventory).where(ShopInventory.id == product_id)
+            select(ShopInventory).join(Shop).where(ShopInventory.id == product_id, Shop.is_verified.is_(True))
         )
         fallback_item = inv_res.scalar_one_or_none()
         if not fallback_item:
@@ -191,7 +191,7 @@ async def get_product_offers(
 
     if not master_prod:
         inv_res = await db.execute(
-            select(ShopInventory).where(ShopInventory.id == product_id)
+            select(ShopInventory).join(Shop).where(ShopInventory.id == product_id, Shop.is_verified.is_(True))
         )
         inv_item = inv_res.scalar_one_or_none()
         if inv_item and inv_item.master_item_id:
@@ -205,7 +205,7 @@ async def get_product_offers(
         .join(Shop, ShopInventory.shop_id == Shop.id)
         .where(
             and_(
-                Shop.is_open == True,
+                Shop.is_open.is_(True), Shop.is_verified.is_(True),
                 ShopInventory.in_stock == True,
                 or_(
                     ShopInventory.master_item_id == master_id,

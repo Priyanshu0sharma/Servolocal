@@ -5,9 +5,9 @@ import { MapPin, Crosshair, X, ChevronRight, Loader2, Search } from "lucide-reac
 import {
   searchIndianPlaces,
   reverseGeocodeIndianLocation,
-  isLocalInstantDeliveryAvailable,
   PlaceSuggestion,
 } from "@/lib/locationSearch";
+import { checkLocationServiceability } from "@/lib/api";
 import MapPinSelectorModal from "./MapPinSelectorModal";
 import CompleteAddressModal from "./CompleteAddressModal";
 
@@ -24,6 +24,7 @@ export default function LocationSelectorModal({
   currentLocality,
   onSelectLocation,
 }: LocationSelectorModalProps) {
+  const [mapStart, setMapStart] = useState({ lat: 27.0544, lng: 75.8942 });
   const [detecting, setDetecting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -37,6 +38,8 @@ export default function LocationSelectorModal({
   } | null>(null);
   const [showPanIndiaOption, setShowPanIndiaOption] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const selectionVersion = useRef(0);
+  useEffect(() => () => { ++selectionVersion.current; }, [isOpen]);
   const panIndiaTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Close on Escape key
@@ -52,7 +55,12 @@ export default function LocationSelectorModal({
 
   // Reset state when modal is opened or closed
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      try {
+        const saved = JSON.parse(localStorage.getItem("servo_delivery_coords") || "null");
+        if (Number.isFinite(saved?.lat) && Math.abs(saved.lat) <= 90 && Number.isFinite(saved.lng) && Math.abs(saved.lng) <= 180) setMapStart(saved);
+      } catch {}
+    } else {
       setSearchTerm("");
       setSuggestions([]);
       setDetecting(false);
@@ -73,18 +81,19 @@ export default function LocationSelectorModal({
     }
 
     setIsSearching(true);
+    let active = true;
     const timer = setTimeout(async () => {
       try {
         const results = await searchIndianPlaces(query);
-        setSuggestions(results);
+        if (active) setSuggestions(results);
       } catch {
-        setSuggestions([]);
+        if (active) setSuggestions([]);
       } finally {
-        setIsSearching(false);
+        if (active) setIsSearching(false);
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => { active = false; clearTimeout(timer); };
   }, [searchTerm]);
 
   // When an unserviceable location is chosen, show "Oops!" and after 2.5 seconds show Switch to Pan India
@@ -103,22 +112,29 @@ export default function LocationSelectorModal({
 
   if (!isOpen) return null;
 
-  const handlePlaceSelect = (place: PlaceSuggestion) => {
-    const fullName = `${place.title}, ${place.subtitle}`;
-    const available = isLocalInstantDeliveryAvailable(place.lat, place.lng, fullName);
+  function selectLocation(locality: string, lat: number, lng: number) {
+    try { localStorage.setItem("servo_delivery_coords", JSON.stringify({ lat, lng })); } catch {}
+    onSelectLocation(locality, lat, lng);
+  }
 
-    if (available) {
-      onSelectLocation(place.title, place.lat, place.lng);
-      onClose();
-    } else {
-      // Show authentic Blinkit Oops Screen with delayed Pan-India option
-      setUnserviceableInfo({
-        locality: place.title,
-        lat: place.lat,
-        lng: place.lng,
-      });
+  const checkSelection = async (locality: string, lat: number, lng: number) => {
+    const version = ++selectionVersion.current;
+    setGpsError("");
+    try {
+      const coverage = await checkLocationServiceability(lat, lng);
+      if (version !== selectionVersion.current) return;
+      if (coverage.is_serviceable) {
+        selectLocation(locality, lat, lng);
+        onClose();
+      } else {
+        setUnserviceableInfo({ locality, lat, lng });
+      }
+    } catch {
+      if (version === selectionVersion.current) setGpsError("Could not check delivery coverage. Please try again.");
     }
   };
+
+  const handlePlaceSelect = (place: PlaceSuggestion) => checkSelection(place.title, place.lat, place.lng);
 
   const handleDetectGPS = () => {
     setGpsError("");
@@ -131,17 +147,7 @@ export default function LocationSelectorModal({
           try {
             const geocoded = await reverseGeocodeIndianLocation(lat, lng);
             setDetecting(false);
-            const available = isLocalInstantDeliveryAvailable(lat, lng, `${geocoded.title} ${geocoded.subtitle}`);
-            if (available) {
-              onSelectLocation(geocoded.title, lat, lng);
-              onClose();
-            } else {
-              setUnserviceableInfo({
-                locality: geocoded.title,
-                lat,
-                lng,
-              });
-            }
+            await checkSelection(geocoded.title, lat, lng);
           } catch {
             setDetecting(false);
             setGpsError("Unable to resolve GPS address. Please search your locality or select on map.");
@@ -160,25 +166,14 @@ export default function LocationSelectorModal({
 
   const handleSwitchToPanIndia = () => {
     if (unserviceableInfo) {
-      onSelectLocation(`${unserviceableInfo.locality} (Pan-India)`, unserviceableInfo.lat, unserviceableInfo.lng);
+      selectLocation(`${unserviceableInfo.locality} (Pan-India)`, unserviceableInfo.lat, unserviceableInfo.lng);
       onClose();
     }
   };
 
   const handleMapConfirm = (locality: string, lat: number, lng: number) => {
-    const available = isLocalInstantDeliveryAvailable(lat, lng, locality);
-    if (available) {
-      onSelectLocation(locality, lat, lng);
-      setIsMapOpen(false);
-      onClose();
-    } else {
-      setIsMapOpen(false);
-      setUnserviceableInfo({
-        locality,
-        lat,
-        lng,
-      });
-    }
+    setIsMapOpen(false);
+    void checkSelection(locality, lat, lng);
   };
 
   return (
@@ -406,11 +401,13 @@ export default function LocationSelectorModal({
         <CompleteAddressModal
           isOpen={isCompleteAddressOpen}
           onClose={() => setIsCompleteAddressOpen(false)}
+          initialLat={mapStart.lat}
+          initialLng={mapStart.lng}
           initialLocality={currentLocality}
           onAddressSaved={(newAddr) => {
             setIsCompleteAddressOpen(false);
             if (newAddr?.locality) {
-              onSelectLocation(newAddr.locality, newAddr.lat || 27.0544, newAddr.lng || 75.8942);
+              selectLocation(newAddr.locality, newAddr.lat ?? mapStart.lat, newAddr.lng ?? mapStart.lng);
             }
             onClose();
           }}
@@ -422,8 +419,8 @@ export default function LocationSelectorModal({
         <MapPinSelectorModal
           isOpen={isMapOpen}
           onClose={() => setIsMapOpen(false)}
-          initialLat={27.0544}
-          initialLng={75.8942}
+          initialLat={mapStart.lat}
+          initialLng={mapStart.lng}
           onConfirmLocation={handleMapConfirm}
         />
       )}

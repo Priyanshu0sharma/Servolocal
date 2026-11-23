@@ -25,8 +25,7 @@ engine = create_async_engine(
     clean_url,
     connect_args=connect_args,
     pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
+    **({"pool_size": 5, "max_overflow": 10} if raw_db_url else {}),
 )
 
 AsyncSessionLocal = async_sessionmaker(

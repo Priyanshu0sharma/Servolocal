@@ -1,21 +1,27 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
-from typing import Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
+from typing import Literal
+from app.api.seller import get_current_seller
 from pydantic import BaseModel
 from app.core.r2 import r2_storage
 
-router = APIRouter(prefix="/storage", tags=["Storage & R2"])
+router = APIRouter(prefix="/storage", tags=["Storage & R2"], dependencies=[Depends(get_current_seller)])
+
+
+ImageType = Literal["image/jpeg", "image/png", "image/webp"]
+ImageFolder = Literal["products", "shops", "banners"]
+EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
 
 class PresignedUrlRequest(BaseModel):
     filename: str
-    content_type: str = "image/jpeg"
-    folder: str = "products"
+    content_type: ImageType = "image/jpeg"
+    folder: ImageFolder = "products"
 
 
 @router.post("/upload")
 async def upload_file_to_r2(
     file: UploadFile = File(...),
-    folder: str = Form("products"),
+    folder: ImageFolder = Form("products"),
 ):
     """
     Upload an image (shop banner, product photo) directly to Cloudflare R2.
@@ -27,14 +33,26 @@ async def upload_file_to_r2(
             detail="Cloudflare R2 storage is not configured. Please check environment variables.",
         )
 
-    file_bytes = await file.read()
+    content_type = file.content_type
+    if content_type not in EXTENSIONS:
+        raise HTTPException(415, "Choose a JPEG, PNG or WebP image.")
+    limit = 5 * 1024 * 1024
+    file_bytes = await file.read(limit + 1)
+    if len(file_bytes) > limit:
+        raise HTTPException(413, "Image exceeds 5 MiB.")
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    content_type = file.content_type or "image/jpeg"
+    matches = {
+        "image/jpeg": file_bytes.startswith(bytes.fromhex("ffd8ff")),
+        "image/png": file_bytes.startswith(bytes.fromhex("89504e470d0a1a0a")),
+        "image/webp": file_bytes.startswith(b"RIFF") and file_bytes[8:12] == b"WEBP",
+    }
+    if not matches[content_type]:
+        raise HTTPException(415, "File contents do not match the image type.")
     cdn_url = r2_storage.upload_image(
         file_bytes=file_bytes,
-        original_filename=file.filename or "image.jpg",
+        original_filename=f"image.{EXTENSIONS[content_type]}",
         content_type=content_type,
         folder=folder,
     )
@@ -62,7 +80,7 @@ async def get_presigned_upload_url(payload: PresignedUrlRequest):
         )
 
     presigned_data = r2_storage.generate_presigned_upload_url(
-        filename=payload.filename,
+        filename=f"image.{EXTENSIONS[payload.content_type]}",
         content_type=payload.content_type,
         folder=payload.folder,
     )

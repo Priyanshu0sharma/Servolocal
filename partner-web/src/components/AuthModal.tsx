@@ -533,20 +533,8 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
             }),
       });
 
-      const partnerUser = (res.user as UserProfile) || {
-        id: Date.now(),
-        email: cleanEmail,
-        name: fullName.trim(),
-        role: role as any,
-        wallet_balance: 0,
-        dues_limit: 1000,
-        servo_coins: 0,
-        is_active: true,
-        terms_accepted: true,
-        location_permission_granted: true,
-      };
-
-      setRegisteredUser(partnerUser);
+      if (!res.user?.id || !res.access_token) throw new Error("Registration confirmation unavailable.");
+      setRegisteredUser(res.user as UserProfile);
       setRegStep("SUCCESS");
       setErrorMsg("");
       setSuccessMsg("");
@@ -1199,7 +1187,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
 
                     <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
                       {role === "seller"
-                        ? `Your shop "${shopName}" is verified and live on the hyperlocal grid. You can start adding products and accepting orders immediately!`
+                        ? `Your shop "${shopName}" is awaiting admin approval. You can add inventory while your shop is being reviewed.`
                         : `Your delivery partner profile is active and verified. You are ready to receive delivery dispatch requests.`}
                     </p>
                   </div>
@@ -1226,7 +1214,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                     <div className="flex justify-between">
                       <span>Account Status:</span>
                       <span className="font-bold text-emerald-600 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Live & Ready
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {role === "seller" ? "Awaiting shop approval" : "Ready"}
                       </span>
                     </div>
                   </div>
@@ -1234,22 +1222,7 @@ export default function AuthModal({ onLoginSuccess }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      if (registeredUser) {
-                        onLoginSuccess(registeredUser);
-                      } else {
-                        onLoginSuccess({
-                          id: Date.now(),
-                          email: regEmail,
-                          name: fullName,
-                          role: role as any,
-                          wallet_balance: 0,
-                          dues_limit: 1000,
-                          servo_coins: 0,
-                          is_active: true,
-                          terms_accepted: true,
-                          location_permission_granted: true,
-                        });
-                      }
+                      if (registeredUser) onLoginSuccess(registeredUser);
                     }}
                     className="w-full py-3 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >

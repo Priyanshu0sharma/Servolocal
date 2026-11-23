@@ -10,16 +10,9 @@ from app.main import app
 from app.api.auth import create_access_token
 from app.core.razorpay_client import razorpay_service
 from app.api.discovery import calculate_haversine_distance
-from app.db.session import engine
 
 transport = httpx.ASGITransport(app=app)
 base_url = "http://testserver"
-
-
-@pytest.fixture(autouse=True)
-async def dispose_engine():
-    yield
-    await engine.dispose()
 
 
 # ─── 1. Health & Configuration Tests ────────────────────────────────────────
@@ -167,7 +160,7 @@ async def test_customer_authenticated_me(customer_token):
     headers = {"Authorization": f"Bearer {customer_token}"}
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
         response = await ac.get("/api/auth/me", headers=headers)
-        assert response.status_code in (200, 401)
+        assert response.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -282,7 +275,7 @@ def test_razorpay_signature_verification():
 
 @pytest.mark.asyncio
 async def test_partner_available_orders_endpoint():
-    partner_token = create_access_token({"id": 1, "email": "rider@servolocal.in", "role": "partner"})
+    partner_token = create_access_token({"id": 2, "email": "rider@servolocal.in", "role": "partner"})
     headers = {"Authorization": f"Bearer {partner_token}"}
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
         res = await ac.get("/api/partner/available-orders", headers=headers)
@@ -293,7 +286,7 @@ async def test_partner_available_orders_endpoint():
 
 @pytest.mark.asyncio
 async def test_admin_extended_endpoints():
-    admin_token = create_access_token({"id": 1, "email": "priyanshusharma1131@gmail.com", "role": "admin"})
+    admin_token = create_access_token({"id": 3, "email": "admin@example.com", "role": "admin"})
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
         users_res = await ac.get("/api/admin/users", headers=headers)
@@ -314,7 +307,9 @@ async def test_admin_extended_endpoints():
 
 
 @pytest.mark.asyncio
-async def test_wallet_topup_endpoints():
+async def test_wallet_topup_endpoints(monkeypatch):
+    monkeypatch.setattr(razorpay_service, "is_configured", True)
+    monkeypatch.setattr(razorpay_service, "create_order", lambda *args: {"order_id": "order_fixture"})
     token = create_access_token({"id": 1, "email": "customer@servolocal.in", "role": "customer"})
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(transport=transport, base_url=base_url) as ac:
@@ -348,7 +343,7 @@ async def test_wallet_checkout_insufficient_balance():
             }
             # Attempt checkout with wallet: should either succeed (if user has enough balance) or fail with 400 Insufficient balance
             res = await ac.post("/api/orders/checkout", json=checkout_payload, headers=headers)
-            assert res.status_code in (200, 400)
+            assert res.status_code == 400
             if res.status_code == 400:
                 assert "wallet" in res.json()["detail"].lower()
             elif res.status_code == 200:

@@ -1,5 +1,5 @@
 import math
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import Optional, List
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ async def get_discovery_feed(
     Enforces mode eligibility (IN_MINUTES, IN_1_DAY, PAN_INDIA) strictly on the backend.
     """
     mode_clean = mode.upper().replace("-", "_").strip()
-    cache_key = f"feed:{mode_clean}:{locality}:{round(lat, 2)}:{round(lng, 2)}"
+    cache_key = f"feed:v2:{mode_clean}:{locality}:{round(lat, 2)}:{round(lng, 2)}"
     try:
         cached = await redis_client.get(cache_key)
         if cached:
@@ -66,7 +66,7 @@ async def get_discovery_feed(
 
     try:
         # Fetch shops from DB
-        shops_res = await db.execute(select(Shop).order_by(Shop.rating.desc()))
+        shops_res = await db.execute(select(Shop).where(Shop.is_verified.is_(True), Shop.is_open.is_(True)).order_by(Shop.rating.desc()))
         db_shops = shops_res.scalars().all()
 
         shops_data = []
@@ -182,18 +182,8 @@ async def get_discovery_feed(
         except Exception:
             pass
         return feed_response
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {
-            "mode": mode,
-            "is_area_serviceable": True,
-            "user_locality": locality,
-            "banner_badge": "⚡ 10-15 Min Delivery",
-            "message": f"Delivering live from local stores near {locality}",
-            "shops": [],
-            "all_products": [],
-        }
+    except Exception:
+        raise HTTPException(503, "Store availability could not be checked.")
 
 
 @router.get("/search-suggest")
@@ -209,8 +199,9 @@ async def search_suggest(
     clean_q = f"%{q.lower().strip()}%"
     try:
         res = await db.execute(
-            select(ShopInventory)
+            select(ShopInventory).join(Shop)
             .where(
+                Shop.is_verified.is_(True), Shop.is_open.is_(True),
                 or_(
                     ShopInventory.name.ilike(clean_q),
                     ShopInventory.category.ilike(clean_q),
@@ -259,7 +250,7 @@ async def check_serviceability(
     Returns nearest shop information and instant delivery availability.
     """
     try:
-        shops_res = await db.execute(select(Shop).where(Shop.is_open == True))
+        shops_res = await db.execute(select(Shop).where(Shop.is_open.is_(True), Shop.is_verified.is_(True)))
         db_shops = shops_res.scalars().all()
 
         serviceable_shops = []
@@ -281,10 +272,7 @@ async def check_serviceability(
                     "eta": s.local_eta_mins or "10-15 mins",
                 })
 
-        # Check if coordinates fall within local delivery area (Kukas, Amer, Jaipur & surroundings)
-        is_serviceable = len(serviceable_shops) > 0 or (
-            26.70 <= lat <= 27.35 and 75.50 <= lng <= 76.15
-        )
+        is_serviceable = bool(serviceable_shops)
 
         return {
             "is_serviceable": is_serviceable,
@@ -294,11 +282,5 @@ async def check_serviceability(
             "nearest_shop_name": nearest_shop.name if nearest_shop else None,
             "estimated_delivery_time": "10-15 mins" if is_serviceable else "Currently not serviceable for instant delivery",
         }
-    except Exception as e:
-        return {
-            "is_serviceable": True,
-            "shop_count": 1,
-            "shops": [],
-            "estimated_delivery_time": "10-15 mins",
-        }
-
+    except Exception:
+        raise HTTPException(503, "Could not check delivery coverage.")

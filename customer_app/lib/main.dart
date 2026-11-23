@@ -36,7 +36,10 @@ class ServoLocalCustomerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LocationProvider()),
         ChangeNotifierProvider(create: (_) => FeedProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
-        ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, OrderProvider>(
+            create: (_) => OrderProvider(),
+            update: (_, auth, orders) => orders!..setCustomer(auth.user?.id),
+          ),
       ],
       child: MaterialApp(
         title: 'ServoLocal',

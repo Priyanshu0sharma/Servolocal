@@ -45,10 +45,10 @@ import {
   getShopInventory,
   addFromMasterCatalog,
   addCustomItem,
+  uploadInventoryImage,
   getSellerOrders,
   updateOrderStatus,
-  verifyPickupPin,
-  verifyClearDuesPayment
+  toggleShopStatus
 } from "@/lib/api";
 
 interface SellerDashboardProps {
@@ -57,7 +57,7 @@ interface SellerDashboardProps {
 }
 
 export default function SellerDashboard({ user: initialUser, onLogout }: SellerDashboardProps) {
-  const [user, setUser] = useState<UserProfile>(initialUser);
+  const user = initialUser;
   const [activeTab, setActiveTab] = useState<"ORDERS" | "CATALOG" | "CUSTOM_UPLOAD" | "SETTINGS">("ORDERS");
   const [shop, setShop] = useState<ShopData | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -66,8 +66,6 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [buzzerEnabled, setBuzzerEnabled] = useState(true);
-  const [pickupPinInput, setPickupPinInput] = useState<{ [orderId: number]: string }>({});
-  const [clearingDues, setClearingDues] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
   // Add from master quick modal state
@@ -88,14 +86,14 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [customStock, setCustomStock] = useState<number>(30);
   const [customLowStock, setCustomLowStock] = useState<number>(5);
   const [customPanIndia, setCustomPanIndia] = useState(false);
-  const [customImageBase64, setCustomImageBase64] = useState<string>("");
+  const [customImage, setCustomImage] = useState<File | null>(null);
   const [customImagePreview, setCustomImagePreview] = useState<string>("");
   const [uploadingCustom, setUploadingCustom] = useState(false);
 
   // Shop Settings State
   const [shopName, setShopName] = useState(initialUser.name ? `${initialUser.name}'s Mart` : "My Neighborhood Store");
   const [shopCategory, setShopCategory] = useState("Kirana");
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [shopLat, setShopLat] = useState(27.0544);
   const [shopLng, setShopLng] = useState(75.8942);
   const [localityName, setLocalityName] = useState("");
@@ -104,7 +102,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
   const [minOrderFreeDelivery, setMinOrderFreeDelivery] = useState(150.0);
   const [baseDeliveryFee, setBaseDeliveryFee] = useState(25.0);
-  const [sellerUpiId, setSellerUpiId] = useState(initialUser.upi_id || "shopkeeper@upi");
+  const [sellerUpiId, setSellerUpiId] = useState(initialUser.upi_id || "");
   const [customServiceableAreas, setCustomServiceableAreas] = useState<
     Array<{ area_name: string; eta_label: string; delivery_fee: number }>
   >([]);
@@ -141,7 +139,17 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
         if (data?.shop) {
           setShop(data.shop);
           setIsOpen(data.shop.is_open);
-          setLocalityName(data.shop.locality || localityName);
+          setShopName(data.shop.name);
+          setShopCategory(data.shop.category);
+          setLocalityName(data.shop.locality_name);
+          setShopLat(data.shop.lat);
+          setShopLng(data.shop.lng);
+          setDeliveryRadiusKm(data.shop.delivery_radius_km);
+          setDeliveryScope(data.shop.delivery_scope);
+          setFreeDeliveryEnabled(data.shop.free_delivery_enabled);
+          setMinOrderFreeDelivery(data.shop.min_order_for_free_delivery);
+          setBaseDeliveryFee(data.shop.base_delivery_fee);
+          setSellerUpiId(data.shop.seller_upi_id || "");
           if (data.shop.custom_serviceable_areas && Array.isArray(data.shop.custom_serviceable_areas)) {
             setCustomServiceableAreas(data.shop.custom_serviceable_areas);
           }
@@ -153,7 +161,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
       .catch((err) => console.log("[LOAD INVENTORY]", err));
 
     // Preload Master Catalog
-    getMasterCatalog("a")
+    getMasterCatalog()
       .then((items) => setMasterCatalog(items))
       .catch(() => {});
 
@@ -176,117 +184,22 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
 
   // Toggle Shop Open/Closed
   const handleToggleShopOpen = async () => {
-    const nextState = !isOpen;
-    setIsOpen(nextState);
     try {
-      await setupShop({
-        name: shop?.name || shopName,
-        category: shop?.category || shopCategory,
-        is_open: nextState,
-        lat: shopLat,
-        lng: shopLng,
-        locality_name: localityName,
-        delivery_radius_km: deliveryRadiusKm,
-        delivery_scope: deliveryScope,
-        free_delivery_enabled: freeDeliveryEnabled,
-        min_order_for_free_delivery: minOrderFreeDelivery,
-        base_delivery_fee: baseDeliveryFee,
-        seller_upi_id: sellerUpiId,
-        custom_serviceable_areas: customServiceableAreas,
-      });
-      setStatusMsg(`Store is now ${nextState ? "OPEN for orders" : "CLOSED"}`);
-      setTimeout(() => setStatusMsg(""), 3000);
-    } catch (e) {
-      setIsOpen(!nextState);
-    }
-  };
-
-  // Dues Clearance via Razorpay
-  const handlePayCompanyDues = async () => {
-    setClearingDues(true);
-    const amountToClear = Math.max(200, Math.abs(user.wallet_balance));
-
-    // Razorpay Integration
-    if (typeof window !== "undefined" && (window as any).Razorpay) {
-      try {
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-          amount: Math.round(amountToClear * 100),
-          currency: "INR",
-          name: "ServoLocal Technologies",
-          description: "Clear Prepaid Wallet Dues (-₹200 limit)",
-          image: "/logo.jpeg",
-          handler: async function (response: any) {
-            const res = await verifyClearDuesPayment({
-              amount: amountToClear,
-              razorpay_payment_id: response.razorpay_payment_id || `pay_${Date.now()}`,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            setUser((prev) => ({ ...prev, wallet_balance: res.new_balance || 0.0 }));
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            alert("Payment successful! Your shop is fully unlocked.");
-          },
-          prefill: {
-            name: user.name,
-            email: user.email,
-          },
-          theme: {
-            color: "#10B981",
-          },
-        };
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } catch (err) {
-        // Fallback direct clearance for dev/test environments
-        const res = await verifyClearDuesPayment({
-          amount: amountToClear,
-          razorpay_payment_id: `pay_direct_${Date.now()}`,
-        });
-        setUser((prev) => ({ ...prev, wallet_balance: res.new_balance || 0.0 }));
-        confetti({ particleCount: 80, spread: 60 });
-      } finally {
-        setClearingDues(false);
-      }
-    } else {
-      // Direct clearance fallback
-      try {
-        const res = await verifyClearDuesPayment({
-          amount: amountToClear,
-          razorpay_payment_id: `pay_offline_${Date.now()}`,
-        });
-        setUser((prev) => ({ ...prev, wallet_balance: res.new_balance || 0.0 }));
-        confetti({ particleCount: 80, spread: 60 });
-        alert("Prepaid dues cleared! Shop orders unpaused.");
-      } catch (e) {
-        alert("Payment clearance failed. Please try again.");
-      } finally {
-        setClearingDues(false);
-      }
-    }
-  };
-
-  // Order Actions
-  const handleUpdateOrderStatus = (orderId: number, nextStatus: SellerOrder["status"]) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
-    );
-    updateOrderStatus(orderId, nextStatus).catch(() => {});
-    playBuzzerSound();
-  };
-
-  const handleVerifyPickup = async (orderId: number) => {
-    const pin = pickupPinInput[orderId];
-    if (!pin || pin.length < 2) {
-      alert("Please enter the 2-digit PIN shown by the delivery rider.");
-      return;
-    }
-    try {
-      await verifyPickupPin(orderId, pin);
-      handleUpdateOrderStatus(orderId, "OUT_FOR_DELIVERY");
-      alert("Pickup PIN verified successfully! Order is out for delivery.");
+      const result = await toggleShopStatus(!isOpen);
+      setIsOpen(result.is_open);
+      setStatusMsg(result.is_open ? "Store is open for orders." : "Store is closed.");
     } catch (err: any) {
-      alert(err?.response?.data?.detail || "Invalid Pickup PIN. Please verify with the delivery partner.");
+      setStatusMsg(err.response?.data?.detail || "Could not update the shop.");
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: number, status: SellerOrder["status"]) => {
+    try {
+      await updateOrderStatus(orderId, status);
+      setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status } : order));
+      playBuzzerSound();
+    } catch (err: any) {
+      setStatusMsg(err.response?.data?.detail || "Could not update this order.");
     }
   };
 
@@ -354,10 +267,17 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+        setCustomImage(null);
+        setCustomImagePreview("");
+        e.target.value = "";
+        setStatusMsg("Choose a JPEG, PNG or WebP image up to 5 MiB.");
+        return;
+      }
+      setCustomImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = reader.result as string;
-        setCustomImageBase64(base64);
         setCustomImagePreview(base64);
       };
       reader.readAsDataURL(file);
@@ -380,7 +300,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
         selling_price: customPrice,
         mrp: customMrp,
         weight_or_size: customWeight,
-        image_base64: customImageBase64,
+        image_url: customImage ? await uploadInventoryImage(customImage) : undefined,
         stock_quantity: customStock,
         low_stock_threshold: customLowStock,
         is_pan_india_eligible: customPanIndia,
@@ -394,7 +314,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
       setCustomName("");
       setCustomPrice(50);
       setCustomMrp(60);
-      setCustomImageBase64("");
+      setCustomImage(null);
       setCustomImagePreview("");
       confetti({ particleCount: 70, spread: 60 });
       setStatusMsg("Custom product uploaded and listed successfully!");
@@ -477,6 +397,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
         custom_serviceable_areas: customServiceableAreas,
       });
       setShop(res.shop);
+      setIsOpen(res.shop.is_open);
       confetti({ particleCount: 50 });
       setStatusMsg("Shop settings and delivery zones saved!");
       setTimeout(() => setStatusMsg(""), 3000);
@@ -487,7 +408,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
     }
   };
 
-  const isLocked = user.wallet_balance <= user.dues_limit;
+  const isLocked = user.wallet_balance <= -Math.abs(user.dues_limit || 200);
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col">
@@ -592,14 +513,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
               </div>
             </div>
 
-            <button
-              onClick={handlePayCompanyDues}
-              disabled={clearingDues}
-              className="w-full sm:w-auto shrink-0 px-5 py-2.5 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>{clearingDues ? "Processing..." : `Pay ₹${Math.abs(user.wallet_balance).toFixed(0)} via Razorpay`}</span>
-            </button>
+            <span>Contact support to reconcile outstanding dues.</span>
           </motion.div>
         )}
 
@@ -724,7 +638,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                       </div>
                       <span
                         className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          order.status === "PENDING"
+                          ["CREATED", "PLACED", "CONFIRMED", "ASSIGNED", "ACCEPTED", "ACCEPTED_BY_SHOP", "PENDING"].includes(order.status)
                             ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse"
                             : order.status === "PREPARING"
                             ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
@@ -762,7 +676,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
 
                     {/* Action Buttons Based on Status */}
                     <div className="pt-2 border-t border-slate-800 space-y-3">
-                      {order.status === "PENDING" && (
+                      {["CREATED", "PLACED", "CONFIRMED", "ASSIGNED", "ACCEPTED", "ACCEPTED_BY_SHOP", "PENDING"].includes(order.status) && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleUpdateOrderStatus(order.id, "PREPARING")}
@@ -791,26 +705,8 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                       {order.status === "READY_FOR_PICKUP" && (
                         <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2">
                           <div className="flex items-center justify-between text-xs text-purple-300 font-semibold">
-                            <span>Verify Rider 2-Digit Pickup PIN:</span>
-                            <span className="text-[11px] font-mono text-purple-400">Expected: {order.pickup_pin}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              maxLength={2}
-                              placeholder="e.g. 42"
-                              value={pickupPinInput[order.id] || ""}
-                              onChange={(e) =>
-                                setPickupPinInput({ ...pickupPinInput, [order.id]: e.target.value })
-                              }
-                              className="w-20 px-3 py-2 bg-slate-950 border border-purple-500/40 rounded-xl text-center font-mono font-bold text-white text-sm focus:outline-none"
-                            />
-                            <button
-                              onClick={() => handleVerifyPickup(order.id)}
-                              className="flex-1 py-2 rounded-xl font-bold text-xs bg-purple-500 hover:bg-purple-600 text-slate-950 transition-all"
-                            >
-                              Verify & Handover Order
-                            </button>
+                            <span>Share this pickup PIN with the assigned rider at handover</span>
+                            <strong className="font-mono">{order.pickup_pin}</strong>
                           </div>
                         </div>
                       )}
@@ -821,12 +717,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                             <Truck className="w-4 h-4 animate-bounce" />
                             <span>Out with delivery partner</span>
                           </div>
-                          <button
-                            onClick={() => handleUpdateOrderStatus(order.id, "DELIVERED")}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 font-bold"
-                          >
-                            Mark Delivered
-                          </button>
+
                         </div>
                       )}
                     </div>
@@ -1138,7 +1029,7 @@ export default function SellerDashboard({ user: initialUser, onLogout }: SellerD
                   )}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageFileChange}
                     className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
                   />

@@ -19,28 +19,35 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
 
-  OrderProvider() {
-    _initDemoOrders();
-    fetchOrders();
+  int? _customerId;
+  bool _disposed = false;
+
+  void setCustomer(int? id) {
+    if (id == _customerId) return;
+    _customerId = id;
+    _pollingTimer?.cancel();
+    _activeOrder = null;
+    _orderHistory = [];
+    _errorMessage = '';
+    _isLoading = false;
+    notifyListeners();
+    if (id != null) fetchOrders();
   }
 
-  void _initDemoOrders() {
-    _orderHistory = [
-      OrderModel(
-        id: 1042,
-        orderNumber: 'SL-1042',
-        status: OrderStatus.delivered,
-        totalAmount: 185.0,
-        deliveryPin: '7391',
-        items: [],
-        shopName: 'Saini Restrorent and Kirana Store',
-        deliveryAddress: 'Flat 402, Shiv Shakti Enclave, Kanti Nagar',
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-        riderName: 'Ramesh Kumar',
-        riderPhone: '9876543210',
-        isReviewed: false,
-      ),
-    ];
+  Map<String, dynamic> _cartPayload(List<CartItemModel> items, String? coupon) {
+    if (items.isEmpty || items.any((item) => item.shopId != items.first.shopId)) {
+      throw ApiException('Please check out one shop at a time.');
+    }
+    return {
+      'shop_id': items.first.shopId,
+      'items': items.map((item) => {'inventory_id': item.inventoryId, 'quantity': item.quantity}).toList(),
+      'coupon_code': coupon,
+    };
+  }
+
+  Future<double> quote(List<CartItemModel> items, String? coupon) async {
+    final response = await _api.post(ApiConstants.cartQuote, _cartPayload(items, coupon));
+    return (response['grand_total'] as num).toDouble();
   }
 
   Future<bool> placeOrder({
@@ -48,45 +55,38 @@ class OrderProvider extends ChangeNotifier {
     required double totalAmount,
     required String deliveryAddress,
     required String paymentMode,
+    required double lat,
+    required double lng,
+    String? coupon,
   }) async {
+    final customer = _customerId;
     _isLoading = true;
     _errorMessage = '';
     notifyListeners();
 
     try {
-      final payload = {
-        'items': items.map((e) => e.toJson()).toList(),
-        'total_amount': totalAmount,
+      final response = await _api.post(ApiConstants.placeOrder, {
+        ..._cartPayload(items, coupon),
+        'expected_total': totalAmount,
         'delivery_address': deliveryAddress,
-        'payment_mode': paymentMode,
-      };
-
-      dynamic res;
-      try {
-        res = await _api.post(ApiConstants.placeOrder, payload);
-      } catch (_) {
-        // Fallback for seamless offline/preview mode
-        res = {
-          'id': DateTime.now().millisecondsSinceEpoch % 10000,
-          'order_number': 'SL-${DateTime.now().millisecondsSinceEpoch % 10000}',
-          'status': 'ACCEPTED',
-          'total_amount': totalAmount,
-          'delivery_pin': '${1000 + (DateTime.now().millisecond % 9000)}',
-          'shop_name': items.isNotEmpty ? items.first.shopName : 'Local Store',
-          'delivery_address': deliveryAddress,
-        };
+        'delivery_lat': lat,
+        'delivery_lng': lng,
+        'payment_method': paymentMode,
+      });
+      if (_disposed || customer != _customerId) return false;
+      final confirmed = response['order'];
+      if (confirmed is! Map || confirmed['id'] == null) {
+        throw ApiException('Order confirmation unavailable. Check your order history.');
       }
-
-      if (res is Map) {
-        _activeOrder = OrderModel.fromJson(Map<String, dynamic>.from(res));
-        _orderHistory.insert(0, _activeOrder!);
-        _startLiveTracking();
-      }
-
+      _activeOrder = OrderModel.fromJson({...Map<String, dynamic>.from(confirmed),
+        'items': items.map((item) => item.toJson()).toList()});
+      _orderHistory.insert(0, _activeOrder!);
+      _startLiveTracking();
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
+      if (_disposed || customer != _customerId) return false;
       _isLoading = false;
       _errorMessage = e.toString();
       notifyListeners();
@@ -96,68 +96,36 @@ class OrderProvider extends ChangeNotifier {
 
   void _startLiveTracking() {
     _pollingTimer?.cancel();
-    // Simulate real-time progression from ACCEPTED -> PACKING -> OUT_FOR_DELIVERY -> DELIVERED
-    int currentStep = 1;
-    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
-      if (_activeOrder == null) {
-        timer.cancel();
-        return;
-      }
-      currentStep++;
-      if (currentStep == 2) {
-        _activeOrder = OrderModel(
-          id: _activeOrder!.id,
-          orderNumber: _activeOrder!.orderNumber,
-          status: OrderStatus.packing,
-          totalAmount: _activeOrder!.totalAmount,
-          deliveryPin: _activeOrder!.deliveryPin,
-          items: _activeOrder!.items,
-          shopName: _activeOrder!.shopName,
-          deliveryAddress: _activeOrder!.deliveryAddress,
-          createdAt: _activeOrder!.createdAt,
-          riderName: 'Ramesh Kumar',
-          riderPhone: '9876543210',
-        );
+    final order = _activeOrder!;
+    bool loading = false;
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) async {
+      if (loading) return;
+      loading = true;
+      try {
+        final data = await _api.get('${ApiConstants.orderDetails}/${order.id}');
+        if (!timer.isActive || _activeOrder?.id != order.id) return;
+        final latest = OrderModel.fromJson({...Map<String, dynamic>.from(data),
+          'created_at': order.createdAt.toIso8601String(),
+          'items': order.items.map((item) => item.toJson()).toList()});
+        _activeOrder = latest;
+        final index = _orderHistory.indexWhere((entry) => entry.id == latest.id);
+        if (index >= 0) _orderHistory[index] = latest;
+        if (latest.status == OrderStatus.delivered || latest.status == OrderStatus.cancelled) timer.cancel();
         notifyListeners();
-      } else if (currentStep == 3) {
-        _activeOrder = OrderModel(
-          id: _activeOrder!.id,
-          orderNumber: _activeOrder!.orderNumber,
-          status: OrderStatus.outForDelivery,
-          totalAmount: _activeOrder!.totalAmount,
-          deliveryPin: _activeOrder!.deliveryPin,
-          items: _activeOrder!.items,
-          shopName: _activeOrder!.shopName,
-          deliveryAddress: _activeOrder!.deliveryAddress,
-          createdAt: _activeOrder!.createdAt,
-          riderName: 'Ramesh Kumar',
-          riderPhone: '9876543210',
-        );
-        notifyListeners();
-      } else if (currentStep >= 4) {
-        _activeOrder = OrderModel(
-          id: _activeOrder!.id,
-          orderNumber: _activeOrder!.orderNumber,
-          status: OrderStatus.delivered,
-          totalAmount: _activeOrder!.totalAmount,
-          deliveryPin: _activeOrder!.deliveryPin,
-          items: _activeOrder!.items,
-          shopName: _activeOrder!.shopName,
-          deliveryAddress: _activeOrder!.deliveryAddress,
-          createdAt: _activeOrder!.createdAt,
-          riderName: 'Ramesh Kumar',
-          riderPhone: '9876543210',
-        );
-        timer.cancel();
-        notifyListeners();
+      } catch (_) {
+        // Keep the last confirmed status while the network is unavailable.
+      } finally {
+        loading = false;
       }
     });
   }
 
   Future<void> fetchOrders() async {
+    final customer = _customerId;
+    if (customer == null) return;
     try {
       final res = await _api.get(ApiConstants.myOrders);
-      if (res is List) {
+      if (!_disposed && customer == _customerId && res is List) {
         _orderHistory = res.map((e) => OrderModel.fromJson(e)).toList();
         notifyListeners();
       }
@@ -176,7 +144,7 @@ class OrderProvider extends ChangeNotifier {
         'order_id': orderId,
         'product_rating': productRating,
         'shop_rating': shopRating,
-        'delivery_rating': deliveryRating,
+        'partner_rating': deliveryRating.round(),
         'comment': comment.trim(),
       });
       // Mark as reviewed in memory
@@ -207,6 +175,7 @@ class OrderProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _pollingTimer?.cancel();
     super.dispose();
   }

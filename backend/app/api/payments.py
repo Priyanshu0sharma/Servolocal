@@ -1,268 +1,109 @@
+from asyncio import to_thread
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends, Header
-from pydantic import BaseModel, Field
-from typing import Optional, Dict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from typing import Optional
 
-from app.db.session import get_db
-from app.db.models import PaymentIntent, Order, User, WalletLedger
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import active_session
 from app.core.razorpay_client import razorpay_service
-from app.api.auth import decode_token
+from app.db.models import PaymentIntent, User, WalletLedger
+from app.db.session import get_db
 
 router = APIRouter(prefix="/payments", tags=["Payments & Razorpay"])
 
 
-def get_current_customer(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Please log in.",
-        )
-    token = authorization.split(" ")[1]
-    return decode_token(token)
+class WalletTopupCreateRequest(BaseModel):
+    amount: float = Field(gt=0, multiple_of=0.01, allow_inf_nan=False)
 
 
-class CreatePaymentOrderRequest(BaseModel):
-    amount: float = Field(..., gt=0, description="Amount in INR")
-    receipt: str = Field(..., description="Order code / receipt reference")
-    notes: Optional[Dict[str, str]] = None
+class CreatePaymentOrderRequest(WalletTopupCreateRequest):
+    receipt: str = Field(min_length=1, max_length=40)
+    notes: Optional[dict[str, str]] = None
 
 
 class VerifyPaymentRequest(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
     razorpay_signature: str
-    order_id: Optional[int] = None
+
+
+async def create_intent(db, user_id, purpose, amount, receipt, notes):
+    if not razorpay_service.is_configured:
+        raise HTTPException(503, "Razorpay is unavailable.")
+    order = await to_thread(razorpay_service.create_order, amount, receipt, notes)
+    if not order or not order.get("order_id"):
+        raise HTTPException(502, "Payment order creation failed.")
+    db.add(PaymentIntent(purpose=purpose, user_id=user_id, amount=amount,
+                         razorpay_order_id=order["order_id"], status="CREATED"))
+    await db.commit()
+    return {"success": True, "payment_order": order, "key_id": razorpay_service.key_id, "amount": amount}
+
+
+async def verify_intent(db, user_id, purpose, payload):
+    if not razorpay_service.is_configured:
+        raise HTTPException(503, "Razorpay is unavailable.")
+    if not razorpay_service.verify_payment_signature(**payload.model_dump()):
+        raise HTTPException(400, "Payment signature verification failed.")
+    intent = await db.scalar(select(PaymentIntent).where(
+        PaymentIntent.user_id == user_id, PaymentIntent.purpose == purpose,
+        PaymentIntent.razorpay_order_id == payload.razorpay_order_id,
+    ).with_for_update())
+    if intent is None:
+        raise HTTPException(404, "Payment order not found.")
+    if intent.status != "CREATED":
+        if intent.razorpay_payment_id != payload.razorpay_payment_id or intent.status not in ("PAID", "APPLIED"):
+            raise HTTPException(409, "Payment order is unavailable.")
+        return intent, False
+    try:
+        payment = await to_thread(razorpay_service.fetch_payment, payload.razorpay_payment_id)
+    except Exception:
+        raise HTTPException(503, "Payment status unavailable. Please retry verification.")
+    if (payment.get("status") != "captured" or payment.get("currency") != "INR"
+            or payment.get("order_id") != intent.razorpay_order_id or payment.get("amount_refunded", 0)
+            or payment.get("amount") != round(intent.amount * 100)):
+        raise HTTPException(409, "A captured payment for the full amount is required.")
+    intent.razorpay_payment_id = payload.razorpay_payment_id
+    intent.status = "PAID"
+    return intent, True
 
 
 @router.post("/create-order")
-async def create_razorpay_order(
-    payload: CreatePaymentOrderRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Creates a new Razorpay payment order for customer checkout and persists in PaymentIntent.
-    """
-    if not razorpay_service.is_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Razorpay payment gateway is not configured.",
-        )
-
-    order = razorpay_service.create_order(
-        amount_in_rupees=payload.amount,
-        receipt=payload.receipt,
-        notes=payload.notes,
-    )
-
-    if not order:
-        raise HTTPException(status_code=500, detail="Failed to initialize payment gateway order.")
-
-    try:
-        p_intent = PaymentIntent(
-            purpose="CUSTOMER_ORDER_CHECKOUT",
-            amount=payload.amount,
-            razorpay_order_id=order.get("id"),
-            status="CREATED",
-            created_at=datetime.now(timezone.utc),
-        )
-        db.add(p_intent)
-        await db.commit()
-    except Exception:
-        pass
-
-    return {
-        "success": True,
-        "payment_order": order,
-        "key_id": razorpay_service.key_id,
-    }
+async def create_razorpay_order(payload: CreatePaymentOrderRequest, user: dict = Depends(active_session),
+                                db: AsyncSession = Depends(get_db)):
+    return await create_intent(db, user["id"], "CUSTOMER_ORDER_CHECKOUT", payload.amount,
+                               payload.receipt, payload.notes)
 
 
 @router.post("/verify")
-async def verify_razorpay_payment(
-    payload: VerifyPaymentRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Cryptographically verifies the Razorpay payment signature and updates payment status.
-    """
-    if not razorpay_service.is_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Razorpay payment gateway is not configured.",
-        )
-
-    is_valid = razorpay_service.verify_payment_signature(
-        razorpay_order_id=payload.razorpay_order_id,
-        razorpay_payment_id=payload.razorpay_payment_id,
-        razorpay_signature=payload.razorpay_signature,
-    )
-
-    if not is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid payment signature. Transaction verification failed.",
-        )
-
-    try:
-        # Update PaymentIntent
-        await db.execute(
-            update(PaymentIntent)
-            .where(PaymentIntent.razorpay_order_id == payload.razorpay_order_id)
-            .values(
-                razorpay_payment_id=payload.razorpay_payment_id,
-                status="PAID",
-            )
-        )
-        # If order_id provided, mark order payment_status PAID
-        if payload.order_id:
-            await db.execute(
-                update(Order)
-                .where(Order.id == payload.order_id)
-                .values(payment_status="PAID")
-            )
-        await db.commit()
-    except Exception:
-        pass
-
-    return {
-        "success": True,
-        "verified": True,
-        "message": "Payment verified successfully!",
-        "payment_id": payload.razorpay_payment_id,
-    }
-
-
-# ─── WALLET TOP-UP WITH RAZORPAY (UPI QR, CARDS, NETBANKING) ───────────────
-
-class WalletTopupCreateRequest(BaseModel):
-    amount: float = Field(..., gt=0, description="Amount in INR to add to wallet")
-
-
-class WalletTopupVerifyRequest(BaseModel):
-    razorpay_order_id: str
-    razorpay_payment_id: str
-    razorpay_signature: str
-    amount: float
+async def verify_razorpay_payment(payload: VerifyPaymentRequest, user: dict = Depends(active_session),
+                                  db: AsyncSession = Depends(get_db)):
+    await verify_intent(db, user["id"], "CUSTOMER_ORDER_CHECKOUT", payload)
+    await db.commit()
+    return {"success": True, "verified": True, "payment_id": payload.razorpay_payment_id}
 
 
 @router.post("/wallet/topup/create-order")
-async def create_wallet_topup_order(
-    payload: WalletTopupCreateRequest,
-    customer: dict = Depends(get_current_customer),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Creates a dedicated Razorpay payment order for adding real money / tokens to customer wallet.
-    """
-    if not razorpay_service.is_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Razorpay payment gateway is not configured.",
-        )
-
-    receipt = f"wal_{customer.get('id')}_{int(datetime.now(timezone.utc).timestamp())}"
-    order = razorpay_service.create_order(
-        amount_in_rupees=payload.amount,
-        receipt=receipt,
-        notes={"user_id": str(customer.get("id")), "purpose": "WALLET_TOPUP"},
-    )
-    if not order:
-        raise HTTPException(status_code=500, detail="Failed to initialize Razorpay wallet top-up order.")
-
-    try:
-        p_intent = PaymentIntent(
-            purpose="WALLET_TOPUP",
-            amount=payload.amount,
-            razorpay_order_id=order.get("order_id") or order.get("id"),
-            status="CREATED",
-            created_at=datetime.now(timezone.utc),
-        )
-        db.add(p_intent)
-        await db.commit()
-    except Exception:
-        pass
-
-    return {
-        "success": True,
-        "payment_order": order,
-        "key_id": razorpay_service.key_id,
-        "amount": payload.amount,
-    }
+async def create_wallet_topup_order(payload: WalletTopupCreateRequest, user: dict = Depends(active_session),
+                                    db: AsyncSession = Depends(get_db)):
+    receipt = f"wal_{user['id']}_{int(datetime.now(timezone.utc).timestamp())}"
+    return await create_intent(db, user["id"], "WALLET_TOPUP", payload.amount, receipt, {"purpose": "WALLET_TOPUP"})
 
 
 @router.post("/wallet/topup/verify")
-async def verify_wallet_topup(
-    payload: WalletTopupVerifyRequest,
-    customer: dict = Depends(get_current_customer),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Cryptographically verifies Razorpay payment signature and credits real INR balance and bonus coins to customer wallet.
-    """
-    if not razorpay_service.is_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="Razorpay payment gateway is not configured.",
-        )
-
-    is_valid = razorpay_service.verify_payment_signature(
-        razorpay_order_id=payload.razorpay_order_id,
-        razorpay_payment_id=payload.razorpay_payment_id,
-        razorpay_signature=payload.razorpay_signature,
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid payment signature. Transaction verification failed.",
-        )
-
-    user_id = customer.get("id")
-    stmt = select(User).where(User.id == user_id)
-    res = await db.execute(stmt)
-    user = res.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found.")
-
-    # Credit wallet
-    user.wallet_balance = (user.wallet_balance or 0.0) + payload.amount
-    # Bonus ServoCoins: 10% bonus tokens
-    bonus_coins = int(payload.amount * 0.1)
-    user.servo_coins = (user.servo_coins or 0) + bonus_coins
-
-    ledger = WalletLedger(
-        user_id=user.id,
-        entry_type="CREDIT",
-        amount=payload.amount,
-        balance_after=user.wallet_balance,
-        note=f"Wallet Top-Up via Razorpay UPI/Card ({payload.razorpay_payment_id})",
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(ledger)
-
-    # Update PaymentIntent
-    try:
-        await db.execute(
-            update(PaymentIntent)
-            .where(PaymentIntent.razorpay_order_id == payload.razorpay_order_id)
-            .values(razorpay_payment_id=payload.razorpay_payment_id, status="PAID")
-        )
-    except Exception:
-        pass
-
+async def verify_wallet_topup(payload: VerifyPaymentRequest, customer: dict = Depends(active_session),
+                              db: AsyncSession = Depends(get_db)):
+    user = await db.scalar(select(User).where(User.id == customer["id"]).with_for_update()
+                           .execution_options(populate_existing=True))
+    intent, newly_paid = await verify_intent(db, user.id, "WALLET_TOPUP", payload)
+    bonus = int(intent.amount * 0.1)
+    if newly_paid:
+        user.wallet_balance = round(user.wallet_balance + intent.amount, 2)
+        user.servo_coins += bonus
+        db.add(WalletLedger(user_id=user.id, entry_type="CREDIT", amount=intent.amount,
+                            balance_after=user.wallet_balance, note=f"Wallet top-up ({payload.razorpay_payment_id})"))
     await db.commit()
-    await db.refresh(user)
-
-    return {
-        "success": True,
-        "verified": True,
-        "message": f"₹{payload.amount:.2f} successfully credited to your wallet balance!",
-        "new_balance": round(user.wallet_balance, 2),
-        "new_coins": user.servo_coins,
-        "bonus_coins": bonus_coins,
-        "payment_id": payload.razorpay_payment_id,
-    }
-
-
-
+    return {"success": True, "verified": True, "new_balance": user.wallet_balance,
+            "new_coins": user.servo_coins, "bonus_coins": bonus, "payment_id": payload.razorpay_payment_id}

@@ -246,16 +246,9 @@ export async function getDiscoveryFeed(
 }
 
 export async function checkLocationServiceability(lat: number, lng: number) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/discovery/check-serviceability?lat=${lat}&lng=${lng}`);
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {}
-  return {
-    is_serviceable: true,
-    estimated_delivery_time: "10-15 mins",
-  };
+  const res = await fetch(`${API_BASE_URL}/api/discovery/check-serviceability?lat=${lat}&lng=${lng}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Delivery coverage is unavailable.");
+  return res.json();
 }
 
 export async function searchSuggest(query: string) {
@@ -306,8 +299,11 @@ export async function checkoutOrder(payload: {
   shop_id: number;
   items: Array<{ inventory_id: number; quantity: number }>;
   delivery_address: string;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
   payment_method: string;
   payment_id?: string;
+  expected_total?: number;
   customer_notes?: string;
 }) {
   const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
@@ -335,8 +331,14 @@ export async function getMyOrders() {
   return res.json();
 }
 
+function sessionHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("servo_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function trackOrder(orderId: string | number) {
-  const res = await fetch(`${API_BASE_URL}/api/orders/track/${orderId}`);
+  const res = await fetch(`${API_BASE_URL}/api/orders/track/${encodeURIComponent(orderId)}`, { headers: sessionHeaders(), cache: "no-store" });
+  if ([401, 403, 404].includes(res.status)) return null;
   if (!res.ok) throw new Error("Tracking error");
   return res.json();
 }
@@ -401,7 +403,7 @@ export async function updateAdminOrderStatus(orderId: number, status: string) {
 export async function createRazorpayOrder(amount: number, receipt: string, notes?: Record<string, string>) {
   const res = await fetch(`${API_BASE_URL}/api/payments/create-order`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...sessionHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ amount, receipt, notes }),
   });
   if (!res.ok) {
@@ -418,7 +420,7 @@ export async function verifyRazorpayPayment(payload: {
 }) {
   const res = await fetch(`${API_BASE_URL}/api/payments/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...sessionHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -438,6 +440,7 @@ export async function uploadImageToR2(file: File, folder: string = "products") {
 
   const res = await fetch(`${API_BASE_URL}/api/storage/upload`, {
     method: "POST",
+    headers: sessionHeaders(),
     body: formData,
   });
   if (!res.ok) {
@@ -450,7 +453,7 @@ export async function uploadImageToR2(file: File, folder: string = "products") {
 export async function getR2PresignedUrl(filename: string, contentType: string = "image/jpeg", folder: string = "products") {
   const res = await fetch(`${API_BASE_URL}/api/storage/presigned-url`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...sessionHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ filename, content_type: contentType, folder }),
   });
   if (!res.ok) {

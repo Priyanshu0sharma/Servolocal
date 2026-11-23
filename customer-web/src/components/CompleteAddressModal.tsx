@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import {
   searchIndianPlaces,
+  googleMapsPinUrl,
   reverseGeocodeIndianLocation,
-  isLocalInstantDeliveryAvailable,
   PlaceSuggestion,
 } from "@/lib/locationSearch";
 import { addSavedAddress, checkLocationServiceability } from "@/lib/api";
@@ -72,7 +72,7 @@ export default function CompleteAddressModal({
   const moveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Serviceability state
-  const [isServiceable, setIsServiceable] = useState(true);
+  const [isServiceable, setIsServiceable] = useState<boolean | null>(null);
   const [isCheckingServiceability, setIsCheckingServiceability] = useState(false);
   const [serviceEta, setServiceEta] = useState<string>("10-15 mins");
 
@@ -120,6 +120,7 @@ export default function CompleteAddressModal({
     if (!isOpen || !mapContainerRef.current) return;
 
     let isMounted = true;
+    let revision = 0;
 
     // Dynamically import Leaflet
     import("leaflet").then((L) => {
@@ -132,7 +133,7 @@ export default function CompleteAddressModal({
       }
 
       const map = L.map(mapContainerRef.current, {
-        center: [coords.lat, coords.lng],
+        center: [initialLat, initialLng],
         zoom: 16,
         zoomControl: false,
       });
@@ -150,7 +151,8 @@ export default function CompleteAddressModal({
 
       // Handle map dragging & panning (updates center coordinates and reverse geocodes)
       const handleMoveEnd = () => {
-        const center = map.getCenter();
+        const request = ++revision;
+        const center = map.getCenter().wrap();
         const newLat = center.lat;
         const newLng = center.lng;
 
@@ -162,40 +164,42 @@ export default function CompleteAddressModal({
         moveDebounceRef.current = setTimeout(async () => {
           try {
             const data = await reverseGeocodeIndianLocation(newLat, newLng);
-            if (isMounted) {
+            if (isMounted && request === revision) {
               setAddressTitle(data.title);
               setAddressSubtitle(data.subtitle);
-              setLocalityText((prev) => (!prev ? `${data.title}, ${data.subtitle}` : prev));
+              setLocalityText(`${data.title}, ${data.subtitle}`);
             }
           } catch {
-            if (isMounted) {
+            if (isMounted && request === revision) {
               setAddressTitle("Selected Area");
               setAddressSubtitle(`${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
             }
           } finally {
-            if (isMounted) setIsResolvingAddress(false);
+            if (isMounted && request === revision) setIsResolvingAddress(false);
           }
 
           // Check delivery serviceability
+          if (!isMounted || request !== revision) return;
           setIsCheckingServiceability(true);
           try {
             const serv = await checkLocationServiceability(newLat, newLng);
-            if (isMounted) {
-              setIsServiceable(serv.is_serviceable ?? isLocalInstantDeliveryAvailable(newLat, newLng, ""));
+            if (isMounted && request === revision) {
+              setIsServiceable(serv.is_serviceable);
               if (serv.estimated_delivery_time) {
                 setServiceEta(serv.estimated_delivery_time);
               }
             }
           } catch {
-            if (isMounted) {
-              setIsServiceable(isLocalInstantDeliveryAvailable(newLat, newLng, ""));
+            if (isMounted && request === revision) {
+              setIsServiceable(null);
             }
           } finally {
-            if (isMounted) setIsCheckingServiceability(false);
+            if (isMounted && request === revision) setIsCheckingServiceability(false);
           }
         }, 350);
       };
 
+      map.on("movestart", () => { ++revision; setIsResolvingAddress(true); });
       map.on("moveend", handleMoveEnd);
 
       // Trigger initial reverse geocoding & serviceability check
@@ -218,7 +222,7 @@ export default function CompleteAddressModal({
         mapInstanceRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, initialLat, initialLng]);
 
   // Live place search query as user types
   useEffect(() => {
@@ -233,19 +237,22 @@ export default function CompleteAddressModal({
     setIsSearching(true);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
 
+    let active = true;
     searchDebounceRef.current = setTimeout(async () => {
       try {
         const results = await searchIndianPlaces(q);
+        if (!active) return;
         setSuggestions(results);
         setShowSuggestions(true);
       } catch {
-        setSuggestions([]);
+        if (active) setSuggestions([]);
       } finally {
-        setIsSearching(false);
+        if (active) setIsSearching(false);
       }
     }, 250);
 
     return () => {
+      active = false;
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, [searchQuery]);
@@ -481,6 +488,7 @@ export default function CompleteAddressModal({
           {/* Bottom Location Summary Card (Matching Blinkit Reference) */}
           <div className="p-3.5 bg-white border-t border-gray-100 shadow-sm relative z-[900]">
             <span className="block text-[11px] font-medium text-gray-500 mb-1">
+              <a href={googleMapsPinUrl(coords.lat, coords.lng)} target="_blank" rel="noopener noreferrer" className="float-right text-green-800 underline">View pin in Google Maps</a>
               Delivering your order to
             </span>
             <div className="flex items-center justify-between gap-2">
@@ -513,7 +521,7 @@ export default function CompleteAddressModal({
                 ) : (
                   <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center gap-1">
                     <AlertCircle className="w-3 h-3 text-amber-600" />
-                    Outside instant zone
+                    {isServiceable === null ? "Coverage unavailable" : "Outside instant zone"}
                   </span>
                 )}
               </div>
@@ -707,7 +715,7 @@ export default function CompleteAddressModal({
             <div className="px-6 py-4 border-t border-gray-100 bg-white shrink-0">
               <button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || isResolvingAddress || isLocatingUser}
                 className="w-full py-3.5 rounded-2xl bg-[#0C831F] hover:bg-[#096B19] active:scale-[0.99] text-white text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSaving ? (

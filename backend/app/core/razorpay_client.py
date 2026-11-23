@@ -58,6 +58,9 @@ class RazorpayService:
             logger.error(f"Razorpay order creation failed: {e}")
             return None
 
+    def fetch_payment(self, payment_id: str) -> dict:
+        return self._client.payment.fetch(payment_id)
+
     def verify_payment_signature(
         self,
         razorpay_order_id: str,
