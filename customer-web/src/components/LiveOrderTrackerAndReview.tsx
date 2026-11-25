@@ -186,7 +186,8 @@ export default function LiveOrderTrackerAndReview({
         </h2>
         {offline && <p role="status" className="my-2 text-xs text-amber-800">Tracking updates unavailable. Reconnecting…</p>}
         {liveOrder && !["DELIVERED", "CANCELLED", "REJECTED"].includes(liveOrder.status) &&
-          <OrderTrackingMap shop={liveOrder.shop} destination={liveOrder.destination} rider={riderInfo} offline={offline} />}
+          <OrderTrackingMap key={liveOrder.id} shop={liveOrder.shop} destination={liveOrder.destination}
+            rider={riderInfo} onTheWay={currentStatus === "OUT_FOR_DELIVERY"} offline={offline} />}
 
         {/* 4-Step Blinkit Live Tracker */}
         {!["CANCELLED", "REJECTED"].includes(liveOrder?.status) && <div className="py-2 space-y-4">

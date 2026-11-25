@@ -1,0 +1,22 @@
+.card { margin: .85rem 0; overflow: hidden; border: 1px solid #dae5dd; border-radius: 18px; background: white; }
+.header, .legend { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; }
+.header h3 { color: #133626; font-size: 15px; font-weight: 750; line-height: 1.25; }
+.header p, .notice { color: #52625a; font-size: 12px; line-height: 1.5; }
+.header p { margin-top: 3px; }
+.live { display: inline-flex; flex: none; align-items: center; gap: 5px; border-radius: 24px; background: #e5f5eb; padding: 4px 8px; color: #11663e; font-size: 11px; font-weight: 700; }
+.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #15834b; }
+.surface { position: relative; isolation: isolate; }
+.map { height: clamp(190px, 32dvh, 285px); background: #e7eee7; }
+.recenter { position: absolute; z-index: 1000; bottom: 24px; right: 10px; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; background: white; border: 1px solid #c2d0c7; border-radius: 24px; box-shadow: 0 2px 8px #18322325; color: #154a32; font-size: 12px; font-weight: 700; }
+.pin > span { width: 100%; height: 100%; display: grid; place-items: center; }
+.pin svg { box-sizing: border-box; width: 100%; height: 100%; padding: 6px; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 5px #17382355; color: white; }
+.shop { background: #9a5422; }
+.home { background: #245387; }
+.rider { background: #087542; outline: 4px solid #168c4a33; }
+.stale { background: #606d67; }
+.legend { flex-wrap: wrap; justify-content: flex-start; gap: 6px 12px; padding-block: 9px; font-size: 11px; color: #354a40; }
+.legend:empty { display: none; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend strong { margin-left: auto; font-size: 12px; color: #154a32; }
+.legend small { font-size: 10px; font-weight: 500; }
+.notice { padding: 8px 14px; background: #f4f6f3; }
